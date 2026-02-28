@@ -32,9 +32,9 @@ CLI command: **`tndm`**
 - Ticket state is stored in the repository.
 - Storage model: one directory per ticket.
 - Proposed structure:
-    - `.agent/tickets/TICKET-123/ticket.<format>`
-    - `.agent/tickets/TICKET-123/state.<format>`
-    - `.agent/tickets/TICKET-123/notes.md`
+    - `.tndm/tickets/TICKET-123/ticket.<format>`
+    - `.tndm/tickets/TICKET-123/state.<format>`
+    - `.tndm/tickets/TICKET-123/notes.md`
 - The split between stable metadata and volatile state is intentional to reduce Git friction.
 
 ## File format + determinism
