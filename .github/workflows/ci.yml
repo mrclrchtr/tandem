@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Setup mise
+        uses: jdx/mise-action@6d1e696aa24c1aa1bcc1adea0212707c71ab78a8 # v3.6.1
+        with:
+          experimental: true
+          install_args: "--locked rust hk"
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2.8.2
+
+      - name: Format
+        run: mise run fmt
+
+      - name: Compile
+        run: mise run compile
+
+      - name: Clippy
+        run: mise run clippy
+
+      - name: Test
+        run: mise run test
