@@ -1,0 +1,80 @@
+amends "package://github.com/jdx/hk/releases/download/v1.36.0/hk@1.36.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.36.0/hk@1.36.0#/Builtins.pkl"
+
+// Exclude skill trees from hook file selection. This prevents hk from stashing/restoring
+// when commits only touch skills (and avoids edge-cases with symlink-to-directory entries
+// like `.claude/skills/*`).
+exclude = List(
+    ".agents/**",
+    ".claude/**",
+    "skills-lock.json"
+)
+
+hooks {
+    ["pre-commit"] {
+        fix = true
+        // hk stashing can fail on "skill-only" commits that add new files/symlinks (e.g. `.claude/skills/*`).
+        // We already exclude those trees, so stashing is mostly about avoiding staged+unstaged overlap in Rust files.
+        // Prefer staging only the files hk selected (`<JOB_FILES>`) to minimize surprises.
+        stash = "none"
+        steps {
+            ["cargo-fmt"] = (Builtins.cargo_fmt) {
+                stage = "<JOB_FILES>"
+                check_first = true
+            }
+            ["cargo-check"] {
+                glob = "**/*.rs"
+                workspace_indicator = "Cargo.toml"
+                check = "cargo check --manifest-path {{workspace_indicator}} --workspace --all-targets --all-features --locked"
+            }
+        }
+    }
+
+    ["pre-push"] {
+        fix = false
+        steps {
+            ["cargo-clippy"] {
+                glob = "**/*.rs"
+                workspace_indicator = "Cargo.toml"
+                check = "cargo clippy --manifest-path {{workspace_indicator}} --workspace --all-targets --all-features --locked -- -D warnings"
+            }
+            ["cargo-test"] {
+                glob = "**/*.rs"
+                workspace_indicator = "Cargo.toml"
+                check = "cargo test --manifest-path {{workspace_indicator}} --workspace --locked"
+            }
+        }
+    }
+
+    ["check"] {
+        fix = false
+        steps {
+            ["cargo-fmt"] = Builtins.cargo_fmt
+            ["cargo-check"] {
+                glob = "**/*.rs"
+                workspace_indicator = "Cargo.toml"
+                check = "cargo check --manifest-path {{workspace_indicator}} --workspace --all-targets --all-features --locked"
+            }
+            ["cargo-clippy"] {
+                glob = "**/*.rs"
+                workspace_indicator = "Cargo.toml"
+                check = "cargo clippy --manifest-path {{workspace_indicator}} --workspace --all-targets --all-features --locked -- -D warnings"
+            }
+            ["cargo-test"] {
+                glob = "**/*.rs"
+                workspace_indicator = "Cargo.toml"
+                check = "cargo test --manifest-path {{workspace_indicator}} --workspace --locked"
+            }
+        }
+    }
+
+    ["fix"] {
+        fix = true
+        steps {
+            ["cargo-fmt"] = (Builtins.cargo_fmt) {
+                stage = "<JOB_FILES>"
+                check_first = true
+            }
+        }
+    }
+}

@@ -1,6 +1,21 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:best-practices"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)hk\\.pkl$/"
+      ],
+      "matchStrings": [
+        "amends\\s+\"package://github\\.com/(?<depName>jdx/hk)/releases/download/v(?<currentValue>[^/]+)/hk@[^\\\"]+#/Config\\.pkl\"\\s*(?:\\r?\\n)import\\s+\"package://github\\.com/jdx/hk/releases/download/v[^/]+/hk@[^\\\"]+#/Builtins\\.pkl\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v?(?<version>.*)$",
+      "autoReplaceStringTemplate": "amends \"package://github.com/{{depName}}/releases/download/v{{newValue}}/hk@{{newValue}}#/Config.pkl\"\nimport \"package://github.com/{{depName}}/releases/download/v{{newValue}}/hk@{{newValue}}#/Builtins.pkl\""
+    }
   ]
 }

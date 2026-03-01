@@ -1,2 +1,39 @@
+[settings]
+experimental = true
+idiomatic_version_file_enable_tools = ["rust"]
+lockfile = true
+
 [tools]
-rust = "latest"
+hk = "1.36.0"
+
+[tasks.hooks-install]
+description = "Install git hooks (mise wrapper)"
+run = "hk install --mise"
+
+[tasks.fmt]
+description = "Check formatting"
+run = "hk run check --all --check --step cargo-fmt"
+
+[tasks.fmt-fix]
+description = "Apply formatting"
+run = "hk run fix --all --fix"
+
+[tasks.clippy]
+description = "Run clippy"
+run = "hk run check --all --check --step cargo-clippy"
+
+[tasks.compile]
+description = "Run cargo check"
+run = "hk run check --all --check --step cargo-check"
+
+[tasks.test]
+description = "Run tests"
+run = "hk run check --all --check --step cargo-test"
+
+[tasks.check]
+description = "Run all checks"
+depends = ["fmt", "compile", "clippy", "test"]
+
+[tasks.fix]
+description = "Run all auto-fixes"
+depends = ["fmt-fix"]
