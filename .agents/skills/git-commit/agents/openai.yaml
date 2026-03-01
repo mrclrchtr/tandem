@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Commit"
+  short_description: "Create safe Conventional Commits"
+  default_prompt: "Use $git-commit to stage changes safely and create a Conventional Commit from the actual diff."
