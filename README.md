@@ -7,7 +7,7 @@ Project vision: `docs/vision.md`.
 ## Development
 
 - Toolchain manager: `mise`
-- Rust version source of truth: `rust-toolchain.toml`
+- Rust version source of truth: `mise.toml`
 - Build: `cargo build`
 - Test: `mise run test`
 - Compile: `mise run compile`
