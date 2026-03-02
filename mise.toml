@@ -4,6 +4,7 @@ idiomatic_version_file_enable_tools = ["rust"]
 lockfile = true
 
 [tools]
+actionlint = "1.7.11"
 hk = "1.36.0"
 
 [tasks.hooks-install]
@@ -28,7 +29,7 @@ run = "hk run check --all --check --step cargo-check"
 
 [tasks.test]
 description = "Run tests"
-run = "hk run check --all --check --step cargo-test"
+run = "cargo test --workspace --locked"
 
 [tasks.check]
 description = "Run all checks"
