@@ -1,0 +1,12 @@
+disallowed-types = [
+  "std::fs::File",
+  "std::fs::OpenOptions",
+  "std::process::Command",
+]
+
+disallowed-methods = [
+  "std::fs::create_dir_all",
+  "std::fs::read",
+  "std::fs::read_to_string",
+  "std::fs::write",
+]

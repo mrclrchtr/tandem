@@ -3,6 +3,7 @@
 Git-aware ticket coordination system for AI agents in a monorepo.
 
 Project vision: `docs/vision.md`.
+Architecture overview: `docs/architecture.md`.
 
 ## Development
 
@@ -11,6 +12,7 @@ Project vision: `docs/vision.md`.
 - Build: `cargo build`
 - Test: `mise run test`
 - Compile: `mise run compile`
+- Architecture: `mise run arch`
 - Lint: `mise run clippy`
 - Format: `mise run fmt`
 - Full check: `mise run check`
@@ -42,6 +44,7 @@ Run `mise` tasks manually:
 mise run check
 mise run fmt
 mise run compile
+mise run arch
 mise run clippy
 mise run test
 mise run fix
@@ -58,5 +61,5 @@ Notes:
 Run the CLI:
 
 ```sh
-cargo run --bin tndm -- --help
+cargo run -p tandem-cli --bin tndm -- --help
 ```

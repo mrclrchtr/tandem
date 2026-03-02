@@ -31,13 +31,17 @@ run = "hk run check --all --check --step cargo-clippy"
 description = "Run cargo check"
 run = "hk run check --all --check --step cargo-check"
 
+[tasks.arch]
+description = "Validate workspace architecture boundaries"
+run = "cargo xtask check-arch"
+
 [tasks.test]
 description = "Run tests"
 run = "cargo test --workspace --locked"
 
 [tasks.check]
 description = "Run all checks"
-depends = ["fmt", "compile", "clippy", "test"]
+depends = ["fmt", "compile", "arch", "clippy", "test"]
 
 [tasks.fix]
 description = "Run all auto-fixes"

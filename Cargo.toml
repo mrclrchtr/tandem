@@ -1,21 +1,30 @@
-[package]
-name = "tandem"
+[workspace]
+members = [
+  "crates/tandem-core",
+  "crates/tandem-storage",
+  "crates/tandem-repo",
+  "crates/tandem-cli",
+  "crates/xtask",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
 
-[[bin]]
-name = "tndm"
-path = "src/main.rs"
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.86"
+cargo_metadata = "0.22.0"
 clap = { version = "4.5.23", features = ["derive"] }
+tandem-core = { path = "crates/tandem-core" }
+tandem-storage = { path = "crates/tandem-storage" }
+tandem-repo = { path = "crates/tandem-repo" }
 
-[lints.rust]
+[workspace.lints.rust]
 unsafe_code = "forbid"
 
-[lints.clippy]
+[workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"

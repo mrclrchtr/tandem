@@ -8,6 +8,8 @@ interface and usable by humans through a CLI.
 
 CLI command: **`tndm`**
 
+Repository architecture summary: `docs/architecture.md`.
+
 # Decisions
 
 ## Product scope

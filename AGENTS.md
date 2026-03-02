@@ -8,9 +8,12 @@ humans and agents. The repo-local ticket files are the system of record; no cent
 
 ## Project Structure & Module Organization
 
-- `src/main.rs`: CLI entrypoint (`tndm`) built with `clap` derive.
-- `src/lib.rs`: Core library (ticket model, git/worktree awareness, deterministic file formatting).
-- `docs/`: Product/architecture docs. Start with `docs/vision.md`.
+- `crates/tandem-cli`: CLI crate (command is `tndm`).
+- `crates/tandem-core`: Core domain library (no IO).
+- `crates/tandem-storage`: Filesystem storage adapter.
+- `crates/tandem-repo`: Git/worktree awareness adapter.
+- `crates/xtask`: Tooling (`cargo xtask check-arch`).
+- `docs/`: Product/architecture docs. Start with `docs/vision.md` and `docs/architecture.md`.
 - `target/`: Local build output (do not commit).
 - `.agents/`, `.claude/`: Agent tooling/config (kept out of hook file selection).
 
@@ -22,10 +25,11 @@ Tooling is managed via `mise` (Rust version comes from `rust-toolchain.toml`).
 mise install                 # install tools
 mise run hooks-install       # install git hooks (hk)
 cargo build                  # build
-cargo run --bin tndm -- --help
+cargo run -p tandem-cli --bin tndm -- --help
 mise run fmt                 # rustfmt check (via hk)
 mise run fmt-fix             # apply rustfmt
 mise run compile             # cargo check --workspace --all-targets --all-features --locked
+mise run arch                # architecture boundary check
 mise run clippy              # clippy with -D warnings
 mise run test                # cargo test --workspace --locked
 mise run check               # fmt + compile + clippy + test
