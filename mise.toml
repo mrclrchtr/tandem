@@ -1,7 +1,10 @@
 [settings]
 experimental = true
-idiomatic_version_file_enable_tools = ["rust"]
 lockfile = true
+disable_tools = ["rust"]
+
+[env]
+_.path = ["{{env.HOME}}/.cargo/bin"]
 
 [tools]
 actionlint = "1.7.11"
