@@ -25,6 +25,9 @@ jobs:
         with:
           experimental: true
 
+      - name: Install Rust toolchain
+        run: rustup toolchain install --no-self-update
+
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2.8.2
 

@@ -1,12 +1,15 @@
 [settings]
 experimental = true
 lockfile = true
+disable_tools = ["rust"]
+
+[env]
+_.path = ["{{env.HOME}}/.cargo/bin"]
 
 [tools]
 actionlint = "1.7.11"
 hk = "1.36.0"
 pkl = "latest"
-rust = { version = "1.93.1", profile = "minimal", components = "clippy,rustfmt", postinstall = "rustup component add clippy rustfmt" }
 
 [tasks.hooks-install]
 description = "Install git hooks (mise wrapper)"
