@@ -6,25 +6,10 @@
       "sourceType": "github",
       "computedHash": "c4e9b3ea36efad4ab599465aaac71f81dc3320a183920678fe1587181c446b07"
     },
-    "agent-orchestrator": {
-      "source": "mrclrchtr/skills",
-      "sourceType": "github",
-      "computedHash": "d017996f0bea9b246e5eec720ce9ac51b02bbbcd97db32cbc2ff9b4efc7e7227"
-    },
-    "git-commit": {
-      "source": "mrclrchtr/skills",
-      "sourceType": "github",
-      "computedHash": "252d45444189389f8aa43ef93121c3e7ead7440880469e23f98ac638f11dbdd8"
-    },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "b122f4d1e91aa1d83027e050b5b37c3156203ee85458d7b1360bc48167c9e02a"
-    },
-    "web-fetch-to-markdown": {
-      "source": "mrclrchtr/skills",
-      "sourceType": "github",
-      "computedHash": "ed69df1841b837cffee8df743a681d0678248bfc400fbfddc926b153ff4271ce"
     }
   }
 }
