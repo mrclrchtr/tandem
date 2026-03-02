@@ -28,6 +28,7 @@ jobs:
       - name: Install Rust components (rust-toolchain.toml)
         run: |
           rustup install
+          rustup toolchain install
 
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2.8.2
