@@ -25,11 +25,7 @@ mise install
 Install git hooks:
 
 ```sh
-# Recommended
 mise run hooks-install
-
-# If `hk` isn't on PATH:
-mise x -- hk install --mise
 ```
 
 Run hooks manually:
@@ -37,18 +33,26 @@ Run hooks manually:
 ```sh
 hk run check
 hk run fix
+hk run check --all --step cargo-clippy
 ```
 
 Run `mise` tasks manually:
 
 ```sh
 mise run check
+mise run fmt
+mise run compile
+mise run clippy
+mise run test
 mise run fix
 ```
 
 Notes:
 
 - CI runs `mise` tasks (`fmt`, `compile`, `clippy`, `test`) and uses `--locked` in compile/clippy, so keep `Cargo.lock` up to date.
+- Install hooks with `mise run hooks-install` so git hooks always run in a `mise`-managed tool environment.
+- `cargo-clippy` runs in hk `pre-commit`, `pre-push`, and `check`.
+- `cargo-test` is intentionally not in `hk.pkl`; `mise run test` executes `cargo test --workspace --locked`.
 - Renovate updates `hk.pkl`; if hk-related checks fail after a version bump, update `hk` in `mise.toml` and run `mise install` to refresh `mise.lock`.
 
 Run the CLI:
