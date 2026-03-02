@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_methods, clippy::disallowed_types)]
+
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -15,7 +17,7 @@ struct Cli {
 enum Command {
     /// Format/normalize tandem files.
     Fmt {
-        /// Do not write changes; exit non-zero if formatting would change files.
+        /// Do not write changes (not implemented yet).
         #[arg(long)]
         check: bool,
     },
@@ -42,21 +44,18 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::Fmt { check } => {
-            if check {
-                eprintln!("tndm fmt --check: not implemented yet");
-            } else {
-                eprintln!("tndm fmt: not implemented yet");
-            }
+            let _ = check;
+            anyhow::bail!("tndm fmt is not implemented yet");
         }
         Command::Ticket { command } => match command {
             TicketCommand::Create { id } => {
-                eprintln!("tndm ticket create {id}: not implemented yet")
+                anyhow::bail!("tndm ticket create {id}: not implemented yet")
             }
-            TicketCommand::Show { id } => eprintln!("tndm ticket show {id}: not implemented yet"),
-            TicketCommand::List => eprintln!("tndm ticket list: not implemented yet"),
+            TicketCommand::Show { id } => {
+                anyhow::bail!("tndm ticket show {id}: not implemented yet")
+            }
+            TicketCommand::List => anyhow::bail!("tndm ticket list: not implemented yet"),
         },
-        Command::Awareness => eprintln!("tndm awareness: not implemented yet"),
+        Command::Awareness => anyhow::bail!("tndm awareness: not implemented yet"),
     }
-
-    Ok(())
 }

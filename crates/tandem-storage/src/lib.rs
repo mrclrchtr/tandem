@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_methods, clippy::disallowed_types)]
+
 use std::fmt;
 
 use tandem_core::{ports::TicketStore, ticket::TicketId};
