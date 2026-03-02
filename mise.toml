@@ -6,7 +6,7 @@ lockfile = true
 actionlint = "1.7.11"
 hk = "1.36.0"
 pkl = "latest"
-rust = { version = "1.93.1", profile = "minimal", components = "clippy,rustfmt" }
+rust = { version = "1.93.1", profile = "minimal", components = "clippy,rustfmt", postinstall = "rustup component add clippy rustfmt" }
 
 [tasks.hooks-install]
 description = "Install git hooks (mise wrapper)"
