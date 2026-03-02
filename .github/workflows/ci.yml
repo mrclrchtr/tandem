@@ -37,6 +37,9 @@ jobs:
       - name: Compile
         run: mise run compile
 
+      - name: Architecture
+        run: mise run arch
+
       - name: Clippy
         run: mise run clippy
 
