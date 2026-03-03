@@ -2,7 +2,10 @@
 
 use std::fmt;
 
-use tandem_core::{ports::TicketStore, ticket::TicketId};
+use tandem_core::{
+    ports::TicketStore,
+    ticket::{NewTicket, Ticket, TicketId},
+};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct FileTicketStore;
@@ -31,12 +34,16 @@ impl std::error::Error for StorageError {}
 impl TicketStore for FileTicketStore {
     type Error = StorageError;
 
-    fn create_ticket(&self, _id: &TicketId) -> Result<(), Self::Error> {
+    fn create_ticket(&self, _ticket: NewTicket) -> Result<Ticket, Self::Error> {
         Err(StorageError::not_implemented("create_ticket"))
     }
 
-    fn list_tickets(&self) -> Result<Vec<TicketId>, Self::Error> {
-        Err(StorageError::not_implemented("list_tickets"))
+    fn load_ticket(&self, _id: &TicketId) -> Result<Ticket, Self::Error> {
+        Err(StorageError::not_implemented("load_ticket"))
+    }
+
+    fn list_ticket_ids(&self) -> Result<Vec<TicketId>, Self::Error> {
+        Err(StorageError::not_implemented("list_ticket_ids"))
     }
 
     fn ticket_exists(&self, _id: &TicketId) -> Result<bool, Self::Error> {
