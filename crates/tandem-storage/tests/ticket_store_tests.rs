@@ -15,3 +15,16 @@ fn discover_repo_root_finds_git_dir() {
 
     assert_eq!(discovered, repo_root.path());
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn discover_repo_root_errors_when_no_repo_markers() {
+    let start = tempfile::tempdir().expect("tempdir");
+
+    let error = discover_repo_root(start.path()).expect_err("discover should fail");
+
+    assert_eq!(
+        error.to_string(),
+        "no repository markers found (.tndm or .git)"
+    );
+}

@@ -103,7 +103,9 @@ pub fn discover_repo_root(start: &Path) -> Result<PathBuf, StorageError> {
         if let Some(parent) = current.parent() {
             current = parent;
         } else {
-            return Ok(start.to_path_buf());
+            return Err(StorageError::new(
+                "no repository markers found (.tndm or .git)",
+            ));
         }
     }
 }
