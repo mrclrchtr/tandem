@@ -675,8 +675,10 @@ dependencies = [
 name = "tandem-storage"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "tandem-core",
  "tempfile",
+ "toml",
 ]
 
 [[package]]
