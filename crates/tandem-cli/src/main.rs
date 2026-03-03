@@ -133,7 +133,7 @@ fn handle_ticket_show(id: String) -> anyhow::Result<()> {
 
     print!("## meta.toml\n{}\n\n", ticket.meta.to_canonical_toml());
     print!("## state.toml\n{}\n\n", ticket.state.to_canonical_toml());
-    print!("## content.md\n{}", ticket.content);
+    print!("## content.md\n{}\n", ticket.content);
     Ok(())
 }
 
