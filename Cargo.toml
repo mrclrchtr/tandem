@@ -18,8 +18,10 @@ publish = false
 anyhow = "1.0.86"
 cargo_metadata = "0.22.0"
 clap = { version = "4.5.23", features = ["derive"] }
+rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 tempfile = "3"
+time = { version = "0.3", features = ["formatting"] }
 toml = "0.8"
 tandem-core = { path = "crates/tandem-core" }
 tandem-storage = { path = "crates/tandem-storage" }
