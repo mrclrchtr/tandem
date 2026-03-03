@@ -39,3 +39,59 @@ fn ticket_create_prints_generated_id_and_writes_ticket_files() {
     assert!(ticket_dir.join("state.toml").is_file());
     assert!(ticket_dir.join("content.md").is_file());
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_show_prints_meta_state_and_content_sections() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-ABC123";
+    let content_file = repo_root.path().join("ticket-content.md");
+    fs::write(&content_file, "# Details\n\nshow output body\n").expect("write content file");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .arg("ticket")
+        .arg("create")
+        .arg("Show ticket content")
+        .arg("--id")
+        .arg(ticket_id)
+        .arg("--content-file")
+        .arg(&content_file)
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket create");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .arg("ticket")
+        .arg("show")
+        .arg(ticket_id)
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    assert!(stdout.contains("## meta.toml\n"));
+    assert!(stdout.contains("id = \"TNDM-ABC123\"\n"));
+    assert!(stdout.contains("title = \"Show ticket content\"\n"));
+
+    assert!(stdout.contains("## state.toml\n"));
+    assert!(stdout.contains("status = \"todo\"\n"));
+    assert!(stdout.contains("revision = 1\n"));
+
+    assert!(stdout.contains("## content.md\n"));
+    assert!(stdout.contains("# Details\n"));
+    assert!(stdout.contains("show output body\n"));
+}
