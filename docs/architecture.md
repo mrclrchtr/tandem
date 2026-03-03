@@ -54,4 +54,6 @@ CI runs the same check as a dedicated "Architecture" step.
 ## Implementation Notes
 
 - The CLI crate name is `tandem-cli`; the installed command name remains `tndm`.
+- Adding or renaming workspace crates requires updating `crates/xtask/src/main.rs` (`WORKSPACE_CRATES` and edge rules),
+  and CI will fail until that is done.
 - The `docs/vision.md` file describes product goals; this document describes code organization and enforcement.

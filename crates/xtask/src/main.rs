@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_methods, clippy::disallowed_types)]
+
 use std::{
     collections::{HashMap, HashSet},
     env,
