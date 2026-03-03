@@ -48,7 +48,7 @@ fn ticket_show_prints_meta_state_and_content_sections() {
 
     let ticket_id = "TNDM-ABC123";
     let content_file = repo_root.path().join("ticket-content.md");
-    fs::write(&content_file, "# Details\n\nshow output body\n").expect("write content file");
+    fs::write(&content_file, "# Details\n\nshow output body").expect("write content file");
 
     let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
         .arg("ticket")
@@ -93,5 +93,6 @@ fn ticket_show_prints_meta_state_and_content_sections() {
 
     assert!(stdout.contains("## content.md\n"));
     assert!(stdout.contains("# Details\n"));
-    assert!(stdout.contains("show output body\n"));
+    assert!(stdout.contains("show output body"));
+    assert!(stdout.ends_with('\n'));
 }
