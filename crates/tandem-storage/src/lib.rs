@@ -51,12 +51,6 @@ impl StorageError {
             message: message.into(),
         }
     }
-
-    fn not_implemented(operation: &str) -> Self {
-        Self {
-            message: format!("storage operation `{operation}` is not implemented"),
-        }
-    }
 }
 
 impl fmt::Display for StorageError {
@@ -413,7 +407,7 @@ impl TicketStore for FileTicketStore {
         Ok(ids)
     }
 
-    fn ticket_exists(&self, _id: &TicketId) -> Result<bool, Self::Error> {
-        Err(StorageError::not_implemented("ticket_exists"))
+    fn ticket_exists(&self, id: &TicketId) -> Result<bool, Self::Error> {
+        Ok(ticket_dir(&self.repo_root, id).is_dir())
     }
 }
