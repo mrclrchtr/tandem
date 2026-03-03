@@ -10,8 +10,16 @@ use tandem_core::{
     ticket::{NewTicket, Ticket, TicketId},
 };
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct FileTicketStore;
+#[derive(Debug, Clone)]
+pub struct FileTicketStore {
+    repo_root: PathBuf,
+}
+
+impl FileTicketStore {
+    pub fn new(repo_root: PathBuf) -> Self {
+        Self { repo_root }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TandemConfig {
@@ -159,8 +167,47 @@ pub fn load_config(repo_root: &Path) -> Result<TandemConfig, StorageError> {
 impl TicketStore for FileTicketStore {
     type Error = StorageError;
 
-    fn create_ticket(&self, _ticket: NewTicket) -> Result<Ticket, Self::Error> {
-        Err(StorageError::not_implemented("create_ticket"))
+    #[allow(clippy::disallowed_methods)]
+    fn create_ticket(&self, ticket: NewTicket) -> Result<Ticket, Self::Error> {
+        fs::create_dir_all(tickets_dir(&self.repo_root)).map_err(|error| {
+            StorageError::new(format!(
+                "failed to create tickets directory {}: {error}",
+                tickets_dir(&self.repo_root).display()
+            ))
+        })?;
+
+        let ticket_path = ticket_dir(&self.repo_root, &ticket.meta.id);
+        fs::create_dir(&ticket_path).map_err(|error| {
+            StorageError::new(format!(
+                "failed to create ticket directory {}: {error}",
+                ticket_path.display()
+            ))
+        })?;
+
+        let meta_path = ticket_path.join("meta.toml");
+        let state_path = ticket_path.join("state.toml");
+        let content_path = ticket_path.join("content.md");
+
+        fs::write(&meta_path, ticket.meta.to_canonical_toml()).map_err(|error| {
+            StorageError::new(format!("failed to write {}: {error}", meta_path.display()))
+        })?;
+
+        fs::write(&state_path, ticket.state.to_canonical_toml()).map_err(|error| {
+            StorageError::new(format!("failed to write {}: {error}", state_path.display()))
+        })?;
+
+        fs::write(&content_path, &ticket.content).map_err(|error| {
+            StorageError::new(format!(
+                "failed to write {}: {error}",
+                content_path.display()
+            ))
+        })?;
+
+        Ok(Ticket {
+            meta: ticket.meta,
+            state: ticket.state,
+            content: ticket.content,
+        })
     }
 
     fn load_ticket(&self, _id: &TicketId) -> Result<Ticket, Self::Error> {
