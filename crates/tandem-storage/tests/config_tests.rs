@@ -20,6 +20,7 @@ fn load_config_returns_defaults_when_file_missing() {
 }
 
 #[test]
+#[allow(clippy::disallowed_methods)]
 fn load_config_reads_prefix_and_template_from_config_file() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     let config_dir = repo_root.path().join(".tndm");
@@ -56,6 +57,7 @@ content = '''
 }
 
 #[test]
+#[allow(clippy::disallowed_methods)]
 fn load_config_rejects_unknown_schema_version() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     let config_dir = repo_root.path().join(".tndm");
