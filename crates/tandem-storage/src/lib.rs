@@ -1,4 +1,7 @@
-use std::{fmt, fs, path::Path};
+use std::{
+    fmt, fs,
+    path::{Path, PathBuf},
+};
 
 use serde::Deserialize;
 
@@ -70,9 +73,44 @@ struct RawTemplatesConfig {
     content: Option<String>,
 }
 
+pub fn tandem_dir(repo_root: &Path) -> PathBuf {
+    repo_root.join(".tndm")
+}
+
+pub fn tickets_dir(repo_root: &Path) -> PathBuf {
+    tandem_dir(repo_root).join("tickets")
+}
+
+pub fn ticket_dir(repo_root: &Path, id: &TicketId) -> PathBuf {
+    tickets_dir(repo_root).join(id.as_str())
+}
+
+#[allow(clippy::disallowed_methods)]
+pub fn discover_repo_root(start: &Path) -> Result<PathBuf, StorageError> {
+    let mut current = start;
+
+    loop {
+        let tndm_dir = current.join(".tndm");
+        if tndm_dir.is_dir() {
+            return Ok(current.to_path_buf());
+        }
+
+        let git_path = current.join(".git");
+        if git_path.is_dir() || git_path.is_file() {
+            return Ok(current.to_path_buf());
+        }
+
+        if let Some(parent) = current.parent() {
+            current = parent;
+        } else {
+            return Ok(start.to_path_buf());
+        }
+    }
+}
+
 #[allow(clippy::disallowed_methods)]
 pub fn load_config(repo_root: &Path) -> Result<TandemConfig, StorageError> {
-    let config_path = repo_root.join(".tndm").join("config.toml");
+    let config_path = tandem_dir(repo_root).join("config.toml");
 
     let config_text = match fs::read_to_string(&config_path) {
         Ok(contents) => contents,
