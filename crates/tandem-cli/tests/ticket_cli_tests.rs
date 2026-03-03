@@ -96,3 +96,61 @@ fn ticket_show_prints_meta_state_and_content_sections() {
     assert!(stdout.contains("show output body"));
     assert!(stdout.ends_with('\n'));
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_list_prints_sorted_tab_separated_lines() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .arg("ticket")
+        .arg("create")
+        .arg("Second ticket")
+        .arg("--id")
+        .arg("TNDM-2")
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket create for TNDM-2");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .arg("ticket")
+        .arg("create")
+        .arg("First ticket")
+        .arg("--id")
+        .arg("TNDM-1")
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket create for TNDM-1");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .arg("ticket")
+        .arg("list")
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    assert_eq!(
+        stdout,
+        "TNDM-1\ttodo\tFirst ticket\nTNDM-2\ttodo\tSecond ticket\n"
+    );
+}
