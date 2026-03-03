@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods, clippy::disallowed_types)]
-
 use std::{fmt, fs, path::Path};
 
 use serde::Deserialize;
@@ -72,6 +70,7 @@ struct RawTemplatesConfig {
     content: Option<String>,
 }
 
+#[allow(clippy::disallowed_methods)]
 pub fn load_config(repo_root: &Path) -> Result<TandemConfig, StorageError> {
     let config_path = repo_root.join(".tndm").join("config.toml");
 
