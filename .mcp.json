@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "jetbrains": {
+      "type": "sse",
+      "url": "http://localhost:64342/sse"
+    }
+  }
+}
