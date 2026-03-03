@@ -1,0 +1,12 @@
+[package]
+name = "tandem-repo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+tandem-core.workspace = true
+
+[lints]
+workspace = true

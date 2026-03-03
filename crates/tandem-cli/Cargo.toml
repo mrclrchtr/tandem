@@ -1,0 +1,20 @@
+[package]
+name = "tandem-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "tndm"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+tandem-core.workspace = true
+tandem-repo.workspace = true
+tandem-storage.workspace = true
+
+[lints]
+workspace = true
