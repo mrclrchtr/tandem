@@ -43,3 +43,11 @@ impl TicketStore for FileTicketStore {
         Err(StorageError::not_implemented("ticket_exists"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn placeholder_uses_tempfile() {
+        let _dir = tempfile::tempdir().expect("tempdir");
+    }
+}
