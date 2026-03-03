@@ -34,9 +34,9 @@ Repository architecture summary: `docs/architecture.md`.
 - Ticket state is stored in the repository.
 - Storage model: one directory per ticket.
 - Proposed structure:
-    - `.tndm/tickets/TICKET-123/ticket.<format>`
-    - `.tndm/tickets/TICKET-123/state.<format>`
-    - `.tndm/tickets/TICKET-123/notes.md`
+    - `.tndm/tickets/TNDM-XXXXXX/meta.<format>`
+    - `.tndm/tickets/TNDM-XXXXXX/state.<format>`
+    - `.tndm/tickets/TNDM-XXXXXX/content.md`
 - The split between stable metadata and volatile state is intentional to reduce Git friction.
 
 ## File format + determinism
@@ -47,7 +47,7 @@ Repository architecture summary: `docs/architecture.md`.
 - The CLI is the canonical writer/formatter for these files.
 - The system should provide `tndm fmt` and `tndm fmt --check` to enforce stable serialization (ordering, whitespace,
   encoding, timestamp representation) and minimize churn in diffs.
-- Freeform text belongs in `notes.md`, not in the structured data files.
+- Freeform text belongs in `content.md`, not in the structured data files.
 
 ## Awareness model
 
