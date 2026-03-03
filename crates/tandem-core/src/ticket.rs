@@ -195,6 +195,19 @@ pub struct TicketState {
     pub revision: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewTicket {
+    pub meta: TicketMeta,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Ticket {
+    pub meta: TicketMeta,
+    pub state: TicketState,
+    pub content: String,
+}
+
 impl TicketState {
     pub fn new(updated_at: impl Into<String>, revision: u64) -> Result<Self, ValidationError> {
         let updated_at = updated_at.into();
