@@ -198,6 +198,7 @@ pub struct TicketState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewTicket {
     pub meta: TicketMeta,
+    pub state: TicketState,
     pub content: String,
 }
 
@@ -209,6 +210,10 @@ pub struct Ticket {
 }
 
 impl TicketState {
+    pub fn initial(updated_at: impl Into<String>) -> Result<Self, ValidationError> {
+        Self::new(updated_at, 1)
+    }
+
     pub fn new(updated_at: impl Into<String>, revision: u64) -> Result<Self, ValidationError> {
         let updated_at = updated_at.into();
         if updated_at.trim().is_empty() {
@@ -418,6 +423,15 @@ mod tests {
                 "revision = 1\n",
             )
         );
+    }
+
+    #[test]
+    fn state_initial_sets_todo_and_revision_one() {
+        let state =
+            TicketState::initial("2026-03-03T10:00:00Z").expect("initial state should be valid");
+
+        assert_eq!(state.status, TicketStatus::Todo);
+        assert_eq!(state.revision, 1);
     }
 
     #[test]
