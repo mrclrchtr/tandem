@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
                 content_file,
             } => handle_ticket_create(title, id, content_file),
             TicketCommand::Show { id } => handle_ticket_show(id),
-            TicketCommand::List => anyhow::bail!("tndm ticket list: not implemented yet"),
+            TicketCommand::List => handle_ticket_list(),
         },
         Command::Awareness => anyhow::bail!("tndm awareness: not implemented yet"),
     }
@@ -134,6 +134,29 @@ fn handle_ticket_show(id: String) -> anyhow::Result<()> {
     print!("## meta.toml\n{}\n\n", ticket.meta.to_canonical_toml());
     print!("## state.toml\n{}\n\n", ticket.state.to_canonical_toml());
     print!("## content.md\n{}\n", ticket.content);
+    Ok(())
+}
+
+fn handle_ticket_list() -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ids = store
+        .list_ticket_ids()
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    for id in ids {
+        let ticket = store
+            .load_ticket(&id)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        println!(
+            "{}\t{}\t{}",
+            id,
+            ticket.state.status.as_str(),
+            ticket.meta.title
+        );
+    }
+
     Ok(())
 }
 
