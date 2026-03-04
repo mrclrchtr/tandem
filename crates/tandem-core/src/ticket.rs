@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::error::ValidationError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TicketId(String);
 
 impl TicketId {
@@ -38,9 +38,230 @@ impl fmt::Display for TicketId {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TicketType {
+    #[default]
+    Task,
+    Bug,
+    Feature,
+    Chore,
+    Epic,
+}
+
+impl TicketType {
+    pub fn parse(value: &str) -> Result<Self, ValidationError> {
+        match value.trim() {
+            "task" => Ok(Self::Task),
+            "bug" => Ok(Self::Bug),
+            "feature" => Ok(Self::Feature),
+            "chore" => Ok(Self::Chore),
+            "epic" => Ok(Self::Epic),
+            _ => Err(ValidationError::new("invalid ticket type")),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Task => "task",
+            Self::Bug => "bug",
+            Self::Feature => "feature",
+            Self::Chore => "chore",
+            Self::Epic => "epic",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TicketPriority {
+    P0,
+    P1,
+    #[default]
+    P2,
+    P3,
+    P4,
+}
+
+impl TicketPriority {
+    pub fn parse(value: &str) -> Result<Self, ValidationError> {
+        match value.trim() {
+            "p0" => Ok(Self::P0),
+            "p1" => Ok(Self::P1),
+            "p2" => Ok(Self::P2),
+            "p3" => Ok(Self::P3),
+            "p4" => Ok(Self::P4),
+            _ => Err(ValidationError::new("invalid ticket priority")),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::P0 => "p0",
+            Self::P1 => "p1",
+            Self::P2 => "p2",
+            Self::P3 => "p3",
+            Self::P4 => "p4",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TicketStatus {
+    #[default]
+    Todo,
+    InProgress,
+    Blocked,
+    Done,
+}
+
+impl TicketStatus {
+    pub fn parse(value: &str) -> Result<Self, ValidationError> {
+        match value.trim() {
+            "todo" => Ok(Self::Todo),
+            "in_progress" => Ok(Self::InProgress),
+            "blocked" => Ok(Self::Blocked),
+            "done" => Ok(Self::Done),
+            _ => Err(ValidationError::new("invalid ticket status")),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Todo => "todo",
+            Self::InProgress => "in_progress",
+            Self::Blocked => "blocked",
+            Self::Done => "done",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TicketMeta {
+    pub id: TicketId,
+    pub title: String,
+    pub ticket_type: TicketType,
+    pub priority: TicketPriority,
+    pub depends_on: Vec<TicketId>,
+    pub tags: Vec<String>,
+}
+
+impl TicketMeta {
+    pub fn new(id: TicketId, title: impl Into<String>) -> Result<Self, ValidationError> {
+        let title = title.into();
+        if title.trim().is_empty() {
+            return Err(ValidationError::new("ticket title must not be empty"));
+        }
+
+        Ok(Self {
+            id,
+            title,
+            ticket_type: TicketType::default(),
+            priority: TicketPriority::default(),
+            depends_on: Vec::new(),
+            tags: Vec::new(),
+        })
+    }
+
+    pub fn to_canonical_toml(&self) -> String {
+        let mut output = String::new();
+        output.push_str("schema_version = 1\n");
+        output.push_str("id = ");
+        output.push_str(&toml_basic_string(self.id.as_str()));
+        output.push('\n');
+        output.push_str("title = ");
+        output.push_str(&toml_basic_string(&self.title));
+        output.push_str("\n\n");
+        output.push_str("type = ");
+        output.push_str(&toml_basic_string(self.ticket_type.as_str()));
+        output.push('\n');
+        output.push_str("priority = ");
+        output.push_str(&toml_basic_string(self.priority.as_str()));
+        output.push_str("\n\n");
+        output.push_str("depends_on = ");
+        output.push_str(&toml_string_array(
+            self.depends_on.iter().map(TicketId::as_str),
+        ));
+        output.push('\n');
+        output.push_str("tags = ");
+        output.push_str(&toml_string_array(self.tags.iter().map(String::as_str)));
+        output.push('\n');
+        output
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TicketState {
+    pub status: TicketStatus,
+    pub updated_at: String,
+    pub revision: u64,
+}
+
+impl TicketState {
+    pub fn new(updated_at: impl Into<String>, revision: u64) -> Result<Self, ValidationError> {
+        let updated_at = updated_at.into();
+        if updated_at.trim().is_empty() {
+            return Err(ValidationError::new("ticket updated_at must not be empty"));
+        }
+        if revision == 0 {
+            return Err(ValidationError::new("ticket revision must be >= 1"));
+        }
+
+        Ok(Self {
+            status: TicketStatus::default(),
+            updated_at,
+            revision,
+        })
+    }
+
+    pub fn to_canonical_toml(&self) -> String {
+        let mut output = String::new();
+        output.push_str("schema_version = 1\n");
+        output.push_str("status = ");
+        output.push_str(&toml_basic_string(self.status.as_str()));
+        output.push('\n');
+        output.push_str("updated_at = ");
+        output.push_str(&toml_basic_string(&self.updated_at));
+        output.push('\n');
+        output.push_str("revision = ");
+        output.push_str(&self.revision.to_string());
+        output.push('\n');
+        output
+    }
+}
+
+fn toml_basic_string(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len() + 2);
+    escaped.push('"');
+    for character in value.chars() {
+        match character {
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            _ => escaped.push(character),
+        }
+    }
+    escaped.push('"');
+    escaped
+}
+
+fn toml_string_array<'a>(values: impl IntoIterator<Item = &'a str>) -> String {
+    let values: Vec<&str> = values.into_iter().collect();
+    if values.is_empty() {
+        return "[]".to_string();
+    }
+
+    let joined = values
+        .into_iter()
+        .map(toml_basic_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("[{joined}]")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::TicketId;
+    use super::{TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus, TicketType};
 
     #[test]
     fn parse_accepts_simple_id() {
@@ -69,5 +290,127 @@ mod tests {
     #[test]
     fn parse_rejects_control_characters() {
         let _ = TicketId::parse("\u{0000}foo").expect_err("TicketId should be rejected");
+    }
+
+    #[test]
+    fn ticket_type_parse_and_as_str_roundtrip() {
+        assert_eq!(
+            TicketType::parse("task")
+                .expect("type should parse")
+                .as_str(),
+            "task"
+        );
+        assert_eq!(
+            TicketType::parse("bug")
+                .expect("type should parse")
+                .as_str(),
+            "bug"
+        );
+        assert_eq!(
+            TicketType::parse("feature")
+                .expect("type should parse")
+                .as_str(),
+            "feature"
+        );
+        assert_eq!(
+            TicketType::parse("chore")
+                .expect("type should parse")
+                .as_str(),
+            "chore"
+        );
+        assert_eq!(
+            TicketType::parse("epic")
+                .expect("type should parse")
+                .as_str(),
+            "epic"
+        );
+        assert_eq!(TicketType::default().as_str(), "task");
+    }
+
+    #[test]
+    fn ticket_type_parse_rejects_unknown_value() {
+        let error = TicketType::parse("unknown").expect_err("type should be rejected");
+        assert_eq!(error.message(), "invalid ticket type");
+    }
+
+    #[test]
+    fn ticket_priority_parse_and_as_str_roundtrip() {
+        for value in ["p0", "p1", "p2", "p3", "p4"] {
+            assert_eq!(
+                TicketPriority::parse(value)
+                    .expect("priority should parse")
+                    .as_str(),
+                value
+            );
+        }
+        assert_eq!(TicketPriority::default().as_str(), "p2");
+    }
+
+    #[test]
+    fn ticket_priority_parse_rejects_unknown_value() {
+        let error = TicketPriority::parse("p9").expect_err("priority should be rejected");
+        assert_eq!(error.message(), "invalid ticket priority");
+    }
+
+    #[test]
+    fn ticket_status_parse_and_as_str_roundtrip() {
+        for value in ["todo", "in_progress", "blocked", "done"] {
+            assert_eq!(
+                TicketStatus::parse(value)
+                    .expect("status should parse")
+                    .as_str(),
+                value
+            );
+        }
+        assert_eq!(TicketStatus::default().as_str(), "todo");
+    }
+
+    #[test]
+    fn ticket_status_parse_rejects_unknown_value() {
+        let error = TicketStatus::parse("started").expect_err("status should be rejected");
+        assert_eq!(error.message(), "invalid ticket status");
+    }
+
+    #[test]
+    fn meta_formats_as_canonical_toml() {
+        let id = TicketId::parse("TNDM-4K7D9Q").expect("id should parse");
+        let meta = TicketMeta::new(id, "Add foo").expect("meta should be valid");
+
+        assert_eq!(
+            meta.to_canonical_toml(),
+            concat!(
+                "schema_version = 1\n",
+                "id = \"TNDM-4K7D9Q\"\n",
+                "title = \"Add foo\"\n",
+                "\n",
+                "type = \"task\"\n",
+                "priority = \"p2\"\n",
+                "\n",
+                "depends_on = []\n",
+                "tags = []\n",
+            )
+        );
+    }
+
+    #[test]
+    fn state_formats_as_canonical_toml() {
+        let state = TicketState::new("2026-03-03T10:00:00Z", 1).expect("state should be valid");
+
+        assert_eq!(
+            state.to_canonical_toml(),
+            concat!(
+                "schema_version = 1\n",
+                "status = \"todo\"\n",
+                "updated_at = \"2026-03-03T10:00:00Z\"\n",
+                "revision = 1\n",
+            )
+        );
+    }
+
+    #[test]
+    fn state_requires_revision_at_least_one() {
+        let error = TicketState::new("2026-03-03T10:00:00Z", 0)
+            .expect_err("state with zero revision should be rejected");
+        assert_eq!(error.message(), "ticket revision must be >= 1");
     }
 }
