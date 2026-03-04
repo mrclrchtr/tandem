@@ -2,7 +2,9 @@ use std::fs;
 
 use tandem_core::{
     ports::TicketStore,
-    ticket::{NewTicket, TicketId, TicketMeta, TicketState, TicketStatus},
+    ticket::{
+        NewTicket, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus, TicketType,
+    },
 };
 use tandem_storage::{FileTicketStore, discover_repo_root};
 
@@ -73,4 +75,41 @@ fn create_ticket_writes_expected_files() {
     assert_eq!(written_meta, meta.to_canonical_toml());
     assert_eq!(written_state, state.to_canonical_toml());
     assert_eq!(written_content, content);
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn load_ticket_roundtrips_created_ticket() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+
+    let id = TicketId::parse("TNDM-456").expect("valid ticket id");
+    let depends_on_id = TicketId::parse("TNDM-123").expect("valid dependency ticket id");
+
+    let mut meta = TicketMeta::new(id.clone(), "Roundtrip load_ticket").expect("valid ticket meta");
+    meta.ticket_type = TicketType::Feature;
+    meta.priority = TicketPriority::P1;
+    meta.depends_on = vec![depends_on_id];
+    meta.tags = vec!["backend".to_string(), "storage".to_string()];
+
+    let mut state = TicketState::new("2026-03-03T12:34:56Z", 3).expect("valid ticket state");
+    state.status = TicketStatus::Blocked;
+
+    let content = "## Description\n\nRoundtrip ticket content.\n".to_string();
+
+    let ticket = NewTicket {
+        meta: meta.clone(),
+        state: state.clone(),
+        content: content.clone(),
+    };
+
+    store.create_ticket(ticket).expect("create ticket");
+
+    let loaded = store.load_ticket(&id).expect("load ticket");
+
+    assert_eq!(loaded.meta, meta);
+    assert_eq!(loaded.state, state);
+    assert_eq!(loaded.content, content);
 }

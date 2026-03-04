@@ -7,7 +7,10 @@ use serde::Deserialize;
 
 use tandem_core::{
     ports::TicketStore,
-    ticket::{NewTicket, Ticket, TicketId},
+    ticket::{
+        NewTicket, Ticket, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus,
+        TicketType,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -79,6 +82,26 @@ struct RawIdConfig {
 #[derive(Debug, Deserialize)]
 struct RawTemplatesConfig {
     content: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawTicketMeta {
+    schema_version: Option<u32>,
+    id: String,
+    title: String,
+    #[serde(rename = "type")]
+    ticket_type: String,
+    priority: String,
+    depends_on: Option<Vec<String>>,
+    tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawTicketState {
+    schema_version: Option<u32>,
+    status: String,
+    updated_at: String,
+    revision: u64,
 }
 
 pub fn tandem_dir(repo_root: &Path) -> PathBuf {
@@ -210,8 +233,126 @@ impl TicketStore for FileTicketStore {
         })
     }
 
-    fn load_ticket(&self, _id: &TicketId) -> Result<Ticket, Self::Error> {
-        Err(StorageError::not_implemented("load_ticket"))
+    #[allow(clippy::disallowed_methods)]
+    fn load_ticket(&self, id: &TicketId) -> Result<Ticket, Self::Error> {
+        let ticket_path = ticket_dir(&self.repo_root, id);
+        let dir_name = ticket_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| {
+                StorageError::new(format!(
+                    "invalid ticket directory path {}",
+                    ticket_path.display()
+                ))
+            })?;
+
+        if dir_name != id.as_str() {
+            return Err(StorageError::new(format!(
+                "ticket directory name `{dir_name}` does not match requested id `{}`",
+                id.as_str()
+            )));
+        }
+
+        let meta_path = ticket_path.join("meta.toml");
+        let state_path = ticket_path.join("state.toml");
+        let content_path = ticket_path.join("content.md");
+
+        let meta_text = fs::read_to_string(&meta_path).map_err(|error| {
+            StorageError::new(format!("failed to read {}: {error}", meta_path.display()))
+        })?;
+        let state_text = fs::read_to_string(&state_path).map_err(|error| {
+            StorageError::new(format!("failed to read {}: {error}", state_path.display()))
+        })?;
+        let content = fs::read_to_string(&content_path).map_err(|error| {
+            StorageError::new(format!(
+                "failed to read {}: {error}",
+                content_path.display()
+            ))
+        })?;
+
+        let raw_meta: RawTicketMeta = toml::from_str(&meta_text).map_err(|error| {
+            StorageError::new(format!("failed to parse {}: {error}", meta_path.display()))
+        })?;
+        let raw_state: RawTicketState = toml::from_str(&state_text).map_err(|error| {
+            StorageError::new(format!("failed to parse {}: {error}", state_path.display()))
+        })?;
+
+        if raw_meta.schema_version != Some(1) {
+            return Err(StorageError::new(format!(
+                "unsupported or missing schema_version in {}",
+                meta_path.display()
+            )));
+        }
+
+        if raw_state.schema_version != Some(1) {
+            return Err(StorageError::new(format!(
+                "unsupported or missing schema_version in {}",
+                state_path.display()
+            )));
+        }
+
+        if raw_meta.id != id.as_str() {
+            return Err(StorageError::new(format!(
+                "ticket id mismatch: requested `{}`, found `{}` in {}",
+                id.as_str(),
+                raw_meta.id,
+                meta_path.display()
+            )));
+        }
+
+        let mut depends_on = raw_meta.depends_on.unwrap_or_default();
+        depends_on.sort();
+        depends_on.dedup();
+        let depends_on = depends_on
+            .into_iter()
+            .map(|dependency_id| {
+                TicketId::parse(dependency_id).map_err(|error| {
+                    StorageError::new(format!(
+                        "invalid depends_on ticket id in {}: {error}",
+                        meta_path.display()
+                    ))
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut tags = raw_meta.tags.unwrap_or_default();
+        tags.sort();
+        tags.dedup();
+
+        let mut meta = TicketMeta::new(id.clone(), raw_meta.title).map_err(|error| {
+            StorageError::new(format!("invalid meta in {}: {error}", meta_path.display()))
+        })?;
+        meta.ticket_type = TicketType::parse(&raw_meta.ticket_type).map_err(|error| {
+            StorageError::new(format!("invalid type in {}: {error}", meta_path.display()))
+        })?;
+        meta.priority = TicketPriority::parse(&raw_meta.priority).map_err(|error| {
+            StorageError::new(format!(
+                "invalid priority in {}: {error}",
+                meta_path.display()
+            ))
+        })?;
+        meta.depends_on = depends_on;
+        meta.tags = tags;
+
+        let mut state =
+            TicketState::new(raw_state.updated_at, raw_state.revision).map_err(|error| {
+                StorageError::new(format!(
+                    "invalid state in {}: {error}",
+                    state_path.display()
+                ))
+            })?;
+        state.status = TicketStatus::parse(&raw_state.status).map_err(|error| {
+            StorageError::new(format!(
+                "invalid status in {}: {error}",
+                state_path.display()
+            ))
+        })?;
+
+        Ok(Ticket {
+            meta,
+            state,
+            content,
+        })
     }
 
     fn list_ticket_ids(&self) -> Result<Vec<TicketId>, Self::Error> {
