@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_types)]
+
 use std::{fs, process::Command};
 
 use regex::Regex;
