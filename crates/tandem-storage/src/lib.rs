@@ -355,8 +355,62 @@ impl TicketStore for FileTicketStore {
         })
     }
 
+    #[allow(clippy::disallowed_methods)]
     fn list_ticket_ids(&self) -> Result<Vec<TicketId>, Self::Error> {
-        Err(StorageError::not_implemented("list_ticket_ids"))
+        let tickets_path = tickets_dir(&self.repo_root);
+
+        let entries = match fs::read_dir(&tickets_path) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => {
+                return Err(StorageError::new(format!(
+                    "failed to read {}: {error}",
+                    tickets_path.display()
+                )));
+            }
+        };
+
+        let mut ids = Vec::new();
+
+        for entry in entries {
+            let entry = entry.map_err(|error| {
+                StorageError::new(format!(
+                    "failed to read entry in {}: {error}",
+                    tickets_path.display()
+                ))
+            })?;
+
+            let file_type = entry.file_type().map_err(|error| {
+                StorageError::new(format!(
+                    "failed to read file type for {}: {error}",
+                    entry.path().display()
+                ))
+            })?;
+
+            if !file_type.is_dir() {
+                continue;
+            }
+
+            let dir_name = entry.file_name();
+            let dir_name = dir_name.to_str().ok_or_else(|| {
+                StorageError::new(format!(
+                    "ticket directory name is not valid UTF-8: {}",
+                    entry.path().display()
+                ))
+            })?;
+
+            let id = TicketId::parse(dir_name).map_err(|error| {
+                StorageError::new(format!(
+                    "invalid ticket directory `{dir_name}` in {}: {error}",
+                    tickets_path.display()
+                ))
+            })?;
+
+            ids.push(id);
+        }
+
+        ids.sort();
+        Ok(ids)
     }
 
     fn ticket_exists(&self, _id: &TicketId) -> Result<bool, Self::Error> {

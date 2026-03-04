@@ -113,3 +113,41 @@ fn load_ticket_roundtrips_created_ticket() {
     assert_eq!(loaded.state, state);
     assert_eq!(loaded.content, content);
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn list_ticket_ids_sorts_by_id() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+
+    let id_b = TicketId::parse("TNDM-2").expect("valid ticket id");
+    let id_a = TicketId::parse("TNDM-1").expect("valid ticket id");
+
+    let meta_b = TicketMeta::new(id_b.clone(), "Second ticket").expect("valid ticket meta");
+    let meta_a = TicketMeta::new(id_a.clone(), "First ticket").expect("valid ticket meta");
+
+    let state_b = TicketState::new("2026-03-03T13:00:00Z", 1).expect("valid ticket state");
+    let state_a = TicketState::new("2026-03-03T13:01:00Z", 1).expect("valid ticket state");
+
+    store
+        .create_ticket(NewTicket {
+            meta: meta_b,
+            state: state_b,
+            content: "## Description\n\nSecond.\n".to_string(),
+        })
+        .expect("create second ticket");
+
+    store
+        .create_ticket(NewTicket {
+            meta: meta_a,
+            state: state_a,
+            content: "## Description\n\nFirst.\n".to_string(),
+        })
+        .expect("create first ticket");
+
+    let ids = store.list_ticket_ids().expect("list ticket ids");
+
+    assert_eq!(ids, vec![id_a, id_b]);
+}
