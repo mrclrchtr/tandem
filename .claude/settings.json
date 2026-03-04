@@ -2,5 +2,31 @@
   "enabledPlugins": {
     "rust-analyzer-lsp@claude-plugins-official": true,
     "superpowers@superpowers-marketplace": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-protected-files.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-rust-compile.sh",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
   }
 }
