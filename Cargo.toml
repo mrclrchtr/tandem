@@ -16,7 +16,7 @@ publish = false
 
 [workspace.dependencies]
 anyhow = "1.0.86"
-cargo_metadata = "0.22.0"
+cargo_metadata = "0.23.0"
 clap = { version = "4.5.23", features = ["derive"] }
 tandem-core = { path = "crates/tandem-core" }
 tandem-storage = { path = "crates/tandem-storage" }
