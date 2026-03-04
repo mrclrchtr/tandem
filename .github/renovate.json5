@@ -4,6 +4,23 @@
     "config:best-practices",
     ":automergeMinor",
   ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "mise"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "mise lock"
+        ],
+        "fileFilters": [
+          "mise.toml",
+          "mise.lock"
+        ],
+        "executionMode": "branch"
+      }
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",

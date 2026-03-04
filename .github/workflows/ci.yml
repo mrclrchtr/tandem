@@ -31,6 +31,11 @@ jobs:
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
 
+      - name: Verify mise.lock is up to date
+        run: |
+          mise lock
+          git diff --exit-code -- mise.lock
+
       - name: Format
         run: mise run fmt
 
