@@ -1,0 +1,11 @@
+#!/bin/sh
+
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)
+CURRENT_DIR=$(pwd -P)
+
+if [ "$CURRENT_DIR" != "$SCRIPT_DIR" ]; then
+  printf '%s\n' "error: tndm-dev must be run from the repository root ($SCRIPT_DIR)" >&2
+  exit 1
+fi
+
+exec cargo run -p tandem-cli --bin tndm -- "$@"
