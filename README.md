@@ -61,5 +61,12 @@ Notes:
 Run the CLI:
 
 ```sh
+./tndm-dev --help
+./tndm-dev ticket list
+```
+
+Equivalent direct Cargo invocation:
+
+```sh
 cargo run -p tandem-cli --bin tndm -- --help
 ```
