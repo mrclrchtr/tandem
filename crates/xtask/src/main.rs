@@ -128,3 +128,16 @@ fn build_dependency_index(metadata: &cargo_metadata::Metadata) -> HashMap<String
 fn has_dependency(index: &HashMap<String, HashSet<String>>, from: &str, to: &str) -> bool {
     index.get(from).is_some_and(|deps| deps.contains(to))
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn hk_cargo_fmt_step_formats_virtual_workspaces() {
+        let hk_config = include_str!("../../../hk.pkl");
+
+        assert!(
+            hk_config.contains("cargo fmt --check --manifest-path {{workspace_indicator}} --all"),
+            "hk cargo-fmt step should use --all when targeting the virtual workspace root"
+        );
+    }
+}
