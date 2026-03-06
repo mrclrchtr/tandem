@@ -2,3 +2,4 @@
 /.worktrees/
 **/*.rs.bk
 .DS_Store
+out
