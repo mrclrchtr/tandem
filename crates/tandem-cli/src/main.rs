@@ -9,10 +9,9 @@ use std::{
 use clap::{Parser, Subcommand};
 use tandem_core::{
     ports::TicketStore,
-    ticket::{NewTicket, TicketId, TicketMeta, TicketState},
+    ticket::{NewTicket, TicketId, TicketMeta},
 };
 use tandem_storage::{FileTicketStore, TandemConfig, discover_repo_root, load_config};
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -105,17 +104,11 @@ fn handle_ticket_create(
     };
 
     let content = load_ticket_content(content_file, &config)?;
-    let updated_at = OffsetDateTime::now_utc().format(&Rfc3339)?;
 
     let meta = TicketMeta::new(ticket_id.clone(), title)?;
-    let state = TicketState::initial(updated_at)?;
 
     store
-        .create_ticket(NewTicket {
-            meta,
-            state,
-            content,
-        })
+        .create_ticket(NewTicket { meta, content })
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     println!("{ticket_id}");
@@ -131,9 +124,9 @@ fn handle_ticket_show(id: String) -> anyhow::Result<()> {
         .load_ticket(&id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
-    print!("## meta.toml\n{}\n\n", ticket.meta.to_canonical_toml());
-    print!("## state.toml\n{}\n\n", ticket.state.to_canonical_toml());
-    print!("## content.md\n{}\n", ticket.content);
+    print!("## meta.toml\n{}\n", ticket.meta.to_canonical_toml());
+    print!("## state.toml\n{}\n", ticket.state.to_canonical_toml());
+    print!("## content.md\n{}", ticket.content);
     Ok(())
 }
 
