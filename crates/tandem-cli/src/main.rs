@@ -161,14 +161,14 @@ fn handle_ticket_list() -> anyhow::Result<()> {
 }
 
 fn generate_ticket_id(store: &FileTicketStore, prefix: &str) -> anyhow::Result<TicketId> {
-    use rand::Rng;
+    use rand::RngExt;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     loop {
         let suffix: String = (0..6)
             .map(|_| {
-                let index = rng.gen_range(0..CROCKFORD_BASE32.len());
+                let index = rng.random_range(0..CROCKFORD_BASE32.len());
                 CROCKFORD_BASE32[index] as char
             })
             .collect();
