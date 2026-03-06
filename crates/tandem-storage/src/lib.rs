@@ -4,6 +4,7 @@ use std::{
 };
 
 use serde::Deserialize;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use tandem_core::{
     ports::TicketStore,
@@ -84,8 +85,8 @@ struct RawTicketMeta {
     id: String,
     title: String,
     #[serde(rename = "type")]
-    ticket_type: String,
-    priority: String,
+    ticket_type: Option<String>,
+    priority: Option<String>,
     depends_on: Option<Vec<String>>,
     tags: Option<Vec<String>>,
 }
@@ -186,6 +187,15 @@ impl TicketStore for FileTicketStore {
 
     #[allow(clippy::disallowed_methods)]
     fn create_ticket(&self, ticket: NewTicket) -> Result<Ticket, Self::Error> {
+        let updated_at = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .map_err(|error| {
+                StorageError::new(format!("failed to format ticket timestamp: {error}"))
+            })?;
+        let state = TicketState::initial(updated_at).map_err(|error| {
+            StorageError::new(format!("failed to build initial ticket state: {error}"))
+        })?;
+
         fs::create_dir_all(tickets_dir(&self.repo_root)).map_err(|error| {
             StorageError::new(format!(
                 "failed to create tickets directory {}: {error}",
@@ -209,7 +219,7 @@ impl TicketStore for FileTicketStore {
             StorageError::new(format!("failed to write {}: {error}", meta_path.display()))
         })?;
 
-        fs::write(&state_path, ticket.state.to_canonical_toml()).map_err(|error| {
+        fs::write(&state_path, state.to_canonical_toml()).map_err(|error| {
             StorageError::new(format!("failed to write {}: {error}", state_path.display()))
         })?;
 
@@ -222,7 +232,7 @@ impl TicketStore for FileTicketStore {
 
         Ok(Ticket {
             meta: ticket.meta,
-            state: ticket.state,
+            state,
             content: ticket.content,
         })
     }
@@ -316,15 +326,19 @@ impl TicketStore for FileTicketStore {
         let mut meta = TicketMeta::new(id.clone(), raw_meta.title).map_err(|error| {
             StorageError::new(format!("invalid meta in {}: {error}", meta_path.display()))
         })?;
-        meta.ticket_type = TicketType::parse(&raw_meta.ticket_type).map_err(|error| {
-            StorageError::new(format!("invalid type in {}: {error}", meta_path.display()))
-        })?;
-        meta.priority = TicketPriority::parse(&raw_meta.priority).map_err(|error| {
-            StorageError::new(format!(
-                "invalid priority in {}: {error}",
-                meta_path.display()
-            ))
-        })?;
+        if let Some(ticket_type) = raw_meta.ticket_type {
+            meta.ticket_type = TicketType::parse(&ticket_type).map_err(|error| {
+                StorageError::new(format!("invalid type in {}: {error}", meta_path.display()))
+            })?;
+        }
+        if let Some(priority) = raw_meta.priority {
+            meta.priority = TicketPriority::parse(&priority).map_err(|error| {
+                StorageError::new(format!(
+                    "invalid priority in {}: {error}",
+                    meta_path.display()
+                ))
+            })?;
+        }
         meta.depends_on = depends_on;
         meta.tags = tags;
 

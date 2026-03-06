@@ -524,6 +524,9 @@ dependencies = [
 [[package]]
 name = "tandem-core"
 version = "0.1.0"
+dependencies = [
+ "time",
+]
 
 [[package]]
 name = "tandem-repo"
@@ -539,6 +542,7 @@ dependencies = [
  "serde",
  "tandem-core",
  "tempfile",
+ "time",
  "toml",
 ]
 
