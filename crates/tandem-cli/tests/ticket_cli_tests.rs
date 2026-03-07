@@ -3,6 +3,7 @@
 use std::{fs, process::Command};
 
 use regex::Regex;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 #[test]
 #[allow(clippy::disallowed_methods)]
@@ -44,13 +45,14 @@ fn ticket_create_prints_generated_id_and_writes_ticket_files() {
 
 #[test]
 #[allow(clippy::disallowed_methods)]
-fn ticket_show_prints_meta_state_and_content_sections() {
+fn ticket_show_prints_exact_canonical_sections() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
 
     let ticket_id = "TNDM-ABC123";
+    let content = "# Details\n\nshow output body";
     let content_file = repo_root.path().join("ticket-content.md");
-    fs::write(&content_file, "# Details\n\nshow output body").expect("write content file");
+    fs::write(&content_file, content).expect("write content file");
 
     let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
         .arg("ticket")
@@ -85,18 +87,44 @@ fn ticket_show_prints_meta_state_and_content_sections() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    assert!(stdout.contains("## meta.toml\n"));
-    assert!(stdout.contains("id = \"TNDM-ABC123\"\n"));
-    assert!(stdout.contains("title = \"Show ticket content\"\n"));
+    let updated_at_pattern =
+        Regex::new(r#"updated_at = \"([^\"]+)\""#).expect("regex should compile");
+    let captures = updated_at_pattern
+        .captures(&stdout)
+        .expect("ticket show output should include updated_at");
+    let updated_at = captures
+        .get(1)
+        .expect("updated_at capture should exist")
+        .as_str();
+    OffsetDateTime::parse(updated_at, &Rfc3339).expect("updated_at should parse as RFC3339");
 
-    assert!(stdout.contains("## state.toml\n"));
-    assert!(stdout.contains("status = \"todo\"\n"));
-    assert!(stdout.contains("revision = 1\n"));
-
-    assert!(stdout.contains("## content.md\n"));
-    assert!(stdout.contains("# Details\n"));
-    assert!(stdout.contains("show output body"));
-    assert!(stdout.ends_with('\n'));
+    let expected = format!(
+        concat!(
+            "## meta.toml\n",
+            "schema_version = 1\n",
+            "id = \"{ticket_id}\"\n",
+            "title = \"Show ticket content\"\n",
+            "\n",
+            "type = \"task\"\n",
+            "priority = \"p2\"\n",
+            "\n",
+            "depends_on = []\n",
+            "tags = []\n",
+            "\n",
+            "## state.toml\n",
+            "schema_version = 1\n",
+            "status = \"todo\"\n",
+            "updated_at = \"{updated_at}\"\n",
+            "revision = 1\n",
+            "\n",
+            "## content.md\n",
+            "{content}"
+        ),
+        ticket_id = ticket_id,
+        updated_at = updated_at,
+        content = content,
+    );
+    assert_eq!(stdout, expected);
 }
 
 #[test]

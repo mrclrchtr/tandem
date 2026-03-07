@@ -459,6 +459,7 @@ git commit -m "feat(storage): load .tndm config for id prefix and templates"
 Create `crates/tandem-storage/tests/ticket_store_tests.rs`:
 
 - `discover_repo_root_finds_git_dir()`
+- `discover_repo_root_errors_when_no_repo_markers()`
 
 Example:
 
@@ -492,7 +493,7 @@ In `crates/tandem-storage/src/lib.rs` implement:
 
 - `pub fn discover_repo_root(start: &Path) -> Result<PathBuf, StorageError>`
   - ascend parents looking for `.tndm/` OR `.git/` (dir or file)
-  - if not found, return `start.to_path_buf()`
+  - if not found, return an error indicating that no repository markers were found
 
 And a `FileTicketStore` that stores `repo_root: PathBuf` and computes:
 

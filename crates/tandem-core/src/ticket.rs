@@ -1,5 +1,7 @@
 use std::fmt;
 
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
 use crate::error::ValidationError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -198,7 +200,6 @@ pub struct TicketState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewTicket {
     pub meta: TicketMeta,
-    pub state: TicketState,
     pub content: String,
 }
 
@@ -218,6 +219,11 @@ impl TicketState {
         let updated_at = updated_at.into();
         if updated_at.trim().is_empty() {
             return Err(ValidationError::new("ticket updated_at must not be empty"));
+        }
+        if OffsetDateTime::parse(&updated_at, &Rfc3339).is_err() {
+            return Err(ValidationError::new(
+                "ticket updated_at must be a valid RFC3339 timestamp",
+            ));
         }
         if revision == 0 {
             return Err(ValidationError::new("ticket revision must be >= 1"));
@@ -426,6 +432,33 @@ mod tests {
     }
 
     #[test]
+    fn state_accepts_rfc3339_updated_at() {
+        let state = TicketState::new("2026-03-03T10:00:00Z", 1)
+            .expect("state with RFC3339 timestamp should be valid");
+
+        assert_eq!(state.updated_at, "2026-03-03T10:00:00Z");
+        assert_eq!(state.status, TicketStatus::Todo);
+        assert_eq!(state.revision, 1);
+    }
+
+    #[test]
+    fn state_rejects_invalid_updated_at() {
+        let error = TicketState::new("not-a-timestamp", 1)
+            .expect_err("state with invalid timestamp should be rejected");
+        assert_eq!(
+            error.message(),
+            "ticket updated_at must be a valid RFC3339 timestamp"
+        );
+    }
+
+    #[test]
+    fn state_rejects_empty_updated_at() {
+        let error =
+            TicketState::new("   ", 1).expect_err("state with empty updated_at should be rejected");
+        assert_eq!(error.message(), "ticket updated_at must not be empty");
+    }
+
+    #[test]
     fn state_initial_sets_todo_and_revision_one() {
         let state =
             TicketState::initial("2026-03-03T10:00:00Z").expect("initial state should be valid");
@@ -435,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn state_requires_revision_at_least_one() {
+    fn state_rejects_revision_zero() {
         let error = TicketState::new("2026-03-03T10:00:00Z", 0)
             .expect_err("state with zero revision should be rejected");
         assert_eq!(error.message(), "ticket revision must be >= 1");
