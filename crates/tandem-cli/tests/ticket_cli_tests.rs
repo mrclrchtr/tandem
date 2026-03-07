@@ -184,3 +184,52 @@ fn ticket_list_prints_sorted_tab_separated_lines() {
         "TNDM-1\ttodo\tFirst ticket\nTNDM-2\ttodo\tSecond ticket\n"
     );
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_show_surfaces_invalid_meta_toml_errors() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("TNDM-BROKEN");
+    fs::create_dir_all(&ticket_dir).expect("create ticket dir");
+    fs::write(
+        ticket_dir.join("meta.toml"),
+        "schema_version = 1\nid = \"TNDM-BROKEN\"\n",
+    )
+    .expect("write bad meta.toml");
+    fs::write(
+        ticket_dir.join("state.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "status = \"todo\"\n",
+            "updated_at = \"2026-03-03T12:34:56Z\"\n",
+            "revision = 1\n",
+        ),
+    )
+    .expect("write state.toml");
+    fs::write(ticket_dir.join("content.md"), "body\n").expect("write content.md");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .arg("ticket")
+        .arg("show")
+        .arg("TNDM-BROKEN")
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    assert!(
+        !output.status.success(),
+        "show should fail on invalid stored files"
+    );
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(stderr.contains("meta.toml"), "stderr was: {stderr:?}");
+    assert!(
+        stderr.contains("missing field `title`") || stderr.contains("missing field 'title'"),
+        "stderr was: {stderr:?}"
+    );
+}
