@@ -196,39 +196,63 @@ impl TicketStore for FileTicketStore {
             StorageError::new(format!("failed to build initial ticket state: {error}"))
         })?;
 
-        fs::create_dir_all(tickets_dir(&self.repo_root)).map_err(|error| {
+        let tickets_path = tickets_dir(&self.repo_root);
+        fs::create_dir_all(&tickets_path).map_err(|error| {
             StorageError::new(format!(
                 "failed to create tickets directory {}: {error}",
-                tickets_dir(&self.repo_root).display()
+                tickets_path.display()
             ))
         })?;
 
         let ticket_path = ticket_dir(&self.repo_root, &ticket.meta.id);
-        fs::create_dir(&ticket_path).map_err(|error| {
+        let staging_path = tickets_path.join(format!(".{}.tmp", ticket.meta.id.as_str()));
+        if staging_path.is_dir() {
+            fs::remove_dir_all(&staging_path).map_err(|error| {
+                StorageError::new(format!(
+                    "failed to remove stale ticket staging directory {}: {error}",
+                    staging_path.display()
+                ))
+            })?;
+        }
+        fs::create_dir(&staging_path).map_err(|error| {
             StorageError::new(format!(
-                "failed to create ticket directory {}: {error}",
-                ticket_path.display()
+                "failed to create ticket staging directory {}: {error}",
+                staging_path.display()
             ))
         })?;
 
-        let meta_path = ticket_path.join("meta.toml");
-        let state_path = ticket_path.join("state.toml");
-        let content_path = ticket_path.join("content.md");
+        let write_result = (|| {
+            let meta_path = staging_path.join("meta.toml");
+            let state_path = staging_path.join("state.toml");
+            let content_path = staging_path.join("content.md");
 
-        fs::write(&meta_path, ticket.meta.to_canonical_toml()).map_err(|error| {
-            StorageError::new(format!("failed to write {}: {error}", meta_path.display()))
-        })?;
+            fs::write(&meta_path, ticket.meta.to_canonical_toml()).map_err(|error| {
+                StorageError::new(format!("failed to write {}: {error}", meta_path.display()))
+            })?;
 
-        fs::write(&state_path, state.to_canonical_toml()).map_err(|error| {
-            StorageError::new(format!("failed to write {}: {error}", state_path.display()))
-        })?;
+            fs::write(&state_path, state.to_canonical_toml()).map_err(|error| {
+                StorageError::new(format!("failed to write {}: {error}", state_path.display()))
+            })?;
 
-        fs::write(&content_path, &ticket.content).map_err(|error| {
-            StorageError::new(format!(
-                "failed to write {}: {error}",
-                content_path.display()
-            ))
-        })?;
+            fs::write(&content_path, &ticket.content).map_err(|error| {
+                StorageError::new(format!(
+                    "failed to write {}: {error}",
+                    content_path.display()
+                ))
+            })?;
+
+            fs::rename(&staging_path, &ticket_path).map_err(|error| {
+                StorageError::new(format!(
+                    "failed to finalize ticket directory {}: {error}",
+                    ticket_path.display()
+                ))
+            })
+        })();
+
+        if write_result.is_err() {
+            let _ = fs::remove_dir_all(&staging_path);
+        }
+        write_result?;
 
         Ok(Ticket {
             meta: ticket.meta,
@@ -406,6 +430,10 @@ impl TicketStore for FileTicketStore {
                     entry.path().display()
                 ))
             })?;
+
+            if dir_name.starts_with('.') && dir_name.ends_with(".tmp") {
+                continue;
+            }
 
             let id = TicketId::parse(dir_name).map_err(|error| {
                 StorageError::new(format!(

@@ -11,7 +11,7 @@ use tandem_core::{
     ports::TicketStore,
     ticket::{NewTicket, TicketId, TicketMeta},
 };
-use tandem_storage::{FileTicketStore, TandemConfig, discover_repo_root, load_config};
+use tandem_storage::{FileTicketStore, TandemConfig, discover_repo_root, load_config, ticket_dir};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -28,7 +28,7 @@ struct Cli {
 enum Command {
     /// Format/normalize tandem files.
     Fmt {
-        /// Do not write changes (not implemented yet).
+        /// Do not write changes.
         #[arg(long)]
         check: bool,
     },
@@ -71,10 +71,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Fmt { check } => {
-            let _ = check;
-            anyhow::bail!("tndm fmt is not implemented yet");
-        }
+        Command::Fmt { check } => handle_fmt(check),
         Command::Ticket { command } => match command {
             TicketCommand::Create {
                 title,
@@ -86,6 +83,51 @@ fn main() -> anyhow::Result<()> {
         },
         Command::Awareness => anyhow::bail!("tndm awareness: not implemented yet"),
     }
+}
+
+fn handle_fmt(check: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root.clone());
+    let ids = store
+        .list_ticket_ids()
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    let mut changed_files = Vec::new();
+
+    for id in ids {
+        let ticket = store
+            .load_ticket(&id)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        let base = ticket_dir(&repo_root, &id);
+        let expected_files = [
+            (base.join("meta.toml"), ticket.meta.to_canonical_toml()),
+            (base.join("state.toml"), ticket.state.to_canonical_toml()),
+        ];
+
+        for (path, canonical) in expected_files {
+            let current = fs::read_to_string(&path).map_err(|error| anyhow::anyhow!("{error}"))?;
+            if current != canonical {
+                changed_files.push(path.clone());
+                if !check {
+                    fs::write(&path, canonical).map_err(|error| anyhow::anyhow!("{error}"))?;
+                }
+            }
+        }
+    }
+
+    if check && !changed_files.is_empty() {
+        for path in &changed_files {
+            println!("{}", path.display());
+        }
+        anyhow::bail!("tndm fmt --check found non-canonical tandem files");
+    }
+
+    for path in &changed_files {
+        println!("{}", path.display());
+    }
+
+    Ok(())
 }
 
 fn handle_ticket_create(
