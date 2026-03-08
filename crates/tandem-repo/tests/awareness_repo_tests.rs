@@ -164,6 +164,10 @@ fn commit(repo_root: &Path, message: &str) {
 }
 
 fn run_git(repo_root: &Path, args: &[&str]) {
+    let _ = run_git_output(repo_root, args);
+}
+
+fn run_git_output(repo_root: &Path, args: &[&str]) -> Vec<u8> {
     let output = Command::new("git")
         .args(args)
         .current_dir(repo_root)
@@ -177,4 +181,6 @@ fn run_git(repo_root: &Path, args: &[&str]) {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+
+    output.stdout
 }
