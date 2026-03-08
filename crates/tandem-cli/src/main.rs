@@ -6,11 +6,13 @@ use std::{
     path::PathBuf,
 };
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use tandem_core::{
-    ports::TicketStore,
+    awareness::compare_snapshots,
+    ports::{AwarenessSnapshotProvider, TicketStore},
     ticket::{NewTicket, TicketId, TicketMeta},
 };
+use tandem_repo::GitAwarenessProvider;
 use tandem_storage::{FileTicketStore, TandemConfig, discover_repo_root, load_config, ticket_dir};
 
 #[derive(Parser, Debug)]
@@ -40,7 +42,13 @@ enum Command {
     },
 
     /// Show awareness of relevant ticket changes elsewhere.
-    Awareness,
+    Awareness(AwarenessArgs),
+}
+
+#[derive(Args, Debug)]
+struct AwarenessArgs {
+    #[arg(long)]
+    against: String,
 }
 
 #[derive(Subcommand, Debug)]
@@ -81,7 +89,7 @@ fn main() -> anyhow::Result<()> {
             TicketCommand::Show { id } => handle_ticket_show(id),
             TicketCommand::List => handle_ticket_list(),
         },
-        Command::Awareness => anyhow::bail!("tndm awareness: not implemented yet"),
+        Command::Awareness(args) => handle_awareness(args),
     }
 }
 
@@ -192,6 +200,23 @@ fn handle_ticket_list() -> anyhow::Result<()> {
         );
     }
 
+    Ok(())
+}
+
+fn handle_awareness(args: AwarenessArgs) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let provider = GitAwarenessProvider::new(repo_root);
+
+    let current_snapshot = provider
+        .load_current_snapshot()
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    let against_snapshot = provider
+        .load_snapshot_for_ref(&args.against)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    let report = compare_snapshots(&args.against, &current_snapshot, &against_snapshot);
+    println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
 }
 
