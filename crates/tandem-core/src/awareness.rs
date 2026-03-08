@@ -161,13 +161,13 @@ fn diff_value(current: &str, against: &str) -> Option<AwarenessFieldDiff> {
 }
 
 fn canonicalize_depends_on(depends_on: &[TicketId]) -> Vec<String> {
-    depends_on
+    let mut canonical = depends_on
         .iter()
         .map(TicketId::as_str)
         .map(str::to_owned)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
+        .collect::<Vec<_>>();
+    canonical.sort();
+    canonical
 }
 
 #[cfg(test)]
@@ -385,6 +385,40 @@ mod tests {
         let report = compare_snapshots("main", &current, &against);
 
         assert!(report.tickets.is_empty());
+    }
+
+    #[test]
+    fn compare_snapshots_preserves_duplicate_depends_on_entries_as_difference() {
+        let current = TicketSnapshot::from_tickets([ticket(
+            "TNDM-6",
+            "Current",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &["TNDM-2", "TNDM-1", "TNDM-1"],
+        )]);
+        let against = TicketSnapshot::from_tickets([ticket(
+            "TNDM-6",
+            "Against",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &["TNDM-1", "TNDM-2"],
+        )]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        assert_eq!(
+            report.tickets[0].fields.depends_on,
+            Some(AwarenessDependsOnDiff {
+                current: vec![
+                    "TNDM-1".to_string(),
+                    "TNDM-1".to_string(),
+                    "TNDM-2".to_string(),
+                ],
+                against: vec!["TNDM-1".to_string(), "TNDM-2".to_string()],
+            })
+        );
     }
 
     fn ticket(
