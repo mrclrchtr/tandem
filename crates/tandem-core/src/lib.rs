@@ -7,6 +7,7 @@
     clippy::print_stdout
 )]
 
+pub mod awareness;
 pub mod error;
 pub mod ports;
 pub mod ticket;
