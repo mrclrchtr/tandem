@@ -8,10 +8,15 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use tandem_core::{
-    ports::TicketStore,
+    awareness::{TicketSnapshot, compare_snapshots},
+    ports::{AwarenessRefMaterializer, MaterializedRefSnapshot, TicketStore},
     ticket::{NewTicket, TicketId, TicketMeta},
 };
-use tandem_storage::{FileTicketStore, TandemConfig, discover_repo_root, load_config, ticket_dir};
+use tandem_repo::GitAwarenessProvider;
+use tandem_storage::{
+    FileTicketStore, TandemConfig, discover_repo_root, load_config, load_ticket_snapshot,
+    ticket_dir,
+};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -40,7 +45,10 @@ enum Command {
     },
 
     /// Show awareness of relevant ticket changes elsewhere.
-    Awareness,
+    Awareness {
+        #[arg(long)]
+        against: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -81,7 +89,7 @@ fn main() -> anyhow::Result<()> {
             TicketCommand::Show { id } => handle_ticket_show(id),
             TicketCommand::List => handle_ticket_list(),
         },
-        Command::Awareness => anyhow::bail!("tndm awareness: not implemented yet"),
+        Command::Awareness { against } => handle_awareness(against),
     }
 }
 
@@ -193,6 +201,47 @@ fn handle_ticket_list() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn handle_awareness(against: String) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    let current = load_ticket_snapshot(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let provider = GitAwarenessProvider::new(repo_root);
+
+    let against_snapshot = match provider
+        .materialize_ref_snapshot(&against)
+        .map_err(|error| anyhow::anyhow!("{error}"))?
+    {
+        None => TicketSnapshot::default(),
+        Some(snapshot) => load_materialized_snapshot(&against, &snapshot)?,
+    };
+
+    let report = compare_snapshots(&against, &current, &against_snapshot);
+    let json = serde_json::to_string_pretty(&report)?;
+    println!("{json}");
+    Ok(())
+}
+
+fn load_materialized_snapshot(
+    against: &str,
+    snapshot: &impl MaterializedRefSnapshot,
+) -> anyhow::Result<TicketSnapshot> {
+    load_ticket_snapshot(snapshot.path()).map_err(|error| {
+        anyhow::anyhow!(
+            "failed to load materialized snapshot for ref `{against}`: {}",
+            sanitize_snapshot_error_text(error.to_string(), snapshot.path())
+        )
+    })
+}
+
+fn sanitize_snapshot_error_text(error: String, snapshot_root: &std::path::Path) -> String {
+    let normalized_root = snapshot_root.to_string_lossy().replace('\\', "/");
+
+    error
+        .replace(snapshot_root.to_string_lossy().as_ref(), "<ref-snapshot>")
+        .replace(&normalized_root, "<ref-snapshot>")
 }
 
 fn generate_ticket_id(store: &FileTicketStore, prefix: &str) -> anyhow::Result<TicketId> {
