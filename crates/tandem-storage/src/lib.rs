@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fmt, fs,
     path::{Path, PathBuf},
 };
@@ -7,6 +8,7 @@ use serde::Deserialize;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use tandem_core::{
+    awareness::TicketSnapshot,
     ports::TicketStore,
     ticket::{
         NewTicket, Ticket, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus,
@@ -180,6 +182,18 @@ pub fn load_config(repo_root: &Path) -> Result<TandemConfig, StorageError> {
     }
 
     Ok(config)
+}
+
+pub fn load_ticket_snapshot(repo_root: &Path) -> Result<TicketSnapshot, StorageError> {
+    let store = FileTicketStore::new(repo_root.to_path_buf());
+    let mut tickets = BTreeMap::new();
+
+    for id in store.list_ticket_ids()? {
+        let ticket = store.load_ticket(&id)?;
+        tickets.insert(id, ticket);
+    }
+
+    Ok(TicketSnapshot { tickets })
 }
 
 impl TicketStore for FileTicketStore {
