@@ -1,10 +1,7 @@
-use crate::ticket::{NewTicket, Ticket, TicketId};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TicketChange {
-    pub ticket_id: TicketId,
-    pub summary: String,
-}
+use crate::{
+    awareness::TicketSnapshot,
+    ticket::{NewTicket, Ticket, TicketId},
+};
 
 pub trait TicketStore {
     type Error;
@@ -22,11 +19,9 @@ pub trait RepoContext {
     fn list_worktrees(&self) -> Result<Vec<String>, Self::Error>;
 }
 
-pub trait AwarenessProvider {
+pub trait AwarenessSnapshotProvider {
     type Error;
 
-    fn collect_ticket_changes(
-        &self,
-        ticket_id: &TicketId,
-    ) -> Result<Vec<TicketChange>, Self::Error>;
+    fn load_current_snapshot(&self) -> Result<TicketSnapshot, Self::Error>;
+    fn load_snapshot_for_ref(&self, reference: &str) -> Result<TicketSnapshot, Self::Error>;
 }
