@@ -3,11 +3,10 @@
 use std::{fs, path::Path, process::Command};
 
 use tandem_core::{
-    ports::{AwarenessRefMaterializer, MaterializedRefSnapshot, TicketStore},
-    ticket::{NewTicket, TicketId, TicketMeta},
+    ports::{AwarenessRefMaterializer, MaterializedRefSnapshot},
+    ticket::{TicketId, TicketMeta, TicketState},
 };
 use tandem_repo::GitAwarenessProvider;
-use tandem_storage::FileTicketStore;
 
 #[test]
 fn materialize_ref_snapshot_writes_committed_ticket_files() {
@@ -89,12 +88,18 @@ fn materialize_ref_snapshot_sanitizes_temp_paths_for_invalid_committed_ticket_da
         .expect("materialize ref snapshot")
         .expect("snapshot root should exist");
 
-    let store = FileTicketStore::new(snapshot.path().to_path_buf());
-    let error = store
-        .load_ticket(&TicketId::parse("TNDM-1").expect("valid ticket id"))
+    let error = fs::read_to_string(snapshot.path().join(".tndm/tickets/TNDM-1/meta.toml"))
+        .expect("read invalid materialized meta")
+        .parse::<toml::Table>()
         .expect_err("invalid materialized snapshot should fail")
         .to_string();
-    let sanitized = snapshot.sanitize_error_text(&error);
+    let sanitized = snapshot.sanitize_error_text(&format!(
+        "failed to parse {}: {error}",
+        snapshot
+            .path()
+            .join(".tndm/tickets/TNDM-1/meta.toml")
+            .display()
+    ));
 
     assert!(sanitized.contains("<ref-snapshot>/.tndm/tickets/TNDM-1/meta.toml"));
     assert!(!sanitized.contains(&snapshot.path().display().to_string()));
@@ -125,15 +130,21 @@ impl TestRepo {
     }
 
     fn create_ticket(&self, id: &str, title: &str) {
-        let store = FileTicketStore::new(self.root().to_path_buf());
-        let id = TicketId::parse(id).expect("valid ticket id");
-        let meta = TicketMeta::new(id, title).expect("valid ticket meta");
-        store
-            .create_ticket(NewTicket {
-                meta,
-                content: format!("## Description\n\n{title}\n"),
-            })
-            .expect("create ticket");
+        let ticket_id = TicketId::parse(id).expect("valid ticket id");
+        let meta = TicketMeta::new(ticket_id, title).expect("valid ticket meta");
+        let state = TicketState::initial("2026-03-08T00:00:00Z").expect("valid ticket state");
+        let ticket_root = self.root().join(".tndm/tickets").join(id);
+
+        fs::create_dir_all(&ticket_root).expect("create ticket dir");
+        fs::write(ticket_root.join("meta.toml"), meta.to_canonical_toml())
+            .expect("write meta.toml");
+        fs::write(ticket_root.join("state.toml"), state.to_canonical_toml())
+            .expect("write state.toml");
+        fs::write(
+            ticket_root.join("content.md"),
+            format!("## Description\n\n{title}\n"),
+        )
+        .expect("write content.md");
     }
 
     fn write_ticket_file(&self, id: &str, file_name: &str, contents: &str) {
