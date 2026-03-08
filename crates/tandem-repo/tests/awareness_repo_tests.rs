@@ -71,6 +71,27 @@ fn load_snapshot_for_ref_errors_for_unknown_ref() {
     assert!(!message.contains(&repo.root().display().to_string()));
 }
 
+#[test]
+fn load_snapshot_for_ref_sanitizes_temp_paths_for_invalid_ticket_data() {
+    let repo = TestRepo::new();
+    repo.create_ticket("TNDM-1", "Broken ticket");
+    repo.write_ticket_file("TNDM-1", "meta.toml", "not toml\n");
+    repo.commit_all("broken snapshot");
+
+    let error = repo
+        .provider()
+        .load_snapshot_for_ref("HEAD")
+        .expect_err("invalid ref snapshot should fail");
+
+    let message = error.to_string();
+    assert!(message.contains("failed to load materialized snapshot for ref `HEAD`"));
+    assert!(message.contains("failed to parse <ref-snapshot>/.tndm/tickets/TNDM-1/meta.toml"));
+    assert!(message.contains("<ref-snapshot>/.tndm/tickets/TNDM-1/meta.toml"));
+    assert!(!message.contains(&repo.root().display().to_string()));
+    assert!(!message.contains("/tmp/"));
+    assert!(!message.contains("/private/tmp/"));
+}
+
 struct TestRepo {
     root: tempfile::TempDir,
 }
@@ -114,6 +135,16 @@ impl TestRepo {
             &format!("status = \"{}\"", status.as_str()),
         );
         fs::write(state_path, next).expect("write state");
+    }
+
+    fn write_ticket_file(&self, id: &str, file_name: &str, contents: &str) {
+        let path = self
+            .root()
+            .join(".tndm")
+            .join("tickets")
+            .join(id)
+            .join(file_name);
+        fs::write(path, contents).expect("write ticket file");
     }
 
     fn commit_all(&self, message: &str) {
