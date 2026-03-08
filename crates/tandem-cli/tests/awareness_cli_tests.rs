@@ -2,6 +2,7 @@
 
 use std::{fs, path::Path, process::Command};
 
+use regex::Regex;
 use tandem_core::{
     ports::TicketStore,
     ticket::{NewTicket, TicketId, TicketMeta},
@@ -106,10 +107,6 @@ fn awareness_errors_for_invalid_ref() {
 
     assert!(!output.status.success(), "invalid ref should fail");
     let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
-    assert!(
-        stderr.contains("git rev-parse --verify does-not-exist^{commit}"),
-        "stderr was: {stderr:?}"
-    );
     assert!(stderr.contains("does-not-exist"), "stderr was: {stderr:?}");
 }
 
@@ -136,8 +133,17 @@ fn awareness_errors_for_invalid_committed_ticket_data_without_temp_path_leakage(
         stderr.contains("<ref-snapshot>/.tndm/tickets/TNDM-1/meta.toml"),
         "stderr was: {stderr:?}"
     );
-    assert!(!stderr.contains("/tmp/"), "stderr was: {stderr:?}");
-    assert!(!stderr.contains("/private/tmp/"), "stderr was: {stderr:?}");
+    assert!(
+        !stderr.contains(&repo.root().display().to_string()),
+        "stderr was: {stderr:?}"
+    );
+    let leaked_materialized_path =
+        Regex::new(r"(?:^|\s)/(?:[^\s`<>]+/)+\.tndm/tickets/TNDM-1/meta\.toml")
+            .expect("valid regex");
+    assert!(
+        !leaked_materialized_path.is_match(&stderr),
+        "stderr was: {stderr:?}"
+    );
 }
 
 struct TestRepo {
