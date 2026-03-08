@@ -56,6 +56,18 @@ impl RepoError {
     fn storage(error: StorageError) -> Self {
         Self::new(format!("storage error: {error}"))
     }
+
+    fn ref_snapshot_storage(reference: &str, temp_root: &Path, error: StorageError) -> Self {
+        let raw_message = error.to_string();
+        let normalized_root = temp_root.to_string_lossy().replace('\\', "/");
+        let sanitized = raw_message
+            .replace(temp_root.to_string_lossy().as_ref(), "<ref-snapshot>")
+            .replace(&normalized_root, "<ref-snapshot>");
+
+        Self::new(format!(
+            "failed to load materialized snapshot for ref `{reference}`: {sanitized}"
+        ))
+    }
 }
 
 impl fmt::Display for RepoError {
@@ -101,7 +113,8 @@ impl AwarenessSnapshotProvider for GitAwarenessProvider {
         })?;
 
         write_ref_ticket_tree(temp_root.path(), &self.repo_root, reference, &ticket_paths)?;
-        load_ticket_snapshot(temp_root.path()).map_err(RepoError::storage)
+        load_ticket_snapshot(temp_root.path())
+            .map_err(|error| RepoError::ref_snapshot_storage(reference, temp_root.path(), error))
     }
 }
 
