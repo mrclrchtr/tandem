@@ -535,6 +535,8 @@ name = "tandem-repo"
 version = "0.1.0"
 dependencies = [
  "tandem-core",
+ "tandem-storage",
+ "tempfile",
 ]
 
 [[package]]

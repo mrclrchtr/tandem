@@ -1,17 +1,43 @@
 #![allow(clippy::disallowed_methods, clippy::disallowed_types)]
 
-use std::fmt;
-
-use tandem_core::{
-    ports::{AwarenessProvider, RepoContext, TicketChange},
-    ticket::TicketId,
+use std::{
+    fmt, fs,
+    path::{Path, PathBuf},
+    process::Command,
 };
+
+use tandem_core::ports::{AwarenessRefMaterializer, MaterializedRefSnapshot, RepoContext};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct GitRepoContext;
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct GitAwarenessProvider;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GitAwarenessProvider {
+    repo_root: PathBuf,
+}
+
+impl GitAwarenessProvider {
+    pub fn new(repo_root: PathBuf) -> Self {
+        Self { repo_root }
+    }
+}
+
+#[derive(Debug)]
+pub struct GitMaterializedRefSnapshot {
+    tempdir: tempfile::TempDir,
+}
+
+impl GitMaterializedRefSnapshot {
+    pub fn sanitize_error_text(&self, text: &str) -> String {
+        sanitize_snapshot_path(text, self.path())
+    }
+}
+
+impl MaterializedRefSnapshot for GitMaterializedRefSnapshot {
+    fn path(&self) -> &Path {
+        self.tempdir.path()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoError {
@@ -19,10 +45,25 @@ pub struct RepoError {
 }
 
 impl RepoError {
-    fn not_implemented(operation: &str) -> Self {
+    fn new(message: impl Into<String>) -> Self {
         Self {
-            message: format!("repo operation `{operation}` is not implemented"),
+            message: message.into(),
         }
+    }
+
+    fn not_implemented(operation: &str) -> Self {
+        Self::new(format!("repo operation `{operation}` is not implemented"))
+    }
+
+    fn git_command_failed(args: &[&str], stderr: &[u8]) -> Self {
+        let command = format!("git {}", args.join(" "));
+        let stderr = String::from_utf8_lossy(stderr);
+        let details = match stderr.trim() {
+            "" => "git command exited unsuccessfully".to_string(),
+            value => value.to_string(),
+        };
+
+        Self::new(format!("{command} failed: {details}"))
     }
 }
 
@@ -46,13 +87,104 @@ impl RepoContext for GitRepoContext {
     }
 }
 
-impl AwarenessProvider for GitAwarenessProvider {
+impl AwarenessRefMaterializer for GitAwarenessProvider {
     type Error = RepoError;
+    type Snapshot = GitMaterializedRefSnapshot;
 
-    fn collect_ticket_changes(
+    fn materialize_ref_snapshot(
         &self,
-        _ticket_id: &TicketId,
-    ) -> Result<Vec<TicketChange>, Self::Error> {
-        Err(RepoError::not_implemented("collect_ticket_changes"))
+        reference: &str,
+    ) -> Result<Option<Self::Snapshot>, Self::Error> {
+        let resolved_ref = format!("{reference}^{{commit}}");
+        run_git(&self.repo_root, &["rev-parse", "--verify", &resolved_ref])?;
+
+        let ticket_paths = list_ref_ticket_paths(&self.repo_root, reference)?;
+        if ticket_paths.is_empty() {
+            return Ok(None);
+        }
+
+        let tempdir = tempfile::tempdir().map_err(|error| {
+            RepoError::new(format!(
+                "failed to create temp snapshot root for ref `{reference}`: {error}"
+            ))
+        })?;
+
+        write_ref_ticket_tree(tempdir.path(), &self.repo_root, reference, &ticket_paths)?;
+        Ok(Some(GitMaterializedRefSnapshot { tempdir }))
     }
+}
+
+fn run_git(repo_root: &Path, args: &[&str]) -> Result<Vec<u8>, RepoError> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(repo_root)
+        .output()
+        .map_err(|error| {
+            RepoError::new(format!("failed to run git {}: {error}", args.join(" ")))
+        })?;
+
+    if output.status.success() {
+        Ok(output.stdout)
+    } else {
+        Err(RepoError::git_command_failed(args, &output.stderr))
+    }
+}
+
+fn list_ref_ticket_paths(repo_root: &Path, reference: &str) -> Result<Vec<PathBuf>, RepoError> {
+    let output = run_git(
+        repo_root,
+        &[
+            "ls-tree",
+            "-r",
+            "--name-only",
+            reference,
+            "--",
+            ".tndm/tickets",
+        ],
+    )?;
+
+    Ok(String::from_utf8_lossy(&output)
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(PathBuf::from)
+        .collect())
+}
+
+fn write_ref_ticket_tree(
+    destination_root: &Path,
+    repo_root: &Path,
+    reference: &str,
+    ticket_paths: &[PathBuf],
+) -> Result<(), RepoError> {
+    for ticket_path in ticket_paths {
+        let ticket_path_string = ticket_path.to_string_lossy().to_string();
+        let blob = run_git(
+            repo_root,
+            &["show", &format!("{reference}:{ticket_path_string}")],
+        )?;
+
+        let destination_path = destination_root.join(ticket_path);
+        if let Some(parent) = destination_path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                RepoError::new(format!(
+                    "failed to create snapshot directory for ref `{reference}`: {error}"
+                ))
+            })?;
+        }
+
+        fs::write(&destination_path, blob).map_err(|error| {
+            RepoError::new(format!(
+                "failed to materialize snapshot file `{ticket_path_string}` for ref `{reference}`: {error}"
+            ))
+        })?;
+    }
+
+    Ok(())
+}
+
+fn sanitize_snapshot_path(text: &str, snapshot_root: &Path) -> String {
+    let normalized_root = snapshot_root.to_string_lossy().replace('\\', "/");
+
+    text.replace(snapshot_root.to_string_lossy().as_ref(), "<ref-snapshot>")
+        .replace(&normalized_root, "<ref-snapshot>")
 }

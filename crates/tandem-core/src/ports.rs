@@ -1,10 +1,6 @@
-use crate::ticket::{NewTicket, Ticket, TicketId};
+use std::path::Path;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TicketChange {
-    pub ticket_id: TicketId,
-    pub summary: String,
-}
+use crate::ticket::{NewTicket, Ticket, TicketId};
 
 pub trait TicketStore {
     type Error;
@@ -22,11 +18,16 @@ pub trait RepoContext {
     fn list_worktrees(&self) -> Result<Vec<String>, Self::Error>;
 }
 
-pub trait AwarenessProvider {
-    type Error;
+pub trait MaterializedRefSnapshot {
+    fn path(&self) -> &Path;
+}
 
-    fn collect_ticket_changes(
+pub trait AwarenessRefMaterializer {
+    type Error;
+    type Snapshot: MaterializedRefSnapshot;
+
+    fn materialize_ref_snapshot(
         &self,
-        ticket_id: &TicketId,
-    ) -> Result<Vec<TicketChange>, Self::Error>;
+        reference: &str,
+    ) -> Result<Option<Self::Snapshot>, Self::Error>;
 }
