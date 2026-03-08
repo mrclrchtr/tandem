@@ -87,20 +87,8 @@ impl AwarenessFieldDiffs {
             against.meta.priority.as_str(),
         );
 
-        let current_depends_on = current
-            .meta
-            .depends_on
-            .iter()
-            .map(TicketId::as_str)
-            .map(str::to_owned)
-            .collect::<Vec<_>>();
-        let against_depends_on = against
-            .meta
-            .depends_on
-            .iter()
-            .map(TicketId::as_str)
-            .map(str::to_owned)
-            .collect::<Vec<_>>();
+        let current_depends_on = canonicalize_depends_on(&current.meta.depends_on);
+        let against_depends_on = canonicalize_depends_on(&against.meta.depends_on);
         let depends_on =
             (current_depends_on != against_depends_on).then_some(AwarenessDependsOnDiff {
                 current: current_depends_on,
@@ -170,6 +158,16 @@ fn diff_value(current: &str, against: &str) -> Option<AwarenessFieldDiff> {
         current: current.to_string(),
         against: against.to_string(),
     })
+}
+
+fn canonicalize_depends_on(depends_on: &[TicketId]) -> Vec<String> {
+    depends_on
+        .iter()
+        .map(TicketId::as_str)
+        .map(str::to_owned)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 #[cfg(test)]
@@ -339,6 +337,54 @@ mod tests {
         assert!(json.contains(
             "\"fields\":{\"status\":{\"current\":\"in_progress\",\"against\":\"todo\"},\"priority\":{\"current\":\"p1\",\"against\":\"p2\"},\"depends_on\":{\"current\":[\"TNDM-1\"],\"against\":[]}}"
         ));
+    }
+
+    #[test]
+    fn compare_snapshots_omits_unchanged_fields_from_serialized_json() {
+        let current = TicketSnapshot::from_tickets([ticket(
+            "TNDM-4",
+            "Current",
+            TicketStatus::InProgress,
+            TicketPriority::P2,
+            &["TNDM-1", "TNDM-2"],
+        )]);
+        let against = TicketSnapshot::from_tickets([ticket(
+            "TNDM-4",
+            "Against",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &["TNDM-2", "TNDM-1"],
+        )]);
+
+        let report = compare_snapshots("main", &current, &against);
+        let json = serde_json::to_string(&report).unwrap();
+
+        assert_eq!(report.tickets.len(), 1);
+        assert!(json.contains("\"status\":{\"current\":\"in_progress\",\"against\":\"todo\"}"));
+        assert!(!json.contains("\"priority\":"));
+        assert!(!json.contains("\"depends_on\":"));
+    }
+
+    #[test]
+    fn compare_snapshots_ignores_depends_on_order_when_values_match() {
+        let current = TicketSnapshot::from_tickets([ticket(
+            "TNDM-5",
+            "Current",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &["TNDM-2", "TNDM-1"],
+        )]);
+        let against = TicketSnapshot::from_tickets([ticket(
+            "TNDM-5",
+            "Against",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &["TNDM-1", "TNDM-2"],
+        )]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert!(report.tickets.is_empty());
     }
 
     fn ticket(
