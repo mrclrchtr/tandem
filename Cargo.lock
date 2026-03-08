@@ -514,6 +514,7 @@ dependencies = [
  "clap",
  "rand",
  "regex",
+ "serde_json",
  "tandem-core",
  "tandem-repo",
  "tandem-storage",
