@@ -10,13 +10,14 @@ use clap::{Args, Parser, Subcommand};
 use tandem_core::{
     awareness::compare_snapshots,
     ports::TicketStore,
-    ticket::{NewTicket, TicketId, TicketMeta},
+    ticket::{NewTicket, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType},
 };
 use tandem_repo::GitAwarenessProvider;
 use tandem_storage::{
     FileTicketStore, TandemConfig, discover_repo_root, load_config, load_ticket_snapshot,
     ticket_dir,
 };
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -73,6 +74,39 @@ enum TicketCommand {
         id: String,
     },
     List,
+    /// Update an existing ticket.
+    Update {
+        /// Ticket ID to update.
+        id: String,
+
+        /// New status (todo, in_progress, blocked, done).
+        #[arg(long)]
+        status: Option<String>,
+
+        /// New priority (p0–p4).
+        #[arg(long)]
+        priority: Option<String>,
+
+        /// New title.
+        #[arg(long)]
+        title: Option<String>,
+
+        /// New ticket type (task, bug, feature, chore, epic).
+        #[arg(long = "type")]
+        ticket_type: Option<String>,
+
+        /// Comma-separated tags (replaces existing list, empty string clears).
+        #[arg(long)]
+        tags: Option<String>,
+
+        /// Comma-separated ticket IDs for dependencies (replaces existing list, empty string clears).
+        #[arg(long)]
+        depends_on: Option<String>,
+
+        /// Markdown file replacing content.
+        #[arg(long)]
+        content_file: Option<PathBuf>,
+    },
 }
 
 const DEFAULT_CONTENT_TEMPLATE: &str = "## Description\n\n## Design\n\n## Acceptance\n\n## Notes\n";
@@ -91,6 +125,25 @@ fn main() -> anyhow::Result<()> {
             } => handle_ticket_create(title, id, content_file),
             TicketCommand::Show { id } => handle_ticket_show(id),
             TicketCommand::List => handle_ticket_list(),
+            TicketCommand::Update {
+                id,
+                status,
+                priority,
+                title,
+                ticket_type,
+                tags,
+                depends_on,
+                content_file,
+            } => handle_ticket_update(
+                id,
+                status,
+                priority,
+                title,
+                ticket_type,
+                tags,
+                depends_on,
+                content_file,
+            ),
         },
         Command::Awareness(args) => handle_awareness(args),
     }
@@ -203,6 +256,92 @@ fn handle_ticket_list() -> anyhow::Result<()> {
         );
     }
 
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_ticket_update(
+    id: String,
+    status: Option<String>,
+    priority: Option<String>,
+    title: Option<String>,
+    ticket_type: Option<String>,
+    tags: Option<String>,
+    depends_on: Option<String>,
+    content_file: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    if status.is_none()
+        && priority.is_none()
+        && title.is_none()
+        && ticket_type.is_none()
+        && tags.is_none()
+        && depends_on.is_none()
+        && content_file.is_none()
+    {
+        anyhow::bail!("at least one update flag is required");
+    }
+
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = TicketId::parse(id)?;
+    let mut ticket = store
+        .load_ticket(&ticket_id)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    if let Some(value) = status {
+        ticket.state.status = TicketStatus::parse(&value)?;
+    }
+    if let Some(value) = priority {
+        ticket.meta.priority = TicketPriority::parse(&value)?;
+    }
+    if let Some(value) = title {
+        if value.trim().is_empty() {
+            anyhow::bail!("title must not be empty");
+        }
+        ticket.meta.title = value;
+    }
+    if let Some(value) = ticket_type {
+        ticket.meta.ticket_type = TicketType::parse(&value)?;
+    }
+    if let Some(value) = tags {
+        let mut parsed: Vec<String> = if value.trim().is_empty() {
+            Vec::new()
+        } else {
+            value.split(',').map(|s| s.trim().to_string()).collect()
+        };
+        parsed.sort();
+        parsed.dedup();
+        ticket.meta.tags = parsed;
+    }
+    if let Some(value) = depends_on {
+        let mut parsed: Vec<TicketId> = if value.trim().is_empty() {
+            Vec::new()
+        } else {
+            value
+                .split(',')
+                .map(|s| TicketId::parse(s.trim()))
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        parsed.sort();
+        parsed.dedup();
+        ticket.meta.depends_on = parsed;
+    }
+    if let Some(path) = content_file {
+        ticket.content = fs::read_to_string(&path)
+            .map_err(|error| anyhow::anyhow!("failed to read {}: {error}", path.display()))?;
+    }
+
+    ticket.state.revision += 1;
+    ticket.state.updated_at = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .map_err(|error| anyhow::anyhow!("failed to format timestamp: {error}"))?;
+
+    store
+        .update_ticket(&ticket)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    println!("{ticket_id}");
     Ok(())
 }
 
