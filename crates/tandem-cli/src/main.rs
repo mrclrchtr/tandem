@@ -53,6 +53,16 @@ enum Command {
 struct AwarenessArgs {
     #[arg(long)]
     against: String,
+
+    #[command(flatten)]
+    output: OutputArgs,
+}
+
+#[derive(Args, Debug)]
+struct OutputArgs {
+    /// Output as JSON instead of human-readable text.
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -69,11 +79,20 @@ enum TicketCommand {
         /// Optional content markdown file path.
         #[arg(long)]
         content_file: Option<PathBuf>,
+
+        #[command(flatten)]
+        output: OutputArgs,
     },
     Show {
         id: String,
+
+        #[command(flatten)]
+        output: OutputArgs,
     },
-    List,
+    List {
+        #[command(flatten)]
+        output: OutputArgs,
+    },
     /// Update an existing ticket.
     Update {
         /// Ticket ID to update.
@@ -106,6 +125,9 @@ enum TicketCommand {
         /// Markdown file replacing content.
         #[arg(long)]
         content_file: Option<PathBuf>,
+
+        #[command(flatten)]
+        output: OutputArgs,
     },
 }
 
@@ -122,9 +144,10 @@ fn main() -> anyhow::Result<()> {
                 title,
                 id,
                 content_file,
-            } => handle_ticket_create(title, id, content_file),
-            TicketCommand::Show { id } => handle_ticket_show(id),
-            TicketCommand::List => handle_ticket_list(),
+                output,
+            } => handle_ticket_create(title, id, content_file, output.json),
+            TicketCommand::Show { id, output } => handle_ticket_show(id, output.json),
+            TicketCommand::List { output } => handle_ticket_list(output.json),
             TicketCommand::Update {
                 id,
                 status,
@@ -134,6 +157,7 @@ fn main() -> anyhow::Result<()> {
                 tags,
                 depends_on,
                 content_file,
+                output,
             } => handle_ticket_update(
                 id,
                 status,
@@ -143,6 +167,7 @@ fn main() -> anyhow::Result<()> {
                 tags,
                 depends_on,
                 content_file,
+                output.json,
             ),
         },
         Command::Awareness(args) => handle_awareness(args),
@@ -198,6 +223,7 @@ fn handle_ticket_create(
     title: String,
     id: Option<String>,
     content_file: Option<PathBuf>,
+    _json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -221,7 +247,7 @@ fn handle_ticket_create(
     Ok(())
 }
 
-fn handle_ticket_show(id: String) -> anyhow::Result<()> {
+fn handle_ticket_show(id: String, _json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
@@ -236,7 +262,7 @@ fn handle_ticket_show(id: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_ticket_list() -> anyhow::Result<()> {
+fn handle_ticket_list(_json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
@@ -269,6 +295,7 @@ fn handle_ticket_update(
     tags: Option<String>,
     depends_on: Option<String>,
     content_file: Option<PathBuf>,
+    _json: bool,
 ) -> anyhow::Result<()> {
     if status.is_none()
         && priority.is_none()
