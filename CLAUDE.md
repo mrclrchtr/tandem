@@ -9,7 +9,8 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 It is designed to work across branches and git worktrees. Ticket state is stored in the repository and exposed via a deterministic `tndm` CLI. Repo-local ticket files are the system of record; no central service is required.
 
 Start with:
-- Product goals / design direction: `docs/vision.md`
+- Product vision: `docs/vision.md`
+- Design decisions: `docs/decisions.md`
 - Architecture overview: `docs/architecture.md`
 
 ## Project structure
@@ -19,7 +20,7 @@ Start with:
 - `crates/tandem-repo` — git/worktree awareness adapter implementing core ports.
 - `crates/tandem-cli` — CLI crate producing `tndm`; the only crate allowed to depend on `clap`.
 - `crates/xtask` — dev tooling, including `cargo xtask check-arch`.
-- `docs/` — product and architecture docs; start with `docs/vision.md` and `docs/architecture.md`.
+- `docs/` — product and architecture docs; start with `docs/vision.md`, `docs/decisions.md`, and `docs/architecture.md`.
 - `target/` — local build output; do not commit.
 - `.agents/`, `.claude/` — agent tooling/config kept out of hook file selection.
 
@@ -40,7 +41,7 @@ Sources of truth (enforced by tooling):
 
 If you add or rename workspace crates, update `crates/xtask/src/main.rs` to keep the workspace crate list and edge rules current.
 
-Design direction lives in `docs/vision.md`; avoid encoding future plans here.
+Product vision lives in `docs/vision.md`; design decisions in `docs/decisions.md`. Avoid encoding future plans here.
 
 ## Common development commands
 
