@@ -40,6 +40,12 @@ impl fmt::Display for TicketId {
     }
 }
 
+impl serde::Serialize for TicketId {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TicketType {
     #[default]
@@ -508,5 +514,12 @@ mod tests {
         let error = TicketState::new("2026-03-03T10:00:00Z", 0)
             .expect_err("state with zero revision should be rejected");
         assert_eq!(error.message(), "ticket revision must be >= 1");
+    }
+
+    #[test]
+    fn ticket_id_serializes_as_plain_string() {
+        let id = TicketId::parse("TNDM-ABC123").unwrap();
+        let json = serde_json::to_string(&id).unwrap();
+        assert_eq!(json, "\"TNDM-ABC123\"");
     }
 }
