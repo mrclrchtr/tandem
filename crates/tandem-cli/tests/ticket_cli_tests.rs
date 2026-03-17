@@ -233,3 +233,572 @@ fn ticket_show_surfaces_invalid_meta_toml_errors() {
         "stderr was: {stderr:?}"
     );
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_changes_status() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPST";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Status test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--status", "in_progress"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    assert_eq!(stdout.trim(), ticket_id);
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("status = \"in_progress\""),
+        "show output was: {show_stdout}"
+    );
+    assert!(
+        show_stdout.contains("revision = 2"),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_changes_multiple_fields() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPMF";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Multi-field test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "update",
+            ticket_id,
+            "--status",
+            "done",
+            "--priority",
+            "p0",
+            "--title",
+            "New title",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("status = \"done\""),
+        "show output was: {show_stdout}"
+    );
+    assert!(
+        show_stdout.contains("priority = \"p0\""),
+        "show output was: {show_stdout}"
+    );
+    assert!(
+        show_stdout.contains("title = \"New title\""),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_replaces_tags() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPTG";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Tags test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    // Set tags
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--tags", "a,b"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+    assert!(output.status.success());
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("tags = [\"a\", \"b\"]"),
+        "show output was: {show_stdout}"
+    );
+
+    // Clear tags
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--tags", ""])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+    assert!(output.status.success());
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("tags = []"),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_replaces_depends_on() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPDP";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Deps test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    // Set depends-on
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "update",
+            ticket_id,
+            "--depends-on",
+            "TNDM-X,TNDM-Y",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("depends_on = [\"TNDM-X\", \"TNDM-Y\"]"),
+        "show output was: {show_stdout}"
+    );
+
+    // Clear depends-on
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--depends-on", ""])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+    assert!(output.status.success());
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("depends_on = []"),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_fails_with_no_flags() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPNF";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "No flags test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(!output.status.success(), "update with no flags should fail");
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(
+        stderr.contains("at least one update flag is required"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_fails_for_nonexistent_ticket() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", "TNDM-GHOST", "--status", "done"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(
+        !output.status.success(),
+        "update of nonexistent ticket should fail"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_bumps_revision_and_timestamp() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPREV";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Revision test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    // First update → revision 2
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--status", "in_progress"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("first update")
+        .status
+        .success()
+        .then_some(())
+        .expect("first update should succeed");
+
+    // Second update → revision 3
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--status", "done"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("second update")
+        .status
+        .success()
+        .then_some(())
+        .expect("second update should succeed");
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("revision = 3"),
+        "show output was: {show_stdout}"
+    );
+
+    let updated_at_pattern =
+        Regex::new(r#"updated_at = \"([^\"]+)\""#).expect("regex should compile");
+    let captures = updated_at_pattern
+        .captures(&show_stdout)
+        .expect("should contain updated_at");
+    let updated_at = captures.get(1).expect("capture should exist").as_str();
+    OffsetDateTime::parse(updated_at, &Rfc3339).expect("updated_at should parse as RFC3339");
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_with_content_file() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPCF";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Content file test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let content_file = repo_root.path().join("new-content.md");
+    fs::write(&content_file, "# Updated Content\n\nNew body here.\n").expect("write content file");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "update",
+            ticket_id,
+            "--content-file",
+            content_file.to_str().unwrap(),
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("# Updated Content"),
+        "show output was: {show_stdout}"
+    );
+    assert!(
+        show_stdout.contains("New body here."),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_changes_type() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPTYP";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Type test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--type", "bug"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("type = \"bug\""),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_rejects_empty_title() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPET";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Empty title test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--title", ""])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(
+        !output.status.success(),
+        "update with empty title should fail"
+    );
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(
+        stderr.contains("title must not be empty"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_rejects_invalid_status() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPIS";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Invalid status test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--status", "invalid"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(!output.status.success(), "invalid status should fail");
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(
+        stderr.contains("invalid ticket status"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_rejects_invalid_priority() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPIP";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "create",
+            "Invalid priority test",
+            "--id",
+            ticket_id,
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--priority", "p9"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(!output.status.success(), "invalid priority should fail");
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(
+        stderr.contains("invalid ticket priority"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_rejects_invalid_type() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-UPIT";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Invalid type test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--type", "story"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update");
+
+    assert!(!output.status.success(), "invalid type should fail");
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(
+        stderr.contains("invalid ticket type"),
+        "stderr was: {stderr}"
+    );
+}

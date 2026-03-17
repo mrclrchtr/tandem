@@ -253,3 +253,115 @@ fn list_ticket_ids_sorts_by_id() {
 
     assert_eq!(ids, vec![id_a, id_b]);
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn update_ticket_persists_changed_fields() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+
+    let id = TicketId::parse("TNDM-UPD1").expect("valid ticket id");
+    let meta = TicketMeta::new(id.clone(), "Original title").expect("valid ticket meta");
+    let content = "original content\n".to_string();
+
+    let created = store
+        .create_ticket(NewTicket { meta, content })
+        .expect("create ticket");
+
+    let mut ticket = created;
+    ticket.state.status = TicketStatus::InProgress;
+    ticket.meta.priority = TicketPriority::P0;
+    ticket.meta.title = "Updated title".to_string();
+    ticket.meta.tags = vec!["backend".to_string(), "urgent".to_string()];
+    ticket.state.revision = 2;
+    ticket.state.updated_at = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .expect("format timestamp");
+
+    store.update_ticket(&ticket).expect("update ticket");
+
+    let loaded = store.load_ticket(&id).expect("load updated ticket");
+
+    assert_eq!(loaded.state.status, TicketStatus::InProgress);
+    assert_eq!(loaded.meta.priority, TicketPriority::P0);
+    assert_eq!(loaded.meta.title, "Updated title");
+    assert_eq!(
+        loaded.meta.tags,
+        vec!["backend".to_string(), "urgent".to_string()]
+    );
+    assert_eq!(loaded.state.revision, 2);
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn update_ticket_fails_for_nonexistent_ticket() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+
+    let id = TicketId::parse("TNDM-NOPE").expect("valid ticket id");
+    let meta = TicketMeta::new(id, "Ghost ticket").expect("valid ticket meta");
+    let state = tandem_core::ticket::TicketState::new("2026-03-03T10:00:00Z", 1)
+        .expect("valid ticket state");
+
+    let ticket = tandem_core::ticket::Ticket {
+        meta,
+        state,
+        content: "ghost\n".to_string(),
+    };
+
+    let error = store
+        .update_ticket(&ticket)
+        .expect_err("update should fail for nonexistent ticket");
+
+    assert!(
+        error.to_string().contains("does not exist"),
+        "error was: {error}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn update_ticket_cleans_up_stale_staging_dirs() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+
+    let id = TicketId::parse("TNDM-STALE").expect("valid ticket id");
+    let meta = TicketMeta::new(id.clone(), "Stale staging").expect("valid ticket meta");
+
+    let created = store
+        .create_ticket(NewTicket {
+            meta,
+            content: "body\n".to_string(),
+        })
+        .expect("create ticket");
+
+    // Create stale staging dirs
+    let tickets_path = repo_root.path().join(".tndm").join("tickets");
+    let stale_staging = tickets_path.join(".TNDM-STALE.update.tmp");
+    let stale_old = tickets_path.join(".TNDM-STALE.old.tmp");
+    fs::create_dir_all(&stale_staging).expect("create stale staging dir");
+    fs::create_dir_all(&stale_old).expect("create stale old dir");
+
+    let mut ticket = created;
+    ticket.state.status = TicketStatus::Done;
+    ticket.state.revision = 2;
+    ticket.state.updated_at = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .expect("format timestamp");
+
+    store
+        .update_ticket(&ticket)
+        .expect("update should succeed despite stale dirs");
+
+    assert!(!stale_staging.exists());
+    assert!(!stale_old.exists());
+
+    let loaded = store.load_ticket(&id).expect("load updated ticket");
+    assert_eq!(loaded.state.status, TicketStatus::Done);
+}

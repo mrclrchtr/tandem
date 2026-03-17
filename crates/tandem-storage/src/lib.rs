@@ -471,6 +471,95 @@ impl TicketStore for FileTicketStore {
         Ok(ids)
     }
 
+    #[allow(clippy::disallowed_methods)]
+    fn update_ticket(&self, ticket: &Ticket) -> Result<Ticket, Self::Error> {
+        let ticket_path = ticket_dir(&self.repo_root, &ticket.meta.id);
+        if !ticket_path.is_dir() {
+            return Err(StorageError::new(format!(
+                "ticket directory does not exist: {}",
+                ticket_path.display()
+            )));
+        }
+
+        let tickets_path = tickets_dir(&self.repo_root);
+        let id_str = ticket.meta.id.as_str();
+        let staging_path = tickets_path.join(format!(".{id_str}.update.tmp"));
+        let old_path = tickets_path.join(format!(".{id_str}.old.tmp"));
+
+        // Clean up stale temp dirs from previous interrupted updates
+        if staging_path.is_dir() {
+            fs::remove_dir_all(&staging_path).map_err(|error| {
+                StorageError::new(format!(
+                    "failed to remove stale staging directory {}: {error}",
+                    staging_path.display()
+                ))
+            })?;
+        }
+        if old_path.is_dir() {
+            fs::remove_dir_all(&old_path).map_err(|error| {
+                StorageError::new(format!(
+                    "failed to remove stale old directory {}: {error}",
+                    old_path.display()
+                ))
+            })?;
+        }
+
+        fs::create_dir(&staging_path).map_err(|error| {
+            StorageError::new(format!(
+                "failed to create update staging directory {}: {error}",
+                staging_path.display()
+            ))
+        })?;
+
+        let write_result = (|| {
+            let meta_path = staging_path.join("meta.toml");
+            let state_path = staging_path.join("state.toml");
+            let content_path = staging_path.join("content.md");
+
+            fs::write(&meta_path, ticket.meta.to_canonical_toml()).map_err(|error| {
+                StorageError::new(format!("failed to write {}: {error}", meta_path.display()))
+            })?;
+
+            fs::write(&state_path, ticket.state.to_canonical_toml()).map_err(|error| {
+                StorageError::new(format!("failed to write {}: {error}", state_path.display()))
+            })?;
+
+            fs::write(&content_path, &ticket.content).map_err(|error| {
+                StorageError::new(format!(
+                    "failed to write {}: {error}",
+                    content_path.display()
+                ))
+            })?;
+
+            // Atomic swap: existing → old, staging → final
+            fs::rename(&ticket_path, &old_path).map_err(|error| {
+                StorageError::new(format!(
+                    "failed to move existing ticket directory to {}: {error}",
+                    old_path.display()
+                ))
+            })?;
+
+            fs::rename(&staging_path, &ticket_path).map_err(|error| {
+                // Rollback: move old back to final
+                let _ = fs::rename(&old_path, &ticket_path);
+                StorageError::new(format!(
+                    "failed to finalize updated ticket directory {}: {error}",
+                    ticket_path.display()
+                ))
+            })
+        })();
+
+        if write_result.is_err() {
+            let _ = fs::remove_dir_all(&staging_path);
+        }
+        write_result?;
+
+        // Success: remove old dir
+        let _ = fs::remove_dir_all(&old_path);
+
+        Ok(ticket.clone())
+    }
+
     fn ticket_exists(&self, id: &TicketId) -> Result<bool, Self::Error> {
         Ok(ticket_dir(&self.repo_root, id).is_dir())
     }

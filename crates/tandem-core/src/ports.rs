@@ -6,6 +6,7 @@ pub trait TicketStore {
     fn create_ticket(&self, ticket: NewTicket) -> Result<Ticket, Self::Error>;
     fn load_ticket(&self, id: &TicketId) -> Result<Ticket, Self::Error>;
     fn list_ticket_ids(&self) -> Result<Vec<TicketId>, Self::Error>;
+    fn update_ticket(&self, ticket: &Ticket) -> Result<Ticket, Self::Error>;
     fn ticket_exists(&self, id: &TicketId) -> Result<bool, Self::Error>;
 }
 
