@@ -115,19 +115,27 @@ pub fn ticket_dir(repo_root: &Path, id: &TicketId) -> PathBuf {
 
 #[allow(clippy::disallowed_methods)]
 pub fn discover_repo_root(start: &Path) -> Result<PathBuf, StorageError> {
+    // First pass: .git is the authoritative repo root marker.
     let mut current = start;
+    loop {
+        let git_path = current.join(".git");
+        if git_path.is_dir() || git_path.is_file() {
+            return Ok(current.to_path_buf());
+        }
+        if let Some(parent) = current.parent() {
+            current = parent;
+        } else {
+            break;
+        }
+    }
 
+    // Fallback: accept a standalone .tndm directory.
+    let mut current = start;
     loop {
         let tndm_dir = current.join(".tndm");
         if tndm_dir.is_dir() {
             return Ok(current.to_path_buf());
         }
-
-        let git_path = current.join(".git");
-        if git_path.is_dir() || git_path.is_file() {
-            return Ok(current.to_path_buf());
-        }
-
         if let Some(parent) = current.parent() {
             current = parent;
         } else {
