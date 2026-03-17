@@ -79,6 +79,12 @@ impl TicketType {
     }
 }
 
+impl serde::Serialize for TicketType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TicketPriority {
     P0,
@@ -112,6 +118,12 @@ impl TicketPriority {
     }
 }
 
+impl serde::Serialize for TicketPriority {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TicketStatus {
     #[default]
@@ -139,6 +151,12 @@ impl TicketStatus {
             Self::Blocked => "blocked",
             Self::Done => "done",
         }
+    }
+}
+
+impl serde::Serialize for TicketStatus {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
     }
 }
 
@@ -521,5 +539,70 @@ mod tests {
         let id = TicketId::parse("TNDM-ABC123").unwrap();
         let json = serde_json::to_string(&id).unwrap();
         assert_eq!(json, "\"TNDM-ABC123\"");
+    }
+
+    #[test]
+    fn ticket_type_serializes_as_str() {
+        assert_eq!(
+            serde_json::to_string(&TicketType::Task).unwrap(),
+            "\"task\""
+        );
+        assert_eq!(serde_json::to_string(&TicketType::Bug).unwrap(), "\"bug\"");
+        assert_eq!(
+            serde_json::to_string(&TicketType::Feature).unwrap(),
+            "\"feature\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketType::Chore).unwrap(),
+            "\"chore\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketType::Epic).unwrap(),
+            "\"epic\""
+        );
+    }
+
+    #[test]
+    fn ticket_priority_serializes_as_str() {
+        assert_eq!(
+            serde_json::to_string(&TicketPriority::P0).unwrap(),
+            "\"p0\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketPriority::P1).unwrap(),
+            "\"p1\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketPriority::P2).unwrap(),
+            "\"p2\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketPriority::P3).unwrap(),
+            "\"p3\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketPriority::P4).unwrap(),
+            "\"p4\""
+        );
+    }
+
+    #[test]
+    fn ticket_status_serializes_as_str() {
+        assert_eq!(
+            serde_json::to_string(&TicketStatus::Todo).unwrap(),
+            "\"todo\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketStatus::InProgress).unwrap(),
+            "\"in_progress\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketStatus::Blocked).unwrap(),
+            "\"blocked\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TicketStatus::Done).unwrap(),
+            "\"done\""
+        );
     }
 }
