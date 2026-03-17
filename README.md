@@ -3,6 +3,7 @@
 Git-aware ticket coordination system for AI agents in a monorepo.
 
 Project vision: `docs/vision.md`.
+Design decisions: `docs/decisions.md`.
 Architecture overview: `docs/architecture.md`.
 
 ## Development
