@@ -22,21 +22,21 @@ Content can also be piped via stdin (heredoc recommended for agents).
 Examples:
 
 ```sh
-# Minimal — auto-generates ID
-tndm ticket create "Refactor auth module" --json
+# Minimal — auto-generates ID, prints the ticket ID
+tndm ticket create "Refactor auth module"
 
 # With explicit ID
-tndm ticket create "Fix login redirect" --id TNDM-FIX001 --json
+tndm ticket create "Fix login redirect" --id TNDM-FIX001
 
 # With content via heredoc (preferred for agents — no temp files needed)
-tndm ticket create "Implement OAuth flow" --json <<'EOF'
+tndm ticket create "Implement OAuth flow" <<'EOF'
 ## Description
 
 Add OAuth 2.0 authorization code flow.
 EOF
 
 # With content from file (when content already exists on disk)
-tndm ticket create "Implement OAuth flow" --content-file /tmp/ticket-body.md --json
+tndm ticket create "Implement OAuth flow" --content-file /tmp/ticket-body.md
 ```
 
 Output (JSON):
@@ -80,7 +80,7 @@ Examples:
 
 ```sh
 # Mark in-progress immediately after creating
-tndm ticket update TNDM-A1B2C3 --status in_progress --json
+tndm ticket update TNDM-A1B2C3 --status in_progress
 
 # Block with reason via heredoc (preferred for agents — no temp files needed)
 tndm ticket update TNDM-A1B2C3 --status blocked <<'EOF'
@@ -97,7 +97,7 @@ tndm ticket update TNDM-A1B2C3 --tags auth,security,p1
 tndm ticket update TNDM-A1B2C3 --depends-on TNDM-B2C3D4
 
 # Mark done
-tndm ticket update TNDM-A1B2C3 --status done --json
+tndm ticket update TNDM-A1B2C3 --status done
 
 # Replace content from file (when content already exists on disk)
 tndm ticket update TNDM-A1B2C3 --content-file /tmp/blocker.md

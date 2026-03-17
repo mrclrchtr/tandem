@@ -19,19 +19,19 @@ Manage the full lifecycle of tndm tickets: create, update, show, and list.
 Create a ticket before starting any development task.
 
 ```sh
-tndm ticket create "<title>" --json
+tndm ticket create "<title>"
 ```
 
 Immediately update status to `in_progress`:
 
 ```sh
-tndm ticket update <ID> --status in_progress --json
+tndm ticket update <ID> --status in_progress
 ```
 
 With optional content body (use a heredoc — do **not** create temporary files):
 
 ```sh
-tndm ticket create "Implement OAuth flow" --json <<'EOF'
+tndm ticket create "Implement OAuth flow" <<'EOF'
 ## Description
 
 Add OAuth 2.0 authorization code flow.
@@ -72,7 +72,7 @@ Updated design after review feedback.
 EOF
 
 # Combine multiple fields
-tndm ticket update TNDM-XXXXXX --status done --priority p1 --json
+tndm ticket update TNDM-XXXXXX --status done --priority p1
 ```
 
 ## Show a Ticket
