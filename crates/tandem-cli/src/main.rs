@@ -250,7 +250,7 @@ fn handle_ticket_create(
     title: String,
     id: Option<String>,
     content_file: Option<PathBuf>,
-    _json: bool,
+    json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -263,14 +263,25 @@ fn handle_ticket_create(
     };
 
     let content = load_ticket_content(content_file, &config)?;
+    let meta = TicketMeta::new(ticket_id, title)?;
 
-    let meta = TicketMeta::new(ticket_id.clone(), title)?;
-
-    store
+    let ticket = store
         .create_ticket(NewTicket { meta, content })
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
-    println!("{ticket_id}");
+    if json {
+        let envelope = TicketJson {
+            schema_version: 1,
+            ticket: TicketJsonEntry {
+                meta: &ticket.meta,
+                state: &ticket.state,
+                content_path: ticket_content_path(&ticket.meta.id),
+            },
+        };
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        println!("{}", ticket.meta.id);
+    }
     Ok(())
 }
 
