@@ -7,6 +7,7 @@ use std::{
 };
 
 use clap::{Args, Parser, Subcommand};
+use serde::Serialize;
 use tandem_core::{
     awareness::compare_snapshots,
     ports::TicketStore,
@@ -18,6 +19,36 @@ use tandem_storage::{
     ticket_dir,
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
+#[allow(dead_code)]
+#[derive(Serialize)]
+struct TicketJsonEntry<'a> {
+    #[serde(flatten)]
+    meta: &'a tandem_core::ticket::TicketMeta,
+    #[serde(flatten)]
+    state: &'a tandem_core::ticket::TicketState,
+    content_path: String,
+}
+
+#[allow(dead_code)]
+#[derive(Serialize)]
+struct TicketJson<'a> {
+    schema_version: u64,
+    #[serde(flatten)]
+    ticket: TicketJsonEntry<'a>,
+}
+
+#[allow(dead_code)]
+#[derive(Serialize)]
+struct TicketListJson<'a> {
+    schema_version: u64,
+    tickets: Vec<TicketJsonEntry<'a>>,
+}
+
+#[allow(dead_code)]
+fn ticket_content_path(id: &tandem_core::ticket::TicketId) -> String {
+    format!(".tndm/tickets/{}/content.md", id)
+}
 
 #[derive(Parser, Debug)]
 #[command(
