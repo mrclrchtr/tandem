@@ -849,3 +849,83 @@ fn ticket_show_json_outputs_flat_ticket_with_content_path() {
     );
     assert!(json["updated_at"].is_string());
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_list_json_outputs_schema_versioned_array() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "First", "--id", "TNDM-1"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket 1")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Second", "--id", "TNDM-2"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket 2")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "list", "--json"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list --json");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("stdout should be valid JSON");
+    assert_eq!(json["schema_version"], 1);
+    let tickets = json["tickets"]
+        .as_array()
+        .expect("tickets should be an array");
+    assert_eq!(tickets.len(), 2);
+    assert_eq!(tickets[0]["id"], "TNDM-1");
+    assert_eq!(tickets[0]["title"], "First");
+    assert_eq!(
+        tickets[0]["content_path"],
+        ".tndm/tickets/TNDM-1/content.md"
+    );
+    assert!(
+        tickets[0].get("schema_version").is_none(),
+        "individual tickets should not have schema_version"
+    );
+    assert_eq!(tickets[1]["id"], "TNDM-2");
+    assert_eq!(tickets[1]["title"], "Second");
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_list_json_empty_produces_empty_array() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "list", "--json"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list --json");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("stdout should be valid JSON");
+    assert_eq!(json["schema_version"], 1);
+    assert_eq!(json["tickets"], serde_json::json!([]));
+}
