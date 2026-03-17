@@ -1,0 +1,21 @@
+{
+  "name": "tandem",
+  "owner": {
+    "name": "tandem"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for the tandem git-aware ticket coordination system."
+  },
+  "plugins": [
+    {
+      "name": "tndm",
+      "source": "./plugin/tndm",
+      "description": "Instructs agents to use the tndm ticket coordination CLI for task tracking and branch awareness in a monorepo.",
+      "version": "0.1.0",
+      "author": {
+        "name": "tandem"
+      },
+      "keywords": ["tndm", "tickets", "coordination", "agents", "git", "worktrees"]
+    }
+  ]
+}
