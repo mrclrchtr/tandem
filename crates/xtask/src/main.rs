@@ -118,6 +118,7 @@ fn build_dependency_index(metadata: &cargo_metadata::Metadata) -> HashMap<String
             let dependencies = package
                 .dependencies
                 .iter()
+                .filter(|dependency| dependency.kind == cargo_metadata::DependencyKind::Normal)
                 .map(|dependency| dependency.name.to_string())
                 .collect::<HashSet<_>>();
             (package.name.to_string(), dependencies)

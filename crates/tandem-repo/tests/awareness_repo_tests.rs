@@ -3,7 +3,7 @@
 use std::{fs, path::Path, process::Command};
 
 use tandem_core::{
-    ports::{AwarenessRefMaterializer, TicketStore},
+    ports::TicketStore,
     ticket::{NewTicket, TicketId, TicketMeta},
 };
 use tandem_repo::GitAwarenessProvider;

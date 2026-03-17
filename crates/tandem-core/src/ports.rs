@@ -1,7 +1,4 @@
-use crate::{
-    awareness::TicketSnapshot,
-    ticket::{NewTicket, Ticket, TicketId},
-};
+use crate::ticket::{NewTicket, Ticket, TicketId};
 
 pub trait TicketStore {
     type Error;
@@ -17,21 +14,4 @@ pub trait RepoContext {
 
     fn current_branch(&self) -> Result<String, Self::Error>;
     fn list_worktrees(&self) -> Result<Vec<String>, Self::Error>;
-}
-
-pub trait AwarenessSnapshotProvider {
-    type Error;
-
-    fn load_current_snapshot(&self) -> Result<TicketSnapshot, Self::Error>;
-    fn load_snapshot_for_ref(&self, reference: &str) -> Result<TicketSnapshot, Self::Error>;
-}
-
-pub trait AwarenessRefMaterializer {
-    type Error;
-    type Snapshot;
-
-    fn materialize_ref_snapshot(
-        &self,
-        reference: &str,
-    ) -> Result<Option<Self::Snapshot>, Self::Error>;
 }
