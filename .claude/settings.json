@@ -27,6 +27,8 @@
   },
   "enabledPlugins": {
     "rust-analyzer-lsp@claude-plugins-official": true,
-    "superpowers@superpowers-dev": true
+    "superpowers@superpowers-dev": true,
+    "plugin-dev@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
   }
 }
