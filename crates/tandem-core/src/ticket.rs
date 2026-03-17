@@ -160,10 +160,11 @@ impl serde::Serialize for TicketStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TicketMeta {
     pub id: TicketId,
     pub title: String,
+    #[serde(rename = "type")]
     pub ticket_type: TicketType,
     pub priority: TicketPriority,
     pub depends_on: Vec<TicketId>,
@@ -214,7 +215,7 @@ impl TicketMeta {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TicketState {
     pub status: TicketStatus,
     pub updated_at: String,
@@ -604,5 +605,31 @@ mod tests {
             serde_json::to_string(&TicketStatus::Done).unwrap(),
             "\"done\""
         );
+    }
+
+    #[test]
+    fn ticket_meta_serializes_with_type_renamed() {
+        let id = TicketId::parse("TNDM-TEST01").unwrap();
+        let meta = TicketMeta::new(id, "Test title").unwrap();
+        let json: serde_json::Value = serde_json::to_value(&meta).unwrap();
+        assert_eq!(json["id"], "TNDM-TEST01");
+        assert_eq!(json["title"], "Test title");
+        assert_eq!(json["type"], "task");
+        assert_eq!(json["priority"], "p2");
+        assert!(
+            json.get("ticket_type").is_none(),
+            "ticket_type should be renamed to type"
+        );
+        assert_eq!(json["depends_on"], serde_json::json!([]));
+        assert_eq!(json["tags"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn ticket_state_serializes_all_fields() {
+        let state = TicketState::new("2026-03-17T12:00:00Z", 3).unwrap();
+        let json: serde_json::Value = serde_json::to_value(&state).unwrap();
+        assert_eq!(json["status"], "todo");
+        assert_eq!(json["updated_at"], "2026-03-17T12:00:00Z");
+        assert_eq!(json["revision"], 3);
     }
 }
