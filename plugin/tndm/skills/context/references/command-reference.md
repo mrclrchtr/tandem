@@ -11,8 +11,12 @@ tndm ticket create <TITLE> [OPTIONS]
 
 Options:
   --id <ID>               Explicit ticket ID (e.g. TNDM-A1B2C3). Auto-generated if omitted.
+  --content <BODY>        Inline content body.
   --content-file <PATH>   Load ticket body from a markdown file.
   --json                  Output the created ticket as JSON.
+
+Content can also be piped via stdin (heredoc recommended for agents).
+--content, --content-file, and stdin are mutually exclusive.
 ```
 
 Examples:
@@ -24,7 +28,14 @@ tndm ticket create "Refactor auth module" --json
 # With explicit ID
 tndm ticket create "Fix login redirect" --id TNDM-FIX001 --json
 
-# With content from file
+# With content via heredoc (preferred for agents — no temp files needed)
+tndm ticket create "Implement OAuth flow" --json <<'EOF'
+## Description
+
+Add OAuth 2.0 authorization code flow.
+EOF
+
+# With content from file (when content already exists on disk)
 tndm ticket create "Implement OAuth flow" --content-file /tmp/ticket-body.md --json
 ```
 
@@ -57,8 +68,12 @@ Options:
   --type <TYPE>             Set type. Values: task | bug | feature | chore | epic
   --tags <TAGS>             Comma-separated tags (replaces the full list; empty string clears).
   --depends-on <IDS>        Comma-separated ticket IDs (replaces the full list).
+  --content <BODY>          Inline content body replacing existing content.
   --content-file <PATH>     Replace ticket body with content from a markdown file.
   --json                    Output the updated ticket as JSON.
+
+Content can also be piped via stdin (heredoc recommended for agents).
+--content, --content-file, and stdin are mutually exclusive.
 ```
 
 Examples:
@@ -67,9 +82,10 @@ Examples:
 # Mark in-progress immediately after creating
 tndm ticket update TNDM-A1B2C3 --status in_progress --json
 
-# Block with reason in content
-echo "Blocked: waiting for PR #42 review" > /tmp/blocker.md
-tndm ticket update TNDM-A1B2C3 --status blocked --content-file /tmp/blocker.md
+# Block with reason via heredoc (preferred for agents — no temp files needed)
+tndm ticket update TNDM-A1B2C3 --status blocked <<'EOF'
+Blocked: waiting for PR #42 review
+EOF
 
 # Set priority and type
 tndm ticket update TNDM-A1B2C3 --priority p1 --type bug
@@ -82,6 +98,9 @@ tndm ticket update TNDM-A1B2C3 --depends-on TNDM-B2C3D4
 
 # Mark done
 tndm ticket update TNDM-A1B2C3 --status done --json
+
+# Replace content from file (when content already exists on disk)
+tndm ticket update TNDM-A1B2C3 --content-file /tmp/blocker.md
 ```
 
 ## tndm ticket show
@@ -245,7 +264,7 @@ Each ticket is stored as a directory:
 .tndm/tickets/TNDM-XXXXXX/
 ├── meta.toml     # stable metadata: id, title, type, priority, tags, depends_on
 ├── state.toml    # volatile state: status, revision, updated_at
-└── content.md    # freeform markdown body (optional — use --content-file to set)
+└── content.md    # freeform markdown body (optional — set via heredoc, --content, or --content-file)
 ```
 
 ## Repository Configuration

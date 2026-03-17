@@ -54,14 +54,15 @@ plan to avoid conflicting changes before proceeding.
 Keep ticket status current as work progresses:
 
 ```sh
-# When blocked — document the reason in the ticket body:
-echo "Blocked: waiting for PR #42 review" > /tmp/blocker.md
-tndm ticket update <ID> --status blocked --content-file /tmp/blocker.md
+# When blocked — document the reason via heredoc (do not create temporary files):
+tndm ticket update <ID> --status blocked <<'EOF'
+Blocked: waiting for PR #42 review
+EOF
 
 # When unblocked and resuming:
 tndm ticket update <ID> --status in_progress
 
-# See references/command-reference.md for all --content-file and field-update patterns
+# See references/command-reference.md for all field-update patterns
 ```
 
 ### 4. When work is complete — mark done
