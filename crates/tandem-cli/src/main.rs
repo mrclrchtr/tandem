@@ -9,11 +9,14 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use tandem_core::{
     awareness::compare_snapshots,
-    ports::{AwarenessSnapshotProvider, TicketStore},
+    ports::TicketStore,
     ticket::{NewTicket, TicketId, TicketMeta},
 };
 use tandem_repo::GitAwarenessProvider;
-use tandem_storage::{FileTicketStore, TandemConfig, discover_repo_root, load_config, ticket_dir};
+use tandem_storage::{
+    FileTicketStore, TandemConfig, discover_repo_root, load_config, load_ticket_snapshot,
+    ticket_dir,
+};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -206,14 +209,24 @@ fn handle_ticket_list() -> anyhow::Result<()> {
 fn handle_awareness(args: AwarenessArgs) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let provider = GitAwarenessProvider::new(repo_root);
 
-    let current_snapshot = provider
-        .load_current_snapshot()
-        .map_err(|error| anyhow::anyhow!("{error}"))?;
-    let against_snapshot = provider
-        .load_snapshot_for_ref(&args.against)
-        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    let current_snapshot =
+        load_ticket_snapshot(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    let provider = GitAwarenessProvider::new(repo_root);
+    let against_snapshot = match provider
+        .materialize_ref_snapshot(&args.against)
+        .map_err(|error| anyhow::anyhow!("{error}"))?
+    {
+        None => tandem_core::awareness::TicketSnapshot::default(),
+        Some(snapshot) => load_ticket_snapshot(snapshot.path()).map_err(|error| {
+            anyhow::anyhow!(
+                "failed to load materialized snapshot for ref `{}`: {}",
+                args.against,
+                snapshot.sanitize_error_text(&error.to_string())
+            )
+        })?,
+    };
 
     let report = compare_snapshots(&args.against, &current_snapshot, &against_snapshot);
     println!("{}", serde_json::to_string_pretty(&report)?);
