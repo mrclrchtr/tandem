@@ -8,7 +8,7 @@ use std::{
 
 use tandem_core::{
     awareness::TicketSnapshot,
-    ports::{AwarenessSnapshotProvider, RepoContext},
+    ports::{AwarenessRefMaterializer, AwarenessSnapshotProvider, RepoContext},
 };
 use tandem_storage::{StorageError, load_ticket_snapshot};
 
@@ -23,6 +23,55 @@ pub struct GitAwarenessProvider {
 impl GitAwarenessProvider {
     pub fn new(repo_root: PathBuf) -> Self {
         Self { repo_root }
+    }
+}
+
+pub struct RefSnapshot {
+    temp_dir: tempfile::TempDir,
+    canonical_path: PathBuf,
+}
+
+impl fmt::Debug for RefSnapshot {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RefSnapshot")
+            .field("path", &self.temp_dir.path())
+            .finish()
+    }
+}
+
+impl RefSnapshot {
+    fn new(temp_dir: tempfile::TempDir) -> Self {
+        let canonical_path = temp_dir
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| temp_dir.path().to_path_buf());
+        Self {
+            temp_dir,
+            canonical_path,
+        }
+    }
+
+    pub fn path(&self) -> &Path {
+        self.temp_dir.path()
+    }
+
+    pub fn sanitize_error_text(&self, text: &str) -> String {
+        let raw = self.temp_dir.path().to_string_lossy();
+        let canonical = self.canonical_path.to_string_lossy();
+
+        let mut result = text.replace(raw.as_ref(), "<ref-snapshot>");
+        if canonical != raw {
+            result = result.replace(canonical.as_ref(), "<ref-snapshot>");
+        }
+
+        // Normalize backslashes (Windows paths)
+        let normalized_raw = raw.replace('\\', "/");
+        if normalized_raw != raw.as_ref() {
+            result = result.replace(&normalized_raw, "<ref-snapshot>");
+        }
+
+        result
     }
 }
 
@@ -98,23 +147,36 @@ impl AwarenessSnapshotProvider for GitAwarenessProvider {
     }
 
     fn load_snapshot_for_ref(&self, reference: &str) -> Result<TicketSnapshot, Self::Error> {
+        match self.materialize_ref_snapshot(reference)? {
+            None => Ok(TicketSnapshot::default()),
+            Some(snapshot) => load_ticket_snapshot(snapshot.path()).map_err(|error| {
+                RepoError::ref_snapshot_storage(reference, snapshot.path(), error)
+            }),
+        }
+    }
+}
+
+impl AwarenessRefMaterializer for GitAwarenessProvider {
+    type Error = RepoError;
+    type Snapshot = RefSnapshot;
+
+    fn materialize_ref_snapshot(&self, reference: &str) -> Result<Option<RefSnapshot>, RepoError> {
         let resolved_ref = format!("{reference}^{{commit}}");
         run_git(&self.repo_root, &["rev-parse", "--verify", &resolved_ref])?;
 
         let ticket_paths = list_ref_ticket_paths(&self.repo_root, reference)?;
         if ticket_paths.is_empty() {
-            return Ok(TicketSnapshot::default());
+            return Ok(None);
         }
 
-        let temp_root = tempfile::tempdir().map_err(|error| {
+        let temp_dir = tempfile::tempdir().map_err(|error| {
             RepoError::new(format!(
                 "failed to create temp snapshot root for ref `{reference}`: {error}"
             ))
         })?;
 
-        write_ref_ticket_tree(temp_root.path(), &self.repo_root, reference, &ticket_paths)?;
-        load_ticket_snapshot(temp_root.path())
-            .map_err(|error| RepoError::ref_snapshot_storage(reference, temp_root.path(), error))
+        write_ref_ticket_tree(temp_dir.path(), &self.repo_root, reference, &ticket_paths)?;
+        Ok(Some(RefSnapshot::new(temp_dir)))
     }
 }
 

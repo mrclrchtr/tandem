@@ -3,66 +3,71 @@
 use std::{fs, path::Path, process::Command};
 
 use tandem_core::{
-    awareness::TicketSnapshot,
-    ports::{AwarenessSnapshotProvider, TicketStore},
-    ticket::{NewTicket, TicketId, TicketMeta, TicketStatus},
+    ports::{AwarenessRefMaterializer, TicketStore},
+    ticket::{NewTicket, TicketId, TicketMeta},
 };
 use tandem_repo::GitAwarenessProvider;
-use tandem_storage::FileTicketStore;
+use tandem_storage::{FileTicketStore, load_ticket_snapshot};
 
 #[test]
-fn load_current_snapshot_reads_working_tree_tickets() {
-    let repo = TestRepo::new();
-    repo.create_ticket("TNDM-1", "Working tree ticket");
-    repo.set_ticket_status("TNDM-1", TicketStatus::InProgress);
-
-    let snapshot = repo
-        .provider()
-        .load_current_snapshot()
-        .expect("load snapshot");
-
-    assert_eq!(snapshot.tickets.len(), 1);
-    assert_eq!(ticket_status(&snapshot, "TNDM-1"), TicketStatus::InProgress);
-}
-
-#[test]
-fn load_snapshot_for_ref_reads_committed_ticket_files() {
+fn materialize_ref_snapshot_writes_committed_ticket_files() {
     let repo = TestRepo::new();
     repo.create_ticket("TNDM-1", "Committed ticket");
     repo.commit_all("base");
-    repo.set_ticket_status("TNDM-1", TicketStatus::InProgress);
 
-    let provider = repo.provider();
-    let current = provider.load_current_snapshot().expect("load snapshot");
-    let head = provider
-        .load_snapshot_for_ref("HEAD")
-        .expect("load snapshot for HEAD");
+    let committed_meta = fs::read_to_string(repo.root().join(".tndm/tickets/TNDM-1/meta.toml"))
+        .expect("read committed meta");
+    let committed_state = fs::read_to_string(repo.root().join(".tndm/tickets/TNDM-1/state.toml"))
+        .expect("read committed state");
+    let committed_content = fs::read_to_string(repo.root().join(".tndm/tickets/TNDM-1/content.md"))
+        .expect("read committed content");
 
-    assert_eq!(ticket_status(&current, "TNDM-1"), TicketStatus::InProgress);
-    assert_eq!(ticket_status(&head, "TNDM-1"), TicketStatus::Todo);
+    repo.write_ticket_file("TNDM-1", "content.md", "working tree body\n");
+
+    let snapshot = repo
+        .provider()
+        .materialize_ref_snapshot("HEAD")
+        .expect("materialize ref snapshot")
+        .expect("snapshot root should exist");
+
+    assert_eq!(
+        fs::read_to_string(snapshot.path().join(".tndm/tickets/TNDM-1/meta.toml"))
+            .expect("read materialized meta"),
+        committed_meta
+    );
+    assert_eq!(
+        fs::read_to_string(snapshot.path().join(".tndm/tickets/TNDM-1/state.toml"))
+            .expect("read materialized state"),
+        committed_state
+    );
+    assert_eq!(
+        fs::read_to_string(snapshot.path().join(".tndm/tickets/TNDM-1/content.md"))
+            .expect("read materialized content"),
+        committed_content
+    );
 }
 
 #[test]
-fn load_snapshot_for_ref_returns_empty_when_ref_has_no_tickets() {
+fn materialize_ref_snapshot_returns_empty_when_ref_has_no_tickets() {
     let repo = TestRepo::new();
     fs::write(repo.root().join("README.md"), "repo\n").expect("write readme");
     repo.commit_paths("base", &["README.md"]);
 
     let snapshot = repo
         .provider()
-        .load_snapshot_for_ref("HEAD")
-        .expect("load snapshot for HEAD");
+        .materialize_ref_snapshot("HEAD")
+        .expect("materialize ref snapshot");
 
-    assert!(snapshot.tickets.is_empty());
+    assert!(snapshot.is_none());
 }
 
 #[test]
-fn load_snapshot_for_ref_errors_for_unknown_ref() {
+fn materialize_ref_snapshot_errors_for_unknown_ref() {
     let repo = TestRepo::new();
 
     let error = repo
         .provider()
-        .load_snapshot_for_ref("does-not-exist")
+        .materialize_ref_snapshot("does-not-exist")
         .expect_err("unknown ref should fail");
 
     let message = error.to_string();
@@ -72,24 +77,27 @@ fn load_snapshot_for_ref_errors_for_unknown_ref() {
 }
 
 #[test]
-fn load_snapshot_for_ref_sanitizes_temp_paths_for_invalid_ticket_data() {
+fn materialize_ref_snapshot_sanitizes_temp_paths_for_invalid_committed_ticket_data() {
     let repo = TestRepo::new();
     repo.create_ticket("TNDM-1", "Broken ticket");
     repo.write_ticket_file("TNDM-1", "meta.toml", "not toml\n");
     repo.commit_all("broken snapshot");
 
-    let error = repo
+    let snapshot = repo
         .provider()
-        .load_snapshot_for_ref("HEAD")
-        .expect_err("invalid ref snapshot should fail");
+        .materialize_ref_snapshot("HEAD")
+        .expect("materialize ref snapshot")
+        .expect("snapshot root should exist");
 
-    let message = error.to_string();
-    assert!(message.contains("failed to load materialized snapshot for ref `HEAD`"));
-    assert!(message.contains("failed to parse <ref-snapshot>/.tndm/tickets/TNDM-1/meta.toml"));
-    assert!(message.contains("<ref-snapshot>/.tndm/tickets/TNDM-1/meta.toml"));
-    assert!(!message.contains(&repo.root().display().to_string()));
-    assert!(!message.contains("/tmp/"));
-    assert!(!message.contains("/private/tmp/"));
+    let error = load_ticket_snapshot(snapshot.path())
+        .expect_err("invalid materialized snapshot should fail")
+        .to_string();
+    let sanitized = snapshot.sanitize_error_text(&error);
+
+    assert!(sanitized.contains("<ref-snapshot>/.tndm/tickets/TNDM-1/meta.toml"));
+    assert!(!sanitized.contains(&snapshot.path().display().to_string()));
+    assert!(!sanitized.contains("/tmp/"));
+    assert!(!sanitized.contains("/private/tmp/"));
 }
 
 struct TestRepo {
@@ -126,17 +134,6 @@ impl TestRepo {
             .expect("create ticket");
     }
 
-    fn set_ticket_status(&self, id: &str, status: TicketStatus) {
-        let ticket_dir = self.root().join(".tndm").join("tickets").join(id);
-        let state_path = ticket_dir.join("state.toml");
-        let state = fs::read_to_string(&state_path).expect("read state");
-        let next = state.replace(
-            "status = \"todo\"",
-            &format!("status = \"{}\"", status.as_str()),
-        );
-        fs::write(state_path, next).expect("write state");
-    }
-
     fn write_ticket_file(&self, id: &str, file_name: &str, contents: &str) {
         let path = self
             .root()
@@ -158,15 +155,6 @@ impl TestRepo {
         run_git(self.root(), &args);
         run_git(self.root(), &["commit", "-m", message]);
     }
-}
-
-fn ticket_status(snapshot: &TicketSnapshot, id: &str) -> TicketStatus {
-    snapshot
-        .tickets
-        .get(&TicketId::parse(id).expect("valid ticket id"))
-        .expect("ticket in snapshot")
-        .state
-        .status
 }
 
 fn run_git(repo_root: &Path, args: &[&str]) {

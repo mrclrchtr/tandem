@@ -25,3 +25,13 @@ pub trait AwarenessSnapshotProvider {
     fn load_current_snapshot(&self) -> Result<TicketSnapshot, Self::Error>;
     fn load_snapshot_for_ref(&self, reference: &str) -> Result<TicketSnapshot, Self::Error>;
 }
+
+pub trait AwarenessRefMaterializer {
+    type Error;
+    type Snapshot;
+
+    fn materialize_ref_snapshot(
+        &self,
+        reference: &str,
+    ) -> Result<Option<Self::Snapshot>, Self::Error>;
+}
