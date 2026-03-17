@@ -36,7 +36,6 @@ struct TicketJson<'a> {
     ticket: TicketJsonEntry<'a>,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize)]
 struct TicketListJson<'a> {
     schema_version: u64,
@@ -302,7 +301,7 @@ fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_ticket_list(_json: bool) -> anyhow::Result<()> {
+fn handle_ticket_list(json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
@@ -310,16 +309,38 @@ fn handle_ticket_list(_json: bool) -> anyhow::Result<()> {
         .list_ticket_ids()
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
-    for id in ids {
-        let ticket = store
-            .load_ticket(&id)
-            .map_err(|error| anyhow::anyhow!("{error}"))?;
-        println!(
-            "{}\t{}\t{}",
-            id,
-            ticket.state.status.as_str(),
-            ticket.meta.title
-        );
+    if json {
+        let mut tickets = Vec::new();
+        for id in ids {
+            let ticket = store
+                .load_ticket(&id)
+                .map_err(|error| anyhow::anyhow!("{error}"))?;
+            tickets.push(ticket);
+        }
+        let envelope = TicketListJson {
+            schema_version: 1,
+            tickets: tickets
+                .iter()
+                .map(|t| TicketJsonEntry {
+                    meta: &t.meta,
+                    state: &t.state,
+                    content_path: ticket_content_path(&t.meta.id),
+                })
+                .collect(),
+        };
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        for id in ids {
+            let ticket = store
+                .load_ticket(&id)
+                .map_err(|error| anyhow::anyhow!("{error}"))?;
+            println!(
+                "{}\t{}\t{}",
+                id,
+                ticket.state.status.as_str(),
+                ticket.meta.title
+            );
+        }
     }
 
     Ok(())
