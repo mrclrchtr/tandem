@@ -6,11 +6,7 @@ use std::{
     process::Command,
 };
 
-use tandem_core::{
-    awareness::TicketSnapshot,
-    ports::{AwarenessRefMaterializer, AwarenessSnapshotProvider, RepoContext},
-};
-use tandem_storage::{StorageError, load_ticket_snapshot};
+use tandem_core::ports::RepoContext;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct GitRepoContext;
@@ -101,22 +97,6 @@ impl RepoError {
 
         Self::new(format!("{command} failed: {details}"))
     }
-
-    fn storage(error: StorageError) -> Self {
-        Self::new(format!("storage error: {error}"))
-    }
-
-    fn ref_snapshot_storage(reference: &str, temp_root: &Path, error: StorageError) -> Self {
-        let raw_message = error.to_string();
-        let normalized_root = temp_root.to_string_lossy().replace('\\', "/");
-        let sanitized = raw_message
-            .replace(temp_root.to_string_lossy().as_ref(), "<ref-snapshot>")
-            .replace(&normalized_root, "<ref-snapshot>");
-
-        Self::new(format!(
-            "failed to load materialized snapshot for ref `{reference}`: {sanitized}"
-        ))
-    }
 }
 
 impl fmt::Display for RepoError {
@@ -139,28 +119,11 @@ impl RepoContext for GitRepoContext {
     }
 }
 
-impl AwarenessSnapshotProvider for GitAwarenessProvider {
-    type Error = RepoError;
-
-    fn load_current_snapshot(&self) -> Result<TicketSnapshot, Self::Error> {
-        load_ticket_snapshot(&self.repo_root).map_err(RepoError::storage)
-    }
-
-    fn load_snapshot_for_ref(&self, reference: &str) -> Result<TicketSnapshot, Self::Error> {
-        match self.materialize_ref_snapshot(reference)? {
-            None => Ok(TicketSnapshot::default()),
-            Some(snapshot) => load_ticket_snapshot(snapshot.path()).map_err(|error| {
-                RepoError::ref_snapshot_storage(reference, snapshot.path(), error)
-            }),
-        }
-    }
-}
-
-impl AwarenessRefMaterializer for GitAwarenessProvider {
-    type Error = RepoError;
-    type Snapshot = RefSnapshot;
-
-    fn materialize_ref_snapshot(&self, reference: &str) -> Result<Option<RefSnapshot>, RepoError> {
+impl GitAwarenessProvider {
+    pub fn materialize_ref_snapshot(
+        &self,
+        reference: &str,
+    ) -> Result<Option<RefSnapshot>, RepoError> {
         let resolved_ref = format!("{reference}^{{commit}}");
         run_git(&self.repo_root, &["rev-parse", "--verify", &resolved_ref])?;
 
