@@ -802,3 +802,50 @@ fn ticket_update_rejects_invalid_type() {
         "stderr was: {stderr}"
     );
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_show_json_outputs_flat_ticket_with_content_path() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-SHOWJ";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "JSON show test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id, "--json"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show --json");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("stdout should be valid JSON");
+    assert_eq!(json["schema_version"], 1);
+    assert_eq!(json["id"], "TNDM-SHOWJ");
+    assert_eq!(json["title"], "JSON show test");
+    assert_eq!(json["type"], "task");
+    assert_eq!(json["priority"], "p2");
+    assert_eq!(json["status"], "todo");
+    assert_eq!(json["revision"], 1);
+    assert_eq!(json["content_path"], ".tndm/tickets/TNDM-SHOWJ/content.md");
+    assert!(
+        json.get("content").is_none(),
+        "content should not be in JSON"
+    );
+    assert!(json["updated_at"].is_string());
+}
