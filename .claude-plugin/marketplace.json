@@ -1,7 +1,7 @@
 {
-  "name": "tandem",
+  "name": "tandem-marketplace",
   "owner": {
-    "name": "tandem"
+    "name": "mrclrchtr"
   },
   "metadata": {
     "description": "Claude Code plugins for the tandem git-aware ticket coordination system."
@@ -13,9 +13,21 @@
       "description": "Instructs agents to use the tndm ticket coordination CLI for task tracking and branch awareness in a monorepo.",
       "version": "0.1.0",
       "author": {
-        "name": "tandem"
+        "name": "mrclrchtr"
       },
-      "keywords": ["tndm", "tickets", "coordination", "agents", "git", "worktrees"]
+      "keywords": [
+        "tandem",
+        "tndm",
+        "tickets",
+        "coordination",
+        "projectmanagement",
+        "tracking",
+        "ai",
+        "llm",
+        "agents",
+        "git",
+        "worktrees"
+      ]
     }
   ]
 }
