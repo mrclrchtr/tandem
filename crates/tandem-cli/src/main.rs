@@ -104,8 +104,12 @@ enum TicketCommand {
         id: Option<String>,
 
         /// Optional content markdown file path.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "content")]
         content_file: Option<PathBuf>,
+
+        /// Optional inline content body.
+        #[arg(long, conflicts_with = "content_file")]
+        content: Option<String>,
 
         #[command(flatten)]
         output: OutputArgs,
@@ -150,8 +154,16 @@ enum TicketCommand {
         depends_on: Option<String>,
 
         /// Markdown file replacing content.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "update_content")]
         content_file: Option<PathBuf>,
+
+        /// Inline content body replacing existing content.
+        #[arg(
+            long = "content",
+            id = "update_content",
+            conflicts_with = "content_file"
+        )]
+        content: Option<String>,
 
         #[command(flatten)]
         output: OutputArgs,
@@ -171,8 +183,9 @@ fn main() -> anyhow::Result<()> {
                 title,
                 id,
                 content_file,
+                content,
                 output,
-            } => handle_ticket_create(title, id, content_file, output.json),
+            } => handle_ticket_create(title, id, content_file, content, output.json),
             TicketCommand::Show { id, output } => handle_ticket_show(id, output.json),
             TicketCommand::List { output } => handle_ticket_list(output.json),
             TicketCommand::Update {
@@ -184,6 +197,7 @@ fn main() -> anyhow::Result<()> {
                 tags,
                 depends_on,
                 content_file,
+                content,
                 output,
             } => handle_ticket_update(
                 id,
@@ -194,6 +208,7 @@ fn main() -> anyhow::Result<()> {
                 tags,
                 depends_on,
                 content_file,
+                content,
                 output.json,
             ),
         },
@@ -250,6 +265,7 @@ fn handle_ticket_create(
     title: String,
     id: Option<String>,
     content_file: Option<PathBuf>,
+    content: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -262,7 +278,7 @@ fn handle_ticket_create(
         None => generate_ticket_id(&store, &config.id_prefix)?,
     };
 
-    let content = load_ticket_content(content_file, &config)?;
+    let content = load_ticket_content(content_file, content, &config)?;
     let meta = TicketMeta::new(ticket_id, title)?;
 
     let ticket = store
@@ -367,8 +383,20 @@ fn handle_ticket_update(
     tags: Option<String>,
     depends_on: Option<String>,
     content_file: Option<PathBuf>,
+    content: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
+    let stdin_content = if content_file.is_none() && content.is_none() && !io::stdin().is_terminal()
+    {
+        let mut buf = String::new();
+        io::stdin()
+            .read_to_string(&mut buf)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        if buf.is_empty() { None } else { Some(buf) }
+    } else {
+        None
+    };
+
     if status.is_none()
         && priority.is_none()
         && title.is_none()
@@ -376,6 +404,8 @@ fn handle_ticket_update(
         && tags.is_none()
         && depends_on.is_none()
         && content_file.is_none()
+        && content.is_none()
+        && stdin_content.is_none()
     {
         anyhow::bail!("at least one update flag is required");
     }
@@ -429,6 +459,10 @@ fn handle_ticket_update(
     if let Some(path) = content_file {
         ticket.content = fs::read_to_string(&path)
             .map_err(|error| anyhow::anyhow!("failed to read {}: {error}", path.display()))?;
+    } else if let Some(value) = content {
+        ticket.content = value;
+    } else if let Some(value) = stdin_content {
+        ticket.content = value;
     }
 
     ticket.state.revision += 1;
@@ -554,18 +588,25 @@ fn generate_ticket_id(store: &FileTicketStore, prefix: &str) -> anyhow::Result<T
 
 fn load_ticket_content(
     content_file: Option<PathBuf>,
+    content: Option<String>,
     config: &TandemConfig,
 ) -> anyhow::Result<String> {
     if let Some(path) = content_file {
         return fs::read_to_string(path).map_err(|error| anyhow::anyhow!("{error}"));
     }
 
+    if let Some(value) = content {
+        return Ok(value);
+    }
+
     if !io::stdin().is_terminal() {
-        let mut content = String::new();
+        let mut buf = String::new();
         io::stdin()
-            .read_to_string(&mut content)
+            .read_to_string(&mut buf)
             .map_err(|error| anyhow::anyhow!("{error}"))?;
-        return Ok(content);
+        if !buf.is_empty() {
+            return Ok(buf);
+        }
     }
 
     if !config.content_template.is_empty() {
