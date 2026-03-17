@@ -52,7 +52,7 @@ pub enum TicketType {
 
 impl TicketType {
     pub fn parse(value: &str) -> Result<Self, ValidationError> {
-        match value.trim() {
+        match value.trim().to_ascii_lowercase().as_str() {
             "task" => Ok(Self::Task),
             "bug" => Ok(Self::Bug),
             "feature" => Ok(Self::Feature),
@@ -85,7 +85,7 @@ pub enum TicketPriority {
 
 impl TicketPriority {
     pub fn parse(value: &str) -> Result<Self, ValidationError> {
-        match value.trim() {
+        match value.trim().to_ascii_lowercase().as_str() {
             "p0" => Ok(Self::P0),
             "p1" => Ok(Self::P1),
             "p2" => Ok(Self::P2),
@@ -117,7 +117,7 @@ pub enum TicketStatus {
 
 impl TicketStatus {
     pub fn parse(value: &str) -> Result<Self, ValidationError> {
-        match value.trim() {
+        match value.trim().to_ascii_lowercase().as_str() {
             "todo" => Ok(Self::Todo),
             "in_progress" => Ok(Self::InProgress),
             "blocked" => Ok(Self::Blocked),
@@ -352,6 +352,16 @@ mod tests {
     }
 
     #[test]
+    fn ticket_type_parse_is_case_insensitive() {
+        assert_eq!(TicketType::parse("Task").unwrap(), TicketType::Task);
+        assert_eq!(TicketType::parse("TASK").unwrap(), TicketType::Task);
+        assert_eq!(TicketType::parse("BUG").unwrap(), TicketType::Bug);
+        assert_eq!(TicketType::parse("Feature").unwrap(), TicketType::Feature);
+        assert_eq!(TicketType::parse("CHORE").unwrap(), TicketType::Chore);
+        assert_eq!(TicketType::parse("Epic").unwrap(), TicketType::Epic);
+    }
+
+    #[test]
     fn ticket_type_parse_rejects_unknown_value() {
         let error = TicketType::parse("unknown").expect_err("type should be rejected");
         assert_eq!(error.message(), "invalid ticket type");
@@ -371,6 +381,13 @@ mod tests {
     }
 
     #[test]
+    fn ticket_priority_parse_is_case_insensitive() {
+        assert_eq!(TicketPriority::parse("P0").unwrap(), TicketPriority::P0);
+        assert_eq!(TicketPriority::parse("P2").unwrap(), TicketPriority::P2);
+        assert_eq!(TicketPriority::parse("P4").unwrap(), TicketPriority::P4);
+    }
+
+    #[test]
     fn ticket_priority_parse_rejects_unknown_value() {
         let error = TicketPriority::parse("p9").expect_err("priority should be rejected");
         assert_eq!(error.message(), "invalid ticket priority");
@@ -387,6 +404,25 @@ mod tests {
             );
         }
         assert_eq!(TicketStatus::default().as_str(), "todo");
+    }
+
+    #[test]
+    fn ticket_status_parse_is_case_insensitive() {
+        assert_eq!(TicketStatus::parse("Todo").unwrap(), TicketStatus::Todo);
+        assert_eq!(TicketStatus::parse("TODO").unwrap(), TicketStatus::Todo);
+        assert_eq!(
+            TicketStatus::parse("IN_PROGRESS").unwrap(),
+            TicketStatus::InProgress
+        );
+        assert_eq!(
+            TicketStatus::parse("In_Progress").unwrap(),
+            TicketStatus::InProgress
+        );
+        assert_eq!(
+            TicketStatus::parse("BLOCKED").unwrap(),
+            TicketStatus::Blocked
+        );
+        assert_eq!(TicketStatus::parse("Done").unwrap(), TicketStatus::Done);
     }
 
     #[test]

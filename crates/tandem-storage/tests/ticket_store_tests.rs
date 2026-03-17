@@ -36,6 +36,20 @@ fn discover_repo_root_errors_when_no_repo_markers() {
 
 #[test]
 #[allow(clippy::disallowed_methods)]
+fn discover_repo_root_prefers_git_over_tndm_in_subdirectory() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let child = repo_root.path().join("sub");
+    fs::create_dir_all(child.join(".tndm")).expect("create .tndm dir in child");
+
+    let discovered = discover_repo_root(&child).expect("discover repo root");
+
+    assert_eq!(discovered, repo_root.path());
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
 fn create_ticket_writes_expected_files() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
