@@ -1,7 +1,7 @@
 ---
 name: awareness
 description: >
-  This skill should be used when an agent or user asks to "check awareness", "check what changed
+  This skill MUST be used when an agent or user asks to "check awareness", "check what changed
   on branch X", "what tickets are on main", "compare tickets between branches", "check for ticket
   conflicts", "what did other agents work on", "tndm awareness", "before I start working on X check
   the branch", "what's in flight on another branch", or "run awareness against <ref>". Use when
