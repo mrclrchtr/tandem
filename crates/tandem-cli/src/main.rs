@@ -20,7 +20,6 @@ use tandem_storage::{
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-#[allow(dead_code)]
 #[derive(Serialize)]
 struct TicketJsonEntry<'a> {
     #[serde(flatten)]
@@ -30,7 +29,6 @@ struct TicketJsonEntry<'a> {
     content_path: String,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize)]
 struct TicketJson<'a> {
     schema_version: u64,
@@ -45,7 +43,6 @@ struct TicketListJson<'a> {
     tickets: Vec<TicketJsonEntry<'a>>,
 }
 
-#[allow(dead_code)]
 fn ticket_content_path(id: &tandem_core::ticket::TicketId) -> String {
     format!(".tndm/tickets/{}/content.md", id)
 }
@@ -278,7 +275,7 @@ fn handle_ticket_create(
     Ok(())
 }
 
-fn handle_ticket_show(id: String, _json: bool) -> anyhow::Result<()> {
+fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
@@ -287,9 +284,21 @@ fn handle_ticket_show(id: String, _json: bool) -> anyhow::Result<()> {
         .load_ticket(&id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
-    print!("## meta.toml\n{}\n", ticket.meta.to_canonical_toml());
-    print!("## state.toml\n{}\n", ticket.state.to_canonical_toml());
-    print!("## content.md\n{}", ticket.content);
+    if json {
+        let envelope = TicketJson {
+            schema_version: 1,
+            ticket: TicketJsonEntry {
+                meta: &ticket.meta,
+                state: &ticket.state,
+                content_path: ticket_content_path(&ticket.meta.id),
+            },
+        };
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        print!("## meta.toml\n{}\n", ticket.meta.to_canonical_toml());
+        print!("## state.toml\n{}\n", ticket.state.to_canonical_toml());
+        print!("## content.md\n{}", ticket.content);
+    }
     Ok(())
 }
 
