@@ -11,7 +11,7 @@
       "name": "tndm",
       "source": "./plugin/tndm",
       "description": "Instructs agents to use the tndm ticket coordination CLI for task tracking and branch awareness in a monorepo.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "mrclrchtr"
       },
