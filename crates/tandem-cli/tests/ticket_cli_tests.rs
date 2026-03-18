@@ -181,8 +181,109 @@ fn ticket_list_prints_sorted_tab_separated_lines() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
     assert_eq!(
         stdout,
-        "TNDM-1\ttodo\tFirst ticket\nTNDM-2\ttodo\tSecond ticket\n"
+        "TNDM-1\ttodo\tp2\tFirst ticket\nTNDM-2\ttodo\tp2\tSecond ticket\n"
     );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_list_hides_done_tickets_by_default() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    // Create two tickets
+    for (id, title) in [("TNDM-1", "Open ticket"), ("TNDM-2", "Done ticket")] {
+        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
+            .args(["ticket", "create", title, "--id", id])
+            .current_dir(repo_root.path())
+            .output()
+            .expect("create ticket");
+        assert!(out.status.success());
+    }
+
+    // Mark TNDM-2 as done
+    let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", "TNDM-2", "--status", "done"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("update ticket");
+    assert!(out.status.success());
+
+    // Default list should hide done tickets
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "list"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    assert!(stdout.contains("TNDM-1"), "open ticket should appear");
+    assert!(!stdout.contains("TNDM-2"), "done ticket should be hidden");
+
+    // --all should include done tickets
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "list", "--all"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list --all");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    assert!(
+        stdout.contains("TNDM-1"),
+        "open ticket should appear with --all"
+    );
+    assert!(
+        stdout.contains("TNDM-2"),
+        "done ticket should appear with --all"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_list_json_hides_done_tickets_by_default() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    for (id, title) in [("TNDM-1", "Open"), ("TNDM-2", "Done")] {
+        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
+            .args(["ticket", "create", title, "--id", id])
+            .current_dir(repo_root.path())
+            .output()
+            .expect("create ticket");
+        assert!(out.status.success());
+    }
+
+    let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", "TNDM-2", "--status", "done"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("update ticket");
+    assert!(out.status.success());
+
+    // Default JSON list should hide done tickets
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "list", "--json"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list --json");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let json: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let tickets = json["tickets"].as_array().expect("tickets array");
+    assert_eq!(tickets.len(), 1);
+    assert_eq!(tickets[0]["id"], "TNDM-1");
+
+    // --all --json should include done tickets
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "list", "--all", "--json"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list --all --json");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let json: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let tickets = json["tickets"].as_array().expect("tickets array");
+    assert_eq!(tickets.len(), 2);
 }
 
 #[test]
