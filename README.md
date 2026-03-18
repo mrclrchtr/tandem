@@ -71,3 +71,15 @@ Equivalent direct Cargo invocation:
 ```sh
 cargo run -p tandem-cli --bin tndm -- --help
 ```
+
+## Claude Code Plugin
+
+`plugin/tndm` is a Claude Code plugin that teaches agents to use the `tndm` CLI for ticket tracking and branch awareness.
+
+Load it per session:
+
+```sh
+claude --plugin-dir ./plugin/tndm
+```
+
+See `plugin/tndm/README.md` for details.
