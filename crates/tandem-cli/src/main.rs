@@ -350,6 +350,13 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
         }
     }
 
+    tickets.sort_by(|a, b| {
+        a.meta
+            .priority
+            .cmp(&b.meta.priority)
+            .then_with(|| a.meta.id.cmp(&b.meta.id))
+    });
+
     if json {
         let envelope = TicketListJson {
             schema_version: 1,

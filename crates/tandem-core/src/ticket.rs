@@ -85,7 +85,7 @@ impl serde::Serialize for TicketType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum TicketPriority {
     P0,
     P1,
