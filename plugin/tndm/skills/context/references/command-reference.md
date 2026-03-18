@@ -123,7 +123,8 @@ tndm ticket show TNDM-A1B2C3 --json
 
 ## tndm ticket list
 
-List tickets in the repository. Done tickets are hidden by default.
+List tickets in the repository, sorted by priority (highest first), then by ID.
+Done tickets are hidden by default.
 
 ```sh
 tndm ticket list [OPTIONS]

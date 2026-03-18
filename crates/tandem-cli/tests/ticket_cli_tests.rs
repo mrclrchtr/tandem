@@ -1098,6 +1098,49 @@ fn ticket_update_json_outputs_updated_ticket_envelope() {
 
 #[test]
 #[allow(clippy::disallowed_methods)]
+fn ticket_list_sorts_by_priority_then_id() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    // Create tickets and set different priorities
+    for (id, title, prio) in [
+        ("TNDM-1", "Low prio", "p3"),
+        ("TNDM-2", "High prio", "p0"),
+        ("TNDM-3", "Also high prio", "p0"),
+        ("TNDM-4", "Medium prio", "p2"),
+    ] {
+        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
+            .args(["ticket", "create", title, "--id", id])
+            .current_dir(repo_root.path())
+            .output()
+            .expect("create ticket");
+        assert!(out.status.success());
+
+        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
+            .args(["ticket", "update", id, "--priority", prio])
+            .current_dir(repo_root.path())
+            .output()
+            .expect("update priority");
+        assert!(out.status.success());
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "list"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket list");
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let ids: Vec<&str> = stdout
+        .lines()
+        .map(|l| l.split('\t').next().unwrap())
+        .collect();
+    assert_eq!(ids, vec!["TNDM-2", "TNDM-3", "TNDM-4", "TNDM-1"]);
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
 fn ticket_list_json_empty_produces_empty_array() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
