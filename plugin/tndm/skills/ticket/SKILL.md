@@ -1,7 +1,7 @@
 ---
 name: ticket
 description: >
-  This skill should be used when an agent or user asks to "create a ticket", "track this work",
+  This skill MUST be used when an agent or user asks to "create a ticket", "track this work",
   "make a tndm ticket", "update ticket TNDM-X", "mark ticket as done", "mark ticket as
   in_progress", "show ticket TNDM-X", "list tickets", "list open tickets", "what tickets are
   open", "add a tag to ticket", "set priority on ticket", "TNDM-" followed by a ticket ID,

@@ -1,5 +1,4 @@
 {
-  "description": "tndm coordination hooks: inject advisory at session start, remind to update tickets when finishing work.",
   "hooks": {
     "SubagentStop": [
       {
