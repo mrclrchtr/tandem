@@ -912,6 +912,45 @@ fn ticket_list_json_outputs_schema_versioned_array() {
 
 #[test]
 #[allow(clippy::disallowed_methods)]
+fn ticket_create_json_outputs_full_ticket_envelope() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "create",
+            "JSON create test",
+            "--id",
+            "TNDM-CJ01",
+            "--json",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket create --json");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect("stdout should be valid JSON");
+    assert_eq!(json["schema_version"], 1);
+    assert_eq!(json["id"], "TNDM-CJ01");
+    assert_eq!(json["title"], "JSON create test");
+    assert_eq!(json["type"], "task");
+    assert_eq!(json["priority"], "p2");
+    assert_eq!(json["status"], "todo");
+    assert_eq!(json["revision"], 1);
+    assert_eq!(json["content_path"], ".tndm/tickets/TNDM-CJ01/content.md");
+    assert!(json.get("content").is_none());
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
 fn ticket_list_json_empty_produces_empty_array() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
