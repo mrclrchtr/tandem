@@ -121,6 +121,10 @@ enum TicketCommand {
         output: OutputArgs,
     },
     List {
+        /// Include tickets with status "done".
+        #[arg(long)]
+        all: bool,
+
         #[command(flatten)]
         output: OutputArgs,
     },
@@ -187,7 +191,7 @@ fn main() -> anyhow::Result<()> {
                 output,
             } => handle_ticket_create(title, id, content_file, content, output.json),
             TicketCommand::Show { id, output } => handle_ticket_show(id, output.json),
-            TicketCommand::List { output } => handle_ticket_list(output.json),
+            TicketCommand::List { all, output } => handle_ticket_list(output.json, all),
             TicketCommand::Update {
                 id,
                 status,
@@ -328,7 +332,7 @@ fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_ticket_list(json: bool) -> anyhow::Result<()> {
+fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
@@ -336,14 +340,17 @@ fn handle_ticket_list(json: bool) -> anyhow::Result<()> {
         .list_ticket_ids()
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
-    if json {
-        let mut tickets = Vec::new();
-        for id in ids {
-            let ticket = store
-                .load_ticket(&id)
-                .map_err(|error| anyhow::anyhow!("{error}"))?;
+    let mut tickets = Vec::new();
+    for id in ids {
+        let ticket = store
+            .load_ticket(&id)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        if all || ticket.state.status != TicketStatus::Done {
             tickets.push(ticket);
         }
+    }
+
+    if json {
         let envelope = TicketListJson {
             schema_version: 1,
             tickets: tickets
@@ -357,13 +364,10 @@ fn handle_ticket_list(json: bool) -> anyhow::Result<()> {
         };
         println!("{}", serde_json::to_string_pretty(&envelope)?);
     } else {
-        for id in ids {
-            let ticket = store
-                .load_ticket(&id)
-                .map_err(|error| anyhow::anyhow!("{error}"))?;
+        for ticket in &tickets {
             println!(
                 "{}\t{}\t{}\t{}",
-                id,
+                ticket.meta.id,
                 ticket.state.status.as_str(),
                 ticket.meta.priority.as_str(),
                 ticket.meta.title
