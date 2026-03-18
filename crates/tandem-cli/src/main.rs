@@ -456,6 +456,47 @@ fn handle_ticket_update(
     Ok(())
 }
 
+fn format_awareness_text(report: &tandem_core::awareness::AwarenessReport) -> String {
+    use tandem_core::awareness::AwarenessChangeKind;
+
+    let mut output = format!("Against: {}\n\n", report.against);
+
+    if report.tickets.is_empty() {
+        output.push_str("No changes.\n");
+        return output;
+    }
+
+    for ticket in &report.tickets {
+        let kind = match &ticket.change {
+            AwarenessChangeKind::AddedCurrent => "added (current)",
+            AwarenessChangeKind::AddedAgainst => "added (against)",
+            AwarenessChangeKind::Diverged => "diverged",
+        };
+        output.push_str(&format!("{}  {}\n", ticket.id, kind));
+
+        if let Some(ref status) = ticket.fields.status {
+            output.push_str(&format!(
+                "  status:     {} -> {}\n",
+                status.current, status.against
+            ));
+        }
+        if let Some(ref priority) = ticket.fields.priority {
+            output.push_str(&format!(
+                "  priority:   {} -> {}\n",
+                priority.current, priority.against
+            ));
+        }
+        if let Some(ref depends_on) = ticket.fields.depends_on {
+            output.push_str(&format!(
+                "  depends_on: {:?} -> {:?}\n",
+                depends_on.current, depends_on.against
+            ));
+        }
+    }
+
+    output
+}
+
 fn handle_awareness(args: AwarenessArgs) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -479,7 +520,12 @@ fn handle_awareness(args: AwarenessArgs) -> anyhow::Result<()> {
     };
 
     let report = compare_snapshots(&args.against, &current_snapshot, &against_snapshot);
-    println!("{}", serde_json::to_string_pretty(&report)?);
+
+    if args.output.json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        print!("{}", format_awareness_text(&report));
+    }
     Ok(())
 }
 
