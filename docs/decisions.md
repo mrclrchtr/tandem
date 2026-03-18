@@ -81,7 +81,7 @@ provides a monotonic, tool-derived counter for unambiguous ordering within a sin
 - Awareness output distinguishes:
     - **added_current:** ticket exists in the working tree but not at the compared ref
     - **added_against:** ticket exists at the compared ref but not in the working tree
-    - **diverged:** ticket exists in both but fields differ (with field-level diffs for status, priority, depends_on)
+    - **diverged:** ticket exists in both but fields differ (with field-level diffs for status, priority, title, type, depends_on, tags)
 - Awareness may surface local, uncommitted ticket changes as early hints, but distinguishes them from changes observed
   on Git refs (since uncommitted state is machine-local and non-reproducible).
 

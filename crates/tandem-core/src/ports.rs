@@ -9,10 +9,3 @@ pub trait TicketStore {
     fn update_ticket(&self, ticket: &Ticket) -> Result<Ticket, Self::Error>;
     fn ticket_exists(&self, id: &TicketId) -> Result<bool, Self::Error>;
 }
-
-pub trait RepoContext {
-    type Error;
-
-    fn current_branch(&self) -> Result<String, Self::Error>;
-    fn list_worktrees(&self) -> Result<Vec<String>, Self::Error>;
-}

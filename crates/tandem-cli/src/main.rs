@@ -532,10 +532,28 @@ fn format_awareness_text(report: &tandem_core::awareness::AwarenessReport) -> St
                 priority.current, priority.against
             ));
         }
+        if let Some(ref title) = ticket.fields.title {
+            output.push_str(&format!(
+                "  title:      {} -> {}\n",
+                title.current, title.against
+            ));
+        }
+        if let Some(ref ticket_type) = ticket.fields.ticket_type {
+            output.push_str(&format!(
+                "  type:       {} -> {}\n",
+                ticket_type.current, ticket_type.against
+            ));
+        }
         if let Some(ref depends_on) = ticket.fields.depends_on {
             output.push_str(&format!(
                 "  depends_on: {:?} -> {:?}\n",
                 depends_on.current, depends_on.against
+            ));
+        }
+        if let Some(ref tags) = ticket.fields.tags {
+            output.push_str(&format!(
+                "  tags:       {:?} -> {:?}\n",
+                tags.current, tags.against
             ));
         }
     }
