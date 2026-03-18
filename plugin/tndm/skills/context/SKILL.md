@@ -29,13 +29,13 @@ Follow this workflow for every development task:
 Before writing code or making changes:
 
 ```sh
-tndm ticket create "Brief title describing the task" --json
+tndm ticket create "Brief title describing the task"
 ```
 
 Note the returned ticket ID (format: `TNDM-XXXXXX`). Immediately update status:
 
 ```sh
-tndm ticket update <ID> --status in_progress --json
+tndm ticket update <ID> --status in_progress
 ```
 
 ### 2. Before branching or starting work that may overlap
@@ -68,7 +68,7 @@ tndm ticket update <ID> --status in_progress
 ### 4. When work is complete — mark done
 
 ```sh
-tndm ticket update <ID> --status done --json
+tndm ticket update <ID> --status done
 ```
 
 Marking `done` is the inter-agent coordination signal. Other agents and awareness checks rely on
@@ -93,14 +93,14 @@ this with `tndm fmt --check`.
 | `--tags`       | comma-separated strings (replaces existing)     | —        |
 | `--depends-on` | comma-separated ticket IDs (replaces existing)  | —        |
 
-All `tndm ticket` subcommands accept `--json` for machine-readable output.
+All `tndm ticket` subcommands accept `--json` for machine-readable output. Prefer the default text output for mutations (just prints the ticket ID) to save tokens.
 
 ## Key Rules
 
 - **Always create a ticket before starting work.** Skipping this for "quick" tasks is not permitted.
 - **Keep status current.** Other agents rely on status to understand what is in flight.
 - **Run awareness before branching.** Discover coordination needs before writing code.
-- **Use `--json`** when capturing output for downstream processing or decisions.
+- **Use `--json`** on read commands (`show`, `list`, `awareness`) when parsing output for decisions. Mutations (`create`, `update`) already print just the ticket ID by default — skip `--json` to save tokens.
 - **Run `tndm fmt`** after every ticket mutation to keep diffs clean.
 - **Never hardcode ticket IDs** in code. Reference them in commit messages and ticket content only.
 
