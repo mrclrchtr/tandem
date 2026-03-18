@@ -83,6 +83,11 @@ tndm fmt
 Run `tndm fmt` after every create or update to keep files in canonical TOML format. CI enforces
 this with `tndm fmt --check`.
 
+### 6. After ticket creation or status change — commit immediately
+
+Ticket creation and status updates (`in_progress`, `blocked`, `done`) are coordination signals.
+Other agents can only see them once committed. Always commit these changes right away (`git add .tndm/ && git commit`).
+
 ## Ticket Fields Quick Reference
 
 | Field          | Valid values                                    | Default  |
@@ -102,6 +107,7 @@ All `tndm ticket` subcommands accept `--json` for machine-readable output. Prefe
 - **Run awareness before branching.** Discover coordination needs before writing code.
 - **Use `--json`** on read commands (`show`, `list`, `awareness`) when parsing output for decisions. Mutations (`create`, `update`) already print just the ticket ID by default — skip `--json` to save tokens.
 - **Run `tndm fmt`** after every ticket mutation to keep diffs clean.
+- **Commit ticket creation and status changes immediately.** These are coordination signals — other agents can only see them once committed. Always `git add .tndm/ && git commit` right after creating a ticket or changing its status.
 - **Never hardcode ticket IDs** in code. Reference them in commit messages and ticket content only.
 
 ## Awareness Output Structure
