@@ -82,12 +82,8 @@ object with field-level changes:
 
 ## After Awareness — Commit Any Ticket Updates
 
-If you update tickets based on awareness results, commit the changes immediately so other agents
-can see them:
-
-```sh
-git add .tndm/ && git commit -m "tndm: update tickets after awareness check"
-```
+If you update tickets based on awareness results, commit `.tndm/` changes immediately so other
+agents can see them.
 
 ## Example
 
