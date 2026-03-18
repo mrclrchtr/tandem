@@ -6,6 +6,14 @@ Project vision: `docs/vision.md`.
 Design decisions: `docs/decisions.md`.
 Architecture overview: `docs/architecture.md`.
 
+## Install
+
+```sh
+cargo install --path crates/tandem-cli
+```
+
+This places the `tndm` binary into `~/.cargo/bin/`.
+
 ## Development
 
 - Toolchain manager: `mise`
