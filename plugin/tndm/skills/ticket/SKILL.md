@@ -113,3 +113,7 @@ tndm fmt
 ```
 
 CI enforces this via `tndm fmt --check` — files not normalised will fail the check.
+
+## After Ticket Creation or Status Change — Commit Immediately
+
+Ticket creation and status updates are coordination signals. **Commit them right away** so other agents in other worktrees can see them (`git add .tndm/ && git commit`).
