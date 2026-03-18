@@ -367,7 +367,7 @@ fn handle_ticket_update(
     tags: Option<String>,
     depends_on: Option<String>,
     content_file: Option<PathBuf>,
-    _json: bool,
+    json: bool,
 ) -> anyhow::Result<()> {
     if status.is_none()
         && priority.is_none()
@@ -436,11 +436,23 @@ fn handle_ticket_update(
         .format(&Rfc3339)
         .map_err(|error| anyhow::anyhow!("failed to format timestamp: {error}"))?;
 
-    store
+    let updated = store
         .update_ticket(&ticket)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
-    println!("{ticket_id}");
+    if json {
+        let envelope = TicketJson {
+            schema_version: 1,
+            ticket: TicketJsonEntry {
+                meta: &updated.meta,
+                state: &updated.state,
+                content_path: ticket_content_path(&updated.meta.id),
+            },
+        };
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        println!("{ticket_id}");
+    }
     Ok(())
 }
 
