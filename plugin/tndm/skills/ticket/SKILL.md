@@ -1,31 +1,82 @@
 ---
 name: ticket
 description: >
-  This skill MUST be used when an agent or user asks to "create a ticket", "track this work",
-  "make a tndm ticket", "update ticket TNDM-X", "mark ticket as done", "mark ticket as
-  in_progress", "show ticket TNDM-X", "list tickets", "list open tickets", "what tickets are
-  open", "add a tag to ticket", "set priority on ticket", "TNDM-" followed by a ticket ID,
-  "ticket status", "ticket blocked", or any ticket lifecycle operation.
-version: 0.1.0
+  This skill MUST be used when an agent or user mentions "ticket", "tndm", "TNDM-*", "track this
+  work", "create a ticket", "update ticket", "mark ticket as done", "mark ticket as in_progress",
+  "show ticket", "list tickets", "what tickets are open", "add a tag to ticket", "set priority on
+  ticket", "ticket status", "ticket blocked", or any ticket lifecycle operation. Also use when
+  starting any development task that should be tracked, or when a conversation references a ticket
+  ID (e.g. "fix TNDM-XXXXXX").
+version: 0.2.0
 argument-hint: create <title> | update <ID> [--status <s>] [--priority <p>] | show <ID> | list
 ---
 
 # tndm Ticket Operations
 
-Manage the full lifecycle of tndm tickets: create, update, show, and list.
+tndm is a git-aware ticket coordination system for AI agents in a monorepo. Ticket state is stored
+in the repository — no central service required. Other agents rely on ticket status to coordinate,
+so keeping it current is essential.
 
-## Create a Ticket
+## Workflow Protocol
 
-Create a ticket before starting any development task.
+Follow this for every development task:
+
+### 1. Create a ticket before starting work
 
 ```sh
-tndm ticket create "<title>"
+tndm ticket create "Brief title describing the task"
 ```
 
-Immediately update status to `in_progress`:
+Note the returned ticket ID (format: `TNDM-XXXXXX`). Immediately update status:
 
 ```sh
 tndm ticket update <ID> --status in_progress
+```
+
+### 2. Keep status current as work progresses
+
+```sh
+# When blocked — document the reason via heredoc (do not create temporary files):
+tndm ticket update <ID> --status blocked <<'EOF'
+Blocked: waiting for PR #42 review
+EOF
+
+# When unblocked and resuming:
+tndm ticket update <ID> --status in_progress
+```
+
+### 3. When work is complete — mark done
+
+```sh
+tndm ticket update <ID> --status done
+```
+
+### 4. Commit ticket changes immediately
+
+Ticket creation and status updates are coordination signals — other agents can only see them once
+committed. Always commit right away:
+
+```sh
+git add .tndm/ && git commit -m "tndm: <describe change>"
+```
+
+## Working on an Existing Ticket
+
+When asked to fix, work on, or continue a ticket (e.g. "fix TNDM-XXXXXX"):
+
+1. Show the ticket to understand it: `tndm ticket show <ID>`
+2. Set status to `in_progress`: `tndm ticket update <ID> --status in_progress`
+3. Commit the status change immediately
+4. Do the work
+5. Set status to `done`: `tndm ticket update <ID> --status done`
+6. Commit the status change (can be combined with the work commit)
+
+## Commands
+
+### Create
+
+```sh
+tndm ticket create "<title>"
 ```
 
 With optional content body (use a heredoc — do **not** create temporary files):
@@ -42,9 +93,7 @@ Add OAuth 2.0 authorization code flow.
 EOF
 ```
 
-## Update a Ticket
-
-Update any field on an existing ticket.
+### Update
 
 ```sh
 # Change status
@@ -75,14 +124,14 @@ EOF
 tndm ticket update TNDM-XXXXXX --status done --priority p1
 ```
 
-## Show a Ticket
+### Show
 
 ```sh
 tndm ticket show TNDM-XXXXXX
 tndm ticket show TNDM-XXXXXX --json
 ```
 
-## List Tickets
+### List
 
 By default, done tickets are hidden. Use `--all` to include them.
 
@@ -108,6 +157,13 @@ tndm ticket list --json | jq '[.tickets[] | select(.priority == "p0" or .priorit
 | `--tags`       | comma-separated strings                         |
 | `--depends-on` | comma-separated ticket IDs                      |
 
-## After Ticket Creation or Status Change — Commit Immediately
+Use `--json` on read commands (`show`, `list`) when parsing output. Mutations (`create`, `update`)
+print just the ticket ID by default — skip `--json` to save tokens.
 
-Ticket creation and status updates are coordination signals. **Commit them right away** so other agents in other worktrees can see them (`git add .tndm/ && git commit`).
+## Additional Resources
+
+For complete command syntax, all flags, enum values, ticket file layout, and repository
+configuration options, see:
+
+- **`references/command-reference.md`** — full flag reference, all subcommands, enum values,
+  example invocations, ticket file structure, and `.tndm/config.toml` options

@@ -12,16 +12,14 @@ With this plugin loaded, agents:
 - Automatically create a ticket before starting any development task
 - Keep ticket status current (`in_progress` → `blocked` → `done`)
 - Run `tndm awareness` before branching to detect conflicts with other agents
-- Receive a session-start reminder in tndm repositories
+- Commit ticket changes immediately so other agents can see them
 
 ## Components
 
 | Component | Type | Purpose |
 |---|---|---|
-| `skills/context` | Background skill (auto-loaded) | Full tndm workflow knowledge — Claude loads this when starting tasks or when tndm context is detected |
+| `skills/ticket` | Skill + slash command | `/tndm:ticket create\|update\|show\|list` — workflow protocol + full ticket lifecycle |
 | `skills/awareness` | Skill + slash command | `/tndm:awareness <ref>` — checks what changed on another branch |
-| `skills/ticket` | Skill + slash command | `/tndm:ticket create\|update\|show\|list` — full ticket lifecycle |
-| `hooks/session-start.sh` | SessionStart hook | Injects tndm advisory at session start (only in repos with `.tndm/`) |
 | `hooks/hooks.json` (Stop) | Stop hook | Reminds agents to update ticket status when finishing work |
 
 ## Usage
