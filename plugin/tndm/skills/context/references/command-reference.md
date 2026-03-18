@@ -229,7 +229,7 @@ tndm fmt
 tndm fmt --check
 ```
 
-Run `tndm fmt` after every `ticket create` or `ticket update` to ensure clean git diffs.
+The CLI writes canonical TOML automatically. Use `tndm fmt` to normalise files after hand-editing.
 
 ## Field Enum Reference
 
