@@ -25,10 +25,19 @@
       }
     ]
   },
+  "extraKnownMarketplaces": {
+    "tandem": {
+      "source": {
+        "source": "github",
+        "repo": "mrclrchtr/tandem"
+      }
+    }
+  },
   "enabledPlugins": {
     "rust-analyzer-lsp@claude-plugins-official": true,
     "superpowers@superpowers-dev": true,
     "plugin-dev@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true
+    "skill-creator@claude-plugins-official": true,
+    "tndm@tandem": true
   }
 }
