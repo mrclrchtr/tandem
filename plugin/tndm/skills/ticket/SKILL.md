@@ -89,9 +89,9 @@ tndm ticket list
 tndm ticket list --json
 
 # Useful jq filters
-tndm ticket list --json | jq '[.[] | select(.status == "in_progress")]'
-tndm ticket list --json | jq '[.[] | select(.status == "blocked")]'
-tndm ticket list --json | jq '[.[] | select(.priority == "p0" or .priority == "p1")]'
+tndm ticket list --json | jq '[.tickets[] | select(.status == "in_progress")]'
+tndm ticket list --json | jq '[.tickets[] | select(.status == "blocked")]'
+tndm ticket list --json | jq '[.tickets[] | select(.priority == "p0" or .priority == "p1")]'
 ```
 
 ## Field Reference
