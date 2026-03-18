@@ -54,11 +54,7 @@ tndm ticket update <ID> --status done
 ### 4. Commit ticket changes immediately
 
 Ticket creation and status updates are coordination signals — other agents can only see them once
-committed. Always commit right away:
-
-```sh
-git add .tndm/ && git commit -m "tndm: <describe change>"
-```
+committed. Always commit `.tndm/` changes right away.
 
 ## Working on an Existing Ticket
 
@@ -69,7 +65,7 @@ When asked to fix, work on, or continue a ticket (e.g. "fix TNDM-XXXXXX"):
 3. Commit the status change immediately
 4. Do the work
 5. Set status to `done`: `tndm ticket update <ID> --status done`
-6. Commit the status change (can be combined with the work commit)
+6. Commit the status change
 
 ## Commands
 
