@@ -362,9 +362,10 @@ fn handle_ticket_list(json: bool) -> anyhow::Result<()> {
                 .load_ticket(&id)
                 .map_err(|error| anyhow::anyhow!("{error}"))?;
             println!(
-                "{}\t{}\t{}",
+                "{}\t{}\t{}\t{}",
                 id,
                 ticket.state.status.as_str(),
+                ticket.meta.priority.as_str(),
                 ticket.meta.title
             );
         }
