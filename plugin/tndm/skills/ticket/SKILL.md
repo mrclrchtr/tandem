@@ -82,13 +82,17 @@ tndm ticket show TNDM-XXXXXX
 tndm ticket show TNDM-XXXXXX --json
 ```
 
-## List All Tickets
+## List Tickets
+
+By default, done tickets are hidden. Use `--all` to include them.
 
 ```sh
 tndm ticket list
+tndm ticket list --all
 tndm ticket list --json
 
 # Useful jq filters
+tndm ticket list --all --json | jq '[.tickets[] | select(.status == "done")]'
 tndm ticket list --json | jq '[.tickets[] | select(.status == "in_progress")]'
 tndm ticket list --json | jq '[.tickets[] | select(.status == "blocked")]'
 tndm ticket list --json | jq '[.tickets[] | select(.priority == "p0" or .priority == "p1")]'

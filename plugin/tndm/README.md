@@ -58,4 +58,4 @@ Skills `/tndm:awareness` and `/tndm:ticket` should appear in the output.
 | `/tndm:ticket create <title>` | Create a new ticket |
 | `/tndm:ticket update <ID> [flags]` | Update ticket fields |
 | `/tndm:ticket show <ID>` | Show a single ticket |
-| `/tndm:ticket list` | List all tickets |
+| `/tndm:ticket list` | List tickets (done hidden by default; use `--all` to include) |

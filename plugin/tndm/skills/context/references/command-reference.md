@@ -123,12 +123,13 @@ tndm ticket show TNDM-A1B2C3 --json
 
 ## tndm ticket list
 
-List all tickets in the repository.
+List tickets in the repository. Done tickets are hidden by default.
 
 ```sh
 tndm ticket list [OPTIONS]
 
 Options:
+  --all     Include tickets with status "done".
   --json    Output as JSON array.
 ```
 
@@ -136,6 +137,7 @@ Examples:
 
 ```sh
 tndm ticket list
+tndm ticket list --all
 tndm ticket list --json
 
 # Filter in-progress tickets with jq
@@ -143,6 +145,9 @@ tndm ticket list --json | jq '[.[] | select(.status == "in_progress")]'
 
 # Show only blocked tickets
 tndm ticket list --json | jq '[.[] | select(.status == "blocked")]'
+
+# Show done tickets
+tndm ticket list --all --json | jq '[.[] | select(.status == "done")]'
 ```
 
 ## tndm awareness
