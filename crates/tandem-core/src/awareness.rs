@@ -76,7 +76,13 @@ pub struct AwarenessFieldDiffs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<AwarenessFieldDiff>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub depends_on: Option<AwarenessDependsOnDiff>,
+    pub title: Option<AwarenessFieldDiff>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub ticket_type: Option<AwarenessFieldDiff>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub depends_on: Option<AwarenessVecDiff>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<AwarenessVecDiff>,
 }
 
 impl AwarenessFieldDiffs {
@@ -86,26 +92,45 @@ impl AwarenessFieldDiffs {
             current.meta.priority.as_str(),
             against.meta.priority.as_str(),
         );
+        let title = diff_value(&current.meta.title, &against.meta.title);
+        let ticket_type = diff_value(
+            current.meta.ticket_type.as_str(),
+            against.meta.ticket_type.as_str(),
+        );
 
         let current_depends_on = canonicalize_depends_on(&current.meta.depends_on);
         let against_depends_on = canonicalize_depends_on(&against.meta.depends_on);
-        let depends_on =
-            (current_depends_on != against_depends_on).then_some(AwarenessDependsOnDiff {
-                current: current_depends_on,
-                against: against_depends_on,
-            });
+        let depends_on = (current_depends_on != against_depends_on).then_some(AwarenessVecDiff {
+            current: current_depends_on,
+            against: against_depends_on,
+        });
+
+        let current_tags = canonicalize_tags(&current.meta.tags);
+        let against_tags = canonicalize_tags(&against.meta.tags);
+        let tags = (current_tags != against_tags).then_some(AwarenessVecDiff {
+            current: current_tags,
+            against: against_tags,
+        });
 
         let diffs = Self {
             status,
             priority,
+            title,
+            ticket_type,
             depends_on,
+            tags,
         };
 
         (!diffs.is_empty()).then_some(diffs)
     }
 
     fn is_empty(&self) -> bool {
-        self.status.is_none() && self.priority.is_none() && self.depends_on.is_none()
+        self.status.is_none()
+            && self.priority.is_none()
+            && self.title.is_none()
+            && self.ticket_type.is_none()
+            && self.depends_on.is_none()
+            && self.tags.is_none()
     }
 }
 
@@ -116,7 +141,7 @@ pub struct AwarenessFieldDiff {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct AwarenessDependsOnDiff {
+pub struct AwarenessVecDiff {
     pub current: Vec<String>,
     pub against: Vec<String>,
 }
@@ -170,12 +195,20 @@ fn canonicalize_depends_on(depends_on: &[TicketId]) -> Vec<String> {
     canonical
 }
 
+fn canonicalize_tags(tags: &[String]) -> Vec<String> {
+    let mut canonical = tags.to_vec();
+    canonical.sort();
+    canonical
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::ticket::{Ticket, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus};
+    use crate::ticket::{
+        Ticket, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus, TicketType,
+    };
 
     use super::{
-        AwarenessChangeKind, AwarenessDependsOnDiff, AwarenessFieldDiff, AwarenessFieldDiffs,
+        AwarenessChangeKind, AwarenessFieldDiff, AwarenessFieldDiffs, AwarenessVecDiff,
         TicketSnapshot, compare_snapshots,
     };
 
@@ -183,14 +216,14 @@ mod tests {
     fn compare_snapshots_returns_empty_report_for_identical_snapshots() {
         let current = TicketSnapshot::from_tickets([ticket(
             "TNDM-1",
-            "Same",
+            "Same title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &[],
         )]);
         let against = TicketSnapshot::from_tickets([ticket(
             "TNDM-1",
-            "Different content is ignored",
+            "Same title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &[],
@@ -245,14 +278,14 @@ mod tests {
     fn compare_snapshots_reports_diverged_status_priority_and_depends_on() {
         let current = TicketSnapshot::from_tickets([ticket(
             "TNDM-3",
-            "Current",
+            "Shared title",
             TicketStatus::InProgress,
             TicketPriority::P1,
             &["TNDM-1"],
         )]);
         let against = TicketSnapshot::from_tickets([ticket(
             "TNDM-3",
-            "Against",
+            "Shared title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &[],
@@ -281,7 +314,7 @@ mod tests {
         );
         assert_eq!(
             fields.depends_on,
-            Some(AwarenessDependsOnDiff {
+            Some(AwarenessVecDiff {
                 current: vec!["TNDM-1".to_string()],
                 against: Vec::new(),
             })
@@ -343,14 +376,14 @@ mod tests {
     fn compare_snapshots_omits_unchanged_fields_from_serialized_json() {
         let current = TicketSnapshot::from_tickets([ticket(
             "TNDM-4",
-            "Current",
+            "Shared title",
             TicketStatus::InProgress,
             TicketPriority::P2,
             &["TNDM-1", "TNDM-2"],
         )]);
         let against = TicketSnapshot::from_tickets([ticket(
             "TNDM-4",
-            "Against",
+            "Shared title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &["TNDM-2", "TNDM-1"],
@@ -369,14 +402,14 @@ mod tests {
     fn compare_snapshots_ignores_depends_on_order_when_values_match() {
         let current = TicketSnapshot::from_tickets([ticket(
             "TNDM-5",
-            "Current",
+            "Shared title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &["TNDM-2", "TNDM-1"],
         )]);
         let against = TicketSnapshot::from_tickets([ticket(
             "TNDM-5",
-            "Against",
+            "Shared title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &["TNDM-1", "TNDM-2"],
@@ -391,14 +424,14 @@ mod tests {
     fn compare_snapshots_preserves_duplicate_depends_on_entries_as_difference() {
         let current = TicketSnapshot::from_tickets([ticket(
             "TNDM-6",
-            "Current",
+            "Shared title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &["TNDM-2", "TNDM-1", "TNDM-1"],
         )]);
         let against = TicketSnapshot::from_tickets([ticket(
             "TNDM-6",
-            "Against",
+            "Shared title",
             TicketStatus::Todo,
             TicketPriority::P2,
             &["TNDM-1", "TNDM-2"],
@@ -410,7 +443,7 @@ mod tests {
         assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
         assert_eq!(
             report.tickets[0].fields.depends_on,
-            Some(AwarenessDependsOnDiff {
+            Some(AwarenessVecDiff {
                 current: vec![
                     "TNDM-1".to_string(),
                     "TNDM-1".to_string(),
@@ -419,6 +452,132 @@ mod tests {
                 against: vec!["TNDM-1".to_string(), "TNDM-2".to_string()],
             })
         );
+    }
+
+    #[test]
+    fn compare_snapshots_reports_diverged_title() {
+        let current = TicketSnapshot::from_tickets([ticket(
+            "TNDM-1",
+            "Old title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        )]);
+        let against = TicketSnapshot::from_tickets([ticket(
+            "TNDM-1",
+            "New title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        )]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        assert_eq!(
+            report.tickets[0].fields.title,
+            Some(AwarenessFieldDiff {
+                current: "Old title".to_string(),
+                against: "New title".to_string(),
+            })
+        );
+        assert!(report.tickets[0].fields.status.is_none());
+    }
+
+    #[test]
+    fn compare_snapshots_reports_diverged_ticket_type() {
+        let mut current_ticket = ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.meta.ticket_type = TicketType::Bug;
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+
+        let against = TicketSnapshot::from_tickets([ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        )]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        assert_eq!(
+            report.tickets[0].fields.ticket_type,
+            Some(AwarenessFieldDiff {
+                current: "bug".to_string(),
+                against: "task".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_reports_diverged_tags() {
+        let mut current_ticket = ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.meta.tags = vec!["auth".to_string(), "backend".to_string()];
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+
+        let mut against_ticket = ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket.meta.tags = vec!["frontend".to_string()];
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        assert_eq!(
+            report.tickets[0].fields.tags,
+            Some(AwarenessVecDiff {
+                current: vec!["auth".to_string(), "backend".to_string()],
+                against: vec!["frontend".to_string()],
+            })
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_ignores_tags_order_when_values_match() {
+        let mut current_ticket = ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.meta.tags = vec!["b".to_string(), "a".to_string()];
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+
+        let mut against_ticket = ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket.meta.tags = vec!["a".to_string(), "b".to_string()];
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert!(report.tickets.is_empty());
     }
 
     fn ticket(

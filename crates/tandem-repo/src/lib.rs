@@ -6,11 +6,6 @@ use std::{
     process::Command,
 };
 
-use tandem_core::ports::RepoContext;
-
-#[derive(Debug, Default, Clone, Copy)]
-pub struct GitRepoContext;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GitAwarenessProvider {
     repo_root: PathBuf,
@@ -83,10 +78,6 @@ impl RepoError {
         }
     }
 
-    fn not_implemented(operation: &str) -> Self {
-        Self::new(format!("repo operation `{operation}` is not implemented"))
-    }
-
     fn git_command_failed(args: &[&str], stderr: &[u8]) -> Self {
         let command = format!("git {}", args.join(" "));
         let stderr = String::from_utf8_lossy(stderr);
@@ -106,18 +97,6 @@ impl fmt::Display for RepoError {
 }
 
 impl std::error::Error for RepoError {}
-
-impl RepoContext for GitRepoContext {
-    type Error = RepoError;
-
-    fn current_branch(&self) -> Result<String, Self::Error> {
-        Err(RepoError::not_implemented("current_branch"))
-    }
-
-    fn list_worktrees(&self) -> Result<Vec<String>, Self::Error> {
-        Err(RepoError::not_implemented("list_worktrees"))
-    }
-}
 
 impl GitAwarenessProvider {
     pub fn materialize_ref_snapshot(
