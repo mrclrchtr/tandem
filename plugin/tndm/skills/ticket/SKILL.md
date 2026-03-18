@@ -28,10 +28,18 @@ Immediately update status to `in_progress`:
 tndm ticket update <ID> --status in_progress --json
 ```
 
-With optional content body:
+With optional content body (use a heredoc — do **not** create temporary files):
 
 ```sh
-tndm ticket create "Implement OAuth flow" --content-file /tmp/description.md --json
+tndm ticket create "Implement OAuth flow" --json <<'EOF'
+## Description
+
+Add OAuth 2.0 authorization code flow.
+
+## Acceptance
+
+- Users can sign in with Google
+EOF
 ```
 
 ## Update a Ticket
@@ -56,8 +64,12 @@ tndm ticket update TNDM-XXXXXX --tags ""
 # Set dependencies
 tndm ticket update TNDM-XXXXXX --depends-on TNDM-AAAAAA,TNDM-BBBBBB
 
-# Replace content body
-tndm ticket update TNDM-XXXXXX --content-file /tmp/updated-notes.md
+# Replace content body (use a heredoc — do not create temporary files)
+tndm ticket update TNDM-XXXXXX <<'EOF'
+## Notes
+
+Updated design after review feedback.
+EOF
 
 # Combine multiple fields
 tndm ticket update TNDM-XXXXXX --status done --priority p1 --json
