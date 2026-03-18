@@ -108,16 +108,6 @@ tndm ticket list --json | jq '[.tickets[] | select(.priority == "p0" or .priorit
 | `--tags`       | comma-separated strings                         |
 | `--depends-on` | comma-separated ticket IDs                      |
 
-## After Every Mutation
-
-Run `tndm fmt` after every create or update to keep files in canonical format:
-
-```sh
-tndm fmt
-```
-
-CI enforces this via `tndm fmt --check` — files not normalised will fail the check.
-
 ## After Ticket Creation or Status Change — Commit Immediately
 
 Ticket creation and status updates are coordination signals. **Commit them right away** so other agents in other worktrees can see them (`git add .tndm/ && git commit`).
