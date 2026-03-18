@@ -22,6 +22,7 @@ Start with:
 - `crates/xtask` — dev tooling, including `cargo xtask check-arch`.
 - `docs/` — product and architecture docs; start with `docs/vision.md`, `docs/decisions.md`, and `docs/architecture.md`.
 - `target/` — local build output; do not commit.
+- `plugin/tndm` — Claude Code plugin: skills, hooks, and slash commands that teach agents to use the `tndm` CLI.
 - `.agents/`, `.claude/` — agent tooling/config kept out of hook file selection.
 
 ## Workspace invariants (Rust)
@@ -45,7 +46,7 @@ Product vision lives in `docs/vision.md`; design decisions in `docs/decisions.md
 
 ## Common development commands
 
-Tooling is managed via `mise`; Rust version is pinned in `rust-toolchain.toml`.
+Tooling is managed via `mise` (except Rust itself — Rust is pinned by `rust-toolchain.toml` and managed via `rustup`, not mise).
 
 ```sh
 mise install

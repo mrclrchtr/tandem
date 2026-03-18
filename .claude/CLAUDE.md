@@ -1,4 +1,4 @@
-### Code Intelligence
+## Code Intelligence
 
 Prefer language-server tools over grep or broad file reads for code navigation. Start with symbol-aware lookup, then read only the smallest relevant scope.
 
