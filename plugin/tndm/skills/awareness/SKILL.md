@@ -4,9 +4,10 @@ description: >
   This skill MUST be used when an agent or user asks to "check awareness", "check what changed
   on branch X", "what tickets are on main", "compare tickets between branches", "check for ticket
   conflicts", "what did other agents work on", "tndm awareness", "before I start working on X check
-  the branch", "what's in flight on another branch", or "run awareness against <ref>". Use when
-  starting work that may overlap with another branch or worktree.
-version: 0.1.0
+  the branch", "what's in flight on another branch", "coordination", "worktree", "branch
+  coordination", or "run awareness against <ref>". Use when starting work that may overlap with
+  another branch or worktree.
+version: 0.2.0
 argument-hint: <branch-or-ref>
 ---
 
@@ -78,6 +79,15 @@ object with field-level changes:
 | `diverged` has a ticket where `against.status == "done"` but `current.status != "done"` | The other branch already finished this — check whether to adopt its resolution |
 | `diverged` has conflicting `depends_on` | Reconcile dependency chains before merging |
 | All arrays empty | No ticket conflicts — safe to proceed |
+
+## After Awareness — Commit Any Ticket Updates
+
+If you update tickets based on awareness results, commit the changes immediately so other agents
+can see them:
+
+```sh
+git add .tndm/ && git commit -m "tndm: update tickets after awareness check"
+```
 
 ## Example
 
