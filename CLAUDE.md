@@ -23,7 +23,7 @@ Start with:
 - `docs/` — product and architecture docs; start with `docs/vision.md`, `docs/decisions.md`, and `docs/architecture.md`.
 - `target/` — local build output; do not commit.
 - `plugin/tndm` — Claude Code plugin: skills, hooks, and slash commands that teach agents to use the `tndm` CLI.
-- When changing CLI behavior, update the plugin command reference: `plugin/tndm/skills/context/references/command-reference.md`.
+- When changing CLI behavior, update the plugin command reference: `plugin/tndm/skills/ticket/references/command-reference.md`.
 - `.agents/`, `.claude/` — agent tooling/config kept out of hook file selection.
 
 ## Workspace invariants (Rust)
