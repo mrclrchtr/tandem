@@ -1,12 +1,10 @@
 ---
 name: tndm context
 description: >
-  This skill should be used when an agent starts any task, picks up work, begins implementing a
-  feature, fixes a bug, starts a refactor, or begins any development activity that should be
-  tracked. It is also applicable when the conversation mentions "ticket", "tndm", "TNDM-",
+  This skill MUST be used when an agent starts any development activity that should be
+  tracked. It MUST also be used when the conversation mentions "ticket", "tndm", "TNDM-*",
   "track this work", "create a ticket", "what tickets are open", "coordination", "worktree",
-  "awareness", "branch coordination", "what changed on branch", or "in_progress". This skill is
-  relevant whenever the working repository contains a .tndm/ directory.
+  "awareness", "branch coordination", "what changed on branch", or "in_progress".
 user-invocable: false
 version: 0.1.0
 ---
