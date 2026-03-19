@@ -1,10 +1,22 @@
 {
   "name": "tndm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Instructs agents to use the tndm ticket coordination CLI for task tracking and branch awareness in a monorepo.",
   "author": {
     "name": "tandem"
   },
   "repository": "https://github.com/mrclrchtr/tandem",
-  "keywords": ["tndm", "tickets", "coordination", "agents", "git", "worktrees", "monorepo"]
+  "keywords": [
+    "tandem",
+    "tndm",
+    "tickets",
+    "coordination",
+    "projectmanagement",
+    "tracking",
+    "ai",
+    "llm",
+    "agents",
+    "git",
+    "worktrees"
+  ]
 }
