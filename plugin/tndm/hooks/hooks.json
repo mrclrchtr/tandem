@@ -1,13 +1,13 @@
 {
   "hooks": {
-    "SubagentStop": [
+    "SessionStart": [
       {
         "matcher": "*",
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "This project uses tndm for ticket coordination (git-aware ticket system for AI agents in a monorepo). Review what was accomplished in this session: $ARGUMENTS\n\nIf work was started, progressed, or completed that corresponds to a tndm ticket, and the ticket status has not been updated to reflect this, include the appropriate update command in your reason: `tndm ticket update <ID> --status <new_status>`. Only suggest this if it is clearly relevant to the work done. Do not suggest ticket updates for conversational or exploratory sessions.\n\nRespond with JSON: {\"ok\": true} to allow stopping, or {\"ok\": false, \"reason\": \"your explanation with ticket update command\"} to continue working.",
-            "timeout": 30
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-tickets.sh",
+            "timeout": 10
           }
         ]
       }
@@ -17,9 +17,21 @@
         "matcher": "*",
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "This project uses tndm for ticket coordination (git-aware ticket system for AI agents in a monorepo). Review what was accomplished in this session: $ARGUMENTS\n\nIf work was started, progressed, or completed that corresponds to a tndm ticket, and the ticket status has not been updated to reflect this, include the appropriate update command in your reason: `tndm ticket update <ID> --status <new_status>`. Only suggest this if it is clearly relevant to the work done. Do not suggest ticket updates for conversational or exploratory sessions.\n\nRespond with JSON: {\"ok\": true} to allow stopping, or {\"ok\": false, \"reason\": \"your explanation with ticket update command\"} to continue working.",
-            "timeout": 30
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-tickets.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-tickets.sh",
+            "timeout": 10
           }
         ]
       }

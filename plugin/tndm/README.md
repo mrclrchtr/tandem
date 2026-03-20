@@ -20,7 +20,8 @@ With this plugin loaded, agents:
 |---|---|---|
 | `skills/ticket` | Skill + slash command | `/tndm:ticket create\|update\|show\|list` — workflow protocol + full ticket lifecycle |
 | `skills/awareness` | Skill + slash command | `/tndm:awareness <ref>` — checks what changed on another branch |
-| `hooks/hooks.json` (Stop) | Stop hook | Reminds agents to update ticket status when finishing work |
+| `hooks/hooks.json` (SessionStart) | Hook | Injects open tickets as context so agents are aware from the start |
+| `hooks/hooks.json` (Stop/SubagentStop) | Hook | Lists open tickets in the transcript as a reminder when stopping |
 
 ## Usage
 
