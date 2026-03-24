@@ -398,8 +398,18 @@ fn handle_ticket_update(
     content: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
-    let stdin_content = if content_file.is_none() && content.is_none() && !io::stdin().is_terminal()
-    {
+    // Only read stdin when no explicit update flags are provided. Speculatively reading stdin
+    // when metadata flags like --status are present causes an infinite hang in non-TTY
+    // environments (e.g. scripted pipelines) where the write end of stdin stays open.
+    let no_explicit_update = content_file.is_none()
+        && content.is_none()
+        && status.is_none()
+        && priority.is_none()
+        && title.is_none()
+        && ticket_type.is_none()
+        && tags.is_none()
+        && depends_on.is_none();
+    let stdin_content = if no_explicit_update && !io::stdin().is_terminal() {
         let mut buf = String::new();
         io::stdin()
             .read_to_string(&mut buf)
