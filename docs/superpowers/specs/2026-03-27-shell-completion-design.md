@@ -33,7 +33,7 @@ The `CompleteEnv` API requires the `unstable-dynamic` cargo feature on `clap_com
 **Root `Cargo.toml`** — add workspace dependency:
 
 ```toml
-clap_complete = { version = "4.5.23", features = ["unstable-dynamic"] }
+clap_complete = { version = "4.5", features = ["unstable-dynamic"] }
 ```
 
 **`crates/tandem-cli/Cargo.toml`** — wire it in:
@@ -42,7 +42,7 @@ clap_complete = { version = "4.5.23", features = ["unstable-dynamic"] }
 clap_complete.workspace = true
 ```
 
-No other crates are affected. Architecture constraints are preserved (`clap_complete` is a CLI concern).
+No other crates are affected. Architecture constraints are preserved — `clap_complete` is a CLI concern, and the `check-arch` xtask checks for exact dependency name `"clap"`, so `"clap_complete"` will not trigger a false positive.
 
 ### 2. `main()` integration
 
@@ -68,6 +68,7 @@ fn main() -> anyhow::Result<()> {
 A completion function that discovers the repo root and lists ticket IDs, filtering by the current prefix:
 
 ```rust
+use std::ffi::OsStr;
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate};
 
 fn complete_ticket_ids(current: &OsStr) -> Vec<CompletionCandidate> {
@@ -89,9 +90,8 @@ This completer is attached to the `id` positional arguments on:
 - `ticket show <id>`
 - `ticket update <id>`
 - `ticket create --id <id>` (less useful but consistent)
-- `ticket update --depends-on <ids>`
 
-Using the derive API, this is wired via `#[arg(add = ArgValueCompleter::new(complete_ticket_ids))]`.
+Using the derive API, this is wired via `#[arg(add = ArgValueCompleter::new(complete_ticket_ids))]`. For fields that previously had no `#[arg(...)]` attribute (e.g. `Show::id`), one must be added.
 
 ### 4. `ValueHint` annotations
 
@@ -116,14 +116,14 @@ The clap derive macros + `CompleteEnv` automatically provide completions for:
 One-time addition to shell config:
 
 ```bash
-# zsh (~/.zshrc)
-source <(COMPLETE=setup tndm)
-
 # bash (~/.bashrc)
-source <(COMPLETE=setup tndm)
+source <(COMPLETE=bash tndm)
+
+# zsh (~/.zshrc)
+source <(COMPLETE=zsh tndm)
 
 # fish (~/.config/fish/config.fish)
-source (COMPLETE=setup tndm | psub)
+source (COMPLETE=fish tndm | psub)
 ```
 
 ## Testing
@@ -134,7 +134,7 @@ Create a temp repo with tickets, call `complete_ticket_ids` with various prefixe
 
 ### Integration test
 
-Run `COMPLETE=setup tndm` via `assert_cmd` and verify it produces non-empty shell setup output.
+Run `COMPLETE=bash tndm` via `assert_cmd` and verify the output contains the binary name `tndm` and a shell function pattern (e.g. `complete` for bash). This ensures `CompleteEnv` is properly wired and produces valid shell setup output.
 
 ## Scope exclusions
 
@@ -142,6 +142,7 @@ Run `COMPLETE=setup tndm` via `assert_cmd` and verify it produces non-empty shel
 - No `tndm completions <shell>` subcommand.
 - No git ref completion for `--against` (could be added in a follow-up).
 - No custom completers for `--tags` (free-form, no canonical source).
+- No custom completer for `--depends-on` — it accepts a comma-separated string, so completing individual IDs within the value would require splitting on commas and reconstructing. Can be added as a follow-up.
 
 ## Files changed
 
