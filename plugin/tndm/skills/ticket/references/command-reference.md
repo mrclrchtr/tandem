@@ -62,15 +62,15 @@ Update fields on an existing ticket.
 tndm ticket update <ID> [OPTIONS]
 
 Options:
-  --status <STATUS>         New status. Values: todo | in_progress | blocked | done
-  --priority <PRIORITY>     New priority. Values: p0 | p1 | p2 | p3 | p4
-  --title <TITLE>           Replace the ticket title.
-  --type <TYPE>             Set type. Values: task | bug | feature | chore | epic
-  --tags <TAGS>             Comma-separated tags (replaces the full list; empty string clears).
-  --depends-on <IDS>        Comma-separated ticket IDs (replaces the full list).
-  --content <BODY>          Inline content body replacing existing content.
-  --content-file <PATH>     Replace ticket body with content from a markdown file.
-  --json                    Output the updated ticket as JSON.
+  -s, --status <STATUS>         New status. Values: todo | in_progress | blocked | done
+  -p, --priority <PRIORITY>     New priority. Values: p0 | p1 | p2 | p3 | p4
+  -t, --title <TITLE>           Replace the ticket title.
+  -T, --type <TYPE>             Set type. Values: task | bug | feature | chore | epic
+  -g, --tags <TAGS>             Comma-separated tags (replaces the full list; empty string clears).
+  -d, --depends-on <IDS>        Comma-separated ticket IDs (replaces the full list).
+      --content <BODY>          Inline content body replacing existing content.
+      --content-file <PATH>     Replace ticket body with content from a markdown file.
+      --json                    Output the updated ticket as JSON.
 
 Content can also be piped via stdin (heredoc recommended for agents).
 --content, --content-file, and stdin are mutually exclusive.
@@ -80,24 +80,24 @@ Examples:
 
 ```sh
 # Mark in-progress immediately after creating
-tndm ticket update TNDM-A1B2C3 --status in_progress
+tndm ticket update TNDM-A1B2C3 -s in_progress
 
 # Block with reason via heredoc (preferred for agents — no temp files needed)
-tndm ticket update TNDM-A1B2C3 --status blocked <<'EOF'
+tndm ticket update TNDM-A1B2C3 -s blocked <<'EOF'
 Blocked: waiting for PR #42 review
 EOF
 
 # Set priority and type
-tndm ticket update TNDM-A1B2C3 --priority p1 --type bug
+tndm ticket update TNDM-A1B2C3 -p p1 -T bug
 
 # Add tags
-tndm ticket update TNDM-A1B2C3 --tags auth,security,p1
+tndm ticket update TNDM-A1B2C3 -g auth,security,p1
 
 # Declare dependency
-tndm ticket update TNDM-A1B2C3 --depends-on TNDM-B2C3D4
+tndm ticket update TNDM-A1B2C3 -d TNDM-B2C3D4
 
 # Mark done
-tndm ticket update TNDM-A1B2C3 --status done
+tndm ticket update TNDM-A1B2C3 -s done
 
 # Replace content from file (when content already exists on disk)
 tndm ticket update TNDM-A1B2C3 --content-file /tmp/blocker.md

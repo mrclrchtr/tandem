@@ -129,32 +129,33 @@ enum TicketCommand {
         output: OutputArgs,
     },
     /// Update an existing ticket.
+    #[command(arg_required_else_help = true)]
     Update {
         /// Ticket ID to update.
         id: String,
 
-        /// New status (todo, in_progress, blocked, done).
-        #[arg(long)]
-        status: Option<String>,
+        /// New status [possible values: todo, in_progress, blocked, done].
+        #[arg(long, short)]
+        status: Option<TicketStatus>,
 
-        /// New priority (p0–p4).
-        #[arg(long)]
-        priority: Option<String>,
+        /// New priority [possible values: p0, p1, p2, p3, p4].
+        #[arg(long, short)]
+        priority: Option<TicketPriority>,
 
         /// New title.
-        #[arg(long)]
+        #[arg(long, short)]
         title: Option<String>,
 
-        /// New ticket type (task, bug, feature, chore, epic).
-        #[arg(long = "type")]
-        ticket_type: Option<String>,
+        /// New ticket type [possible values: task, bug, feature, chore, epic].
+        #[arg(long = "type", short = 'T')]
+        ticket_type: Option<TicketType>,
 
         /// Comma-separated tags (replaces existing list, empty string clears).
-        #[arg(long)]
+        #[arg(long, short = 'g')]
         tags: Option<String>,
 
         /// Comma-separated ticket IDs for dependencies (replaces existing list, empty string clears).
-        #[arg(long)]
+        #[arg(long, short = 'd')]
         depends_on: Option<String>,
 
         /// Markdown file replacing content.
@@ -388,10 +389,10 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn handle_ticket_update(
     id: String,
-    status: Option<String>,
-    priority: Option<String>,
+    status: Option<TicketStatus>,
+    priority: Option<TicketPriority>,
     title: Option<String>,
-    ticket_type: Option<String>,
+    ticket_type: Option<TicketType>,
     tags: Option<String>,
     depends_on: Option<String>,
     content_file: Option<PathBuf>,
@@ -429,7 +430,11 @@ fn handle_ticket_update(
         && content.is_none()
         && stdin_content.is_none()
     {
-        anyhow::bail!("at least one update flag is required");
+        anyhow::bail!(
+            "at least one update flag is required\n\n  \
+             Example: tndm ticket update {id} --status done\n\n  \
+             Run 'tndm ticket update --help' for all options"
+        );
     }
 
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -441,10 +446,10 @@ fn handle_ticket_update(
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     if let Some(value) = status {
-        ticket.state.status = TicketStatus::parse(&value)?;
+        ticket.state.status = value;
     }
     if let Some(value) = priority {
-        ticket.meta.priority = TicketPriority::parse(&value)?;
+        ticket.meta.priority = value;
     }
     if let Some(value) = title {
         if value.trim().is_empty() {
@@ -453,7 +458,7 @@ fn handle_ticket_update(
         ticket.meta.title = value;
     }
     if let Some(value) = ticket_type {
-        ticket.meta.ticket_type = TicketType::parse(&value)?;
+        ticket.meta.ticket_type = value;
     }
     if let Some(value) = tags {
         let mut parsed: Vec<String> = if value.trim().is_empty() {
