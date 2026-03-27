@@ -1,4 +1,5 @@
 use std::fmt;
+use std::str::FromStr;
 
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
@@ -64,7 +65,9 @@ impl TicketType {
             "feature" => Ok(Self::Feature),
             "chore" => Ok(Self::Chore),
             "epic" => Ok(Self::Epic),
-            _ => Err(ValidationError::new("invalid ticket type")),
+            _ => Err(ValidationError::new(
+                "invalid ticket type [possible values: task, bug, feature, chore, epic]",
+            )),
         }
     }
 
@@ -76,6 +79,19 @@ impl TicketType {
             Self::Chore => "chore",
             Self::Epic => "epic",
         }
+    }
+}
+
+impl FromStr for TicketType {
+    type Err = ValidationError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
+}
+
+impl fmt::Display for TicketType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -103,7 +119,9 @@ impl TicketPriority {
             "p2" => Ok(Self::P2),
             "p3" => Ok(Self::P3),
             "p4" => Ok(Self::P4),
-            _ => Err(ValidationError::new("invalid ticket priority")),
+            _ => Err(ValidationError::new(
+                "invalid ticket priority [possible values: p0, p1, p2, p3, p4]",
+            )),
         }
     }
 
@@ -115,6 +133,19 @@ impl TicketPriority {
             Self::P3 => "p3",
             Self::P4 => "p4",
         }
+    }
+}
+
+impl FromStr for TicketPriority {
+    type Err = ValidationError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
+}
+
+impl fmt::Display for TicketPriority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -140,7 +171,9 @@ impl TicketStatus {
             "in_progress" => Ok(Self::InProgress),
             "blocked" => Ok(Self::Blocked),
             "done" => Ok(Self::Done),
-            _ => Err(ValidationError::new("invalid ticket status")),
+            _ => Err(ValidationError::new(
+                "invalid ticket status [possible values: todo, in_progress, blocked, done]",
+            )),
         }
     }
 
@@ -151,6 +184,19 @@ impl TicketStatus {
             Self::Blocked => "blocked",
             Self::Done => "done",
         }
+    }
+}
+
+impl FromStr for TicketStatus {
+    type Err = ValidationError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
+}
+
+impl fmt::Display for TicketStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -389,7 +435,10 @@ mod tests {
     #[test]
     fn ticket_type_parse_rejects_unknown_value() {
         let error = TicketType::parse("unknown").expect_err("type should be rejected");
-        assert_eq!(error.message(), "invalid ticket type");
+        assert_eq!(
+            error.message(),
+            "invalid ticket type [possible values: task, bug, feature, chore, epic]"
+        );
     }
 
     #[test]
@@ -415,7 +464,10 @@ mod tests {
     #[test]
     fn ticket_priority_parse_rejects_unknown_value() {
         let error = TicketPriority::parse("p9").expect_err("priority should be rejected");
-        assert_eq!(error.message(), "invalid ticket priority");
+        assert_eq!(
+            error.message(),
+            "invalid ticket priority [possible values: p0, p1, p2, p3, p4]"
+        );
     }
 
     #[test]
@@ -453,7 +505,10 @@ mod tests {
     #[test]
     fn ticket_status_parse_rejects_unknown_value() {
         let error = TicketStatus::parse("started").expect_err("status should be rejected");
-        assert_eq!(error.message(), "invalid ticket status");
+        assert_eq!(
+            error.message(),
+            "invalid ticket status [possible values: todo, in_progress, blocked, done]"
+        );
     }
 
     #[test]
