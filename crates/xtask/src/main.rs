@@ -35,7 +35,14 @@ fn run() -> Result<(), Vec<String>> {
     match args.next().as_deref() {
         Some("check-arch") if args.next().is_none() => check_arch(),
         Some("sync-version") => {
-            let check = args.next().as_deref() == Some("--check");
+            let next = args.next();
+            let check = next.as_deref() == Some("--check");
+            if next.is_some() && !check {
+                return Err(vec![XTASK_USAGE.to_owned()]);
+            }
+            if args.next().is_some() {
+                return Err(vec![XTASK_USAGE.to_owned()]);
+            }
             sync_version(check)
         }
         Some(_) => Err(vec![XTASK_USAGE.to_owned()]),
@@ -146,8 +153,8 @@ fn find_repo_root() -> Result<PathBuf, Vec<String>> {
     Ok(root)
 }
 
-fn read_workspace_version(cargo_toml_path: PathBuf) -> Result<String, Vec<String>> {
-    let content = std::fs::read_to_string(&cargo_toml_path)
+fn read_workspace_version(cargo_toml_path: &Path) -> Result<String, Vec<String>> {
+    let content = std::fs::read_to_string(cargo_toml_path)
         .map_err(|e| vec![format!("failed to read {}: {e}", cargo_toml_path.display())])?;
     let doc: toml::Table = toml::from_str(&content).map_err(|e| {
         vec![format!(
@@ -193,7 +200,7 @@ fn check_json_at_pointer(path: &Path, pointer: &str, version: &str) -> Result<bo
 
 fn sync_version(check: bool) -> Result<(), Vec<String>> {
     let root = find_repo_root()?;
-    let version = read_workspace_version(root.join("Cargo.toml"))?;
+    let version = read_workspace_version(&root.join("Cargo.toml"))?;
 
     let targets = [
         (
@@ -275,7 +282,7 @@ mod sync_version_tests {
     fn read_workspace_version_parses_version() {
         let dir = tempfile::tempdir().unwrap();
         create_temp_workspace(dir.path(), "1.2.3");
-        let version = read_workspace_version(dir.path().join("Cargo.toml")).unwrap();
+        let version = read_workspace_version(&dir.path().join("Cargo.toml")).unwrap();
         assert_eq!(version, "1.2.3");
     }
 
