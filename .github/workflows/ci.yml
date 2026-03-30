@@ -45,6 +45,9 @@ jobs:
       - name: Architecture
         run: mise run arch
 
+      - name: Version sync
+        run: mise run sync-version-check
+
       - name: Clippy
         run: mise run clippy
 
