@@ -1,0 +1,26 @@
+{
+  "planPath": "docs/superpowers/plans/2026-03-30-create-metadata-flags.md",
+  "tasks": [
+    {
+      "id": 5,
+      "subject": "Task 1: Add metadata flags to CLI Create variant and handler",
+      "status": "completed",
+      "description": "**Goal:** Extend the `Create` subcommand with `--status`, `--priority`, `--type`, `--tags`, `--depends-on` flags and wire them through the handler.\n\n**Files:**\n- Modify: `crates/tandem-cli/src/main.rs`\n\n**Acceptance Criteria:**\n- [x] `tndm ticket create --help` shows all five new flags\n- [x] `mise run check` passes\n\n```json:metadata\n{\"files\": [\"crates/tandem-cli/src/main.rs\"], \"verifyCommand\": \"mise run check\", \"acceptanceCriteria\": [\"create --help shows all five new flags\", \"mise run check passes\"], \"requiresUserVerification\": false}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 2: Add integration tests for create flags",
+      "status": "pending",
+      "blockedBy": [5],
+      "description": "**Goal:** Verify each new flag works correctly, including combined usage and edge cases.\n\n**Files:**\n- Modify: `crates/tandem-cli/tests/ticket_cli_tests.rs`\n\n**Acceptance Criteria:**\n- [ ] Combined flags test passes\n- [ ] Invalid values rejected\n- [ ] `mise run test` passes\n\n```json:metadata\n{\"files\": [\"crates/tandem-cli/tests/ticket_cli_tests.rs\"], \"verifyCommand\": \"cargo test --test ticket_cli_tests\", \"acceptanceCriteria\": [\"combined flags test passes\", \"invalid values rejected\", \"all tests pass\"], \"requiresUserVerification\": false}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 3: Update plugin documentation",
+      "status": "pending",
+      "blockedBy": [5],
+      "description": "**Goal:** Update SKILL.md and command-reference.md to reflect that `create` now accepts metadata flags. Bump plugin version.\n\n**Files:**\n- Modify: `plugin/tndm/skills/ticket/SKILL.md`\n- Modify: `plugin/tndm/skills/ticket/references/command-reference.md`\n- Modify: `plugin/tndm/.claude-plugin/plugin.json`\n\n**Acceptance Criteria:**\n- [ ] SKILL.md shows metadata flags on create\n- [ ] command-reference.md documents all new flags\n- [ ] Plugin version bumped\n\n```json:metadata\n{\"files\": [\"plugin/tndm/skills/ticket/SKILL.md\", \"plugin/tndm/skills/ticket/references/command-reference.md\", \"plugin/tndm/.claude-plugin/plugin.json\"], \"verifyCommand\": \"\", \"acceptanceCriteria\": [\"SKILL.md updated\", \"command-reference.md updated\", \"plugin version bumped\"], \"requiresUserVerification\": false}\n```"
+    }
+  ],
+  "lastUpdated": "2026-03-30T00:00:00Z"
+}
