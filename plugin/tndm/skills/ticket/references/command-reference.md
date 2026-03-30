@@ -4,32 +4,44 @@ Complete syntax for all `tndm` subcommands and flags.
 
 ## tndm ticket create
 
-Create a new ticket. Prints the created ticket (text or JSON).
+Create a new ticket. Prints the ticket ID (text) or full ticket (JSON).
 
 ```sh
 tndm ticket create <TITLE> [OPTIONS]
 
 Options:
-  --id <ID>               Explicit ticket ID (e.g. TNDM-A1B2C3). Auto-generated if omitted.
-  --content <BODY>        Inline content body.
-  --content-file <PATH>   Load ticket body from a markdown file.
-  --json                  Output the created ticket as JSON.
+      --id <ID>                  Explicit ticket ID (e.g. TNDM-A1B2C3). Auto-generated if omitted.
+  -s, --status <STATUS>          Initial status. Values: todo | in_progress | blocked | done
+  -p, --priority <PRIORITY>      Initial priority. Values: p0 | p1 | p2 | p3 | p4
+  -T, --type <TYPE>              Initial type. Values: task | bug | feature | chore | epic
+  -g, --tags <TAGS>              Comma-separated tags.
+  -d, --depends-on <IDS>         Comma-separated ticket IDs for dependencies.
+      --content <BODY>           Inline content body.
+      --content-file <PATH>      Load ticket body from a markdown file.
+      --json                     Output the created ticket as JSON.
 
 Content can also be piped via stdin (heredoc recommended for agents).
 --content, --content-file, and stdin are mutually exclusive.
 ```
 
+Defaults when flags are omitted: status=todo, priority=p2, type=task, tags=[], depends_on=[].
+
 Examples:
 
 ```sh
-# Minimal — auto-generates ID, prints the ticket ID
+# Minimal — auto-generates ID
 tndm ticket create "Refactor auth module"
+
+# With metadata — set everything at creation
+tndm ticket create "Fix login timeout" \
+  --priority p1 --type bug --tags auth,security \
+  --depends-on TNDM-B2C3D4 --status in_progress
 
 # With explicit ID
 tndm ticket create "Fix login redirect" --id TNDM-FIX001
 
 # With content via heredoc (preferred for agents — no temp files needed)
-tndm ticket create "Implement OAuth flow" <<'EOF'
+tndm ticket create "Implement OAuth flow" --type feature <<'EOF'
 ## Description
 
 Add OAuth 2.0 authorization code flow.
@@ -37,21 +49,6 @@ EOF
 
 # With content from file (when content already exists on disk)
 tndm ticket create "Implement OAuth flow" --content-file /tmp/ticket-body.md
-```
-
-Output (JSON):
-
-```json
-{
-  "id": "TNDM-A1B2C3",
-  "title": "Refactor auth module",
-  "type": "task",
-  "status": "todo",
-  "priority": "p2",
-  "tags": [],
-  "depends_on": [],
-  "created_at": "2026-03-17T10:00:00Z"
-}
 ```
 
 ## tndm ticket update
