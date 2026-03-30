@@ -111,6 +111,26 @@ enum TicketCommand {
         #[arg(long, conflicts_with = "content_file")]
         content: Option<String>,
 
+        /// Initial status [possible values: todo, in_progress, blocked, done].
+        #[arg(long, short)]
+        status: Option<TicketStatus>,
+
+        /// Initial priority [possible values: p0, p1, p2, p3, p4].
+        #[arg(long, short)]
+        priority: Option<TicketPriority>,
+
+        /// Initial ticket type [possible values: task, bug, feature, chore, epic].
+        #[arg(long = "type", short = 'T')]
+        ticket_type: Option<TicketType>,
+
+        /// Comma-separated tags.
+        #[arg(long, short = 'g')]
+        tags: Option<String>,
+
+        /// Comma-separated ticket IDs for dependencies.
+        #[arg(long, short = 'd')]
+        depends_on: Option<String>,
+
         #[command(flatten)]
         output: OutputArgs,
     },
@@ -189,8 +209,24 @@ fn main() -> anyhow::Result<()> {
                 id,
                 content_file,
                 content,
+                status,
+                priority,
+                ticket_type,
+                tags,
+                depends_on,
                 output,
-            } => handle_ticket_create(title, id, content_file, content, output.json),
+            } => handle_ticket_create(
+                title,
+                id,
+                content_file,
+                content,
+                status,
+                priority,
+                ticket_type,
+                tags,
+                depends_on,
+                output.json,
+            ),
             TicketCommand::Show { id, output } => handle_ticket_show(id, output.json),
             TicketCommand::List { all, output } => handle_ticket_list(output.json, all),
             TicketCommand::Update {
@@ -266,11 +302,17 @@ fn handle_fmt(check: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_ticket_create(
     title: String,
     id: Option<String>,
     content_file: Option<PathBuf>,
     content: Option<String>,
+    status: Option<TicketStatus>,
+    priority: Option<TicketPriority>,
+    ticket_type: Option<TicketType>,
+    tags: Option<String>,
+    depends_on: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -284,11 +326,48 @@ fn handle_ticket_create(
     };
 
     let content = load_ticket_content(content_file, content, &config)?;
-    let meta = TicketMeta::new(ticket_id, title)?;
+    let mut meta = TicketMeta::new(ticket_id, title)?;
 
-    let ticket = store
+    if let Some(value) = priority {
+        meta.priority = value;
+    }
+    if let Some(value) = ticket_type {
+        meta.ticket_type = value;
+    }
+    if let Some(value) = tags {
+        let mut parsed: Vec<String> = if value.trim().is_empty() {
+            Vec::new()
+        } else {
+            value.split(',').map(|s| s.trim().to_string()).collect()
+        };
+        parsed.sort();
+        parsed.dedup();
+        meta.tags = parsed;
+    }
+    if let Some(value) = depends_on {
+        let mut parsed: Vec<TicketId> = if value.trim().is_empty() {
+            Vec::new()
+        } else {
+            value
+                .split(',')
+                .map(|s| TicketId::parse(s.trim()))
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        parsed.sort();
+        parsed.dedup();
+        meta.depends_on = parsed;
+    }
+
+    let mut ticket = store
         .create_ticket(NewTicket { meta, content })
         .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    if let Some(value) = status {
+        ticket.state.status = value;
+        ticket = store
+            .update_ticket(&ticket)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+    }
 
     if json {
         let envelope = TicketJson {
