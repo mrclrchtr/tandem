@@ -45,12 +45,12 @@ run = "cargo xtask sync-version --check"
 
 [tasks.bump]
 description = "Bump workspace version and sync derived files"
+usage = '''
+arg "<version>" help="New version number (e.g. 0.4.0)"
+'''
 run = """
-version="${1}"
-if [ -z "$version" ]; then
-  echo "usage: mise run bump -- <version>" >&2; exit 1
-fi
-sed -i '' -e "s/^version = \".*\"/version = \"${version}\"/" Cargo.toml
+version="${usage_version:?}"
+sed -i '' -e 's|^version = ".*"|version = "'"${version}"'"|' Cargo.toml
 mise run sync-version
 """
 
