@@ -24,12 +24,15 @@ Follow this for every development task:
 ### 1. Create a ticket before starting work
 
 ```sh
-tndm ticket create "Brief title describing the task"
+tndm ticket create "Brief title describing the task" --status in_progress
 ```
 
-Note the returned ticket ID (format: `TNDM-XXXXXX`). Immediately update status:
+Note the returned ticket ID (format: `TNDM-XXXXXX`).
+
+Or create as `todo` (the default) and update status later:
 
 ```sh
+tndm ticket create "Brief title describing the task"
 tndm ticket update <ID> --status in_progress
 ```
 
@@ -72,7 +75,17 @@ When asked to fix, work on, or continue a ticket (e.g. "fix TNDM-XXXXXX"):
 ### Create
 
 ```sh
+# Minimal — auto-generates ID, defaults to todo/p2/task
 tndm ticket create "<title>"
+
+# With metadata flags (set priority, type, tags, deps at creation)
+tndm ticket create "Fix login timeout" \
+  --priority p1 --type bug --tags auth,security \
+  --depends-on TNDM-AAAAAA,TNDM-BBBBBB
+
+# Start as in_progress in one command (no separate update needed)
+tndm ticket create "Urgent hotfix" \
+  --status in_progress --priority p0 --type bug
 ```
 
 With optional content body (use a heredoc — do **not** create temporary files):
