@@ -7,8 +7,8 @@ disable_tools = ["rust"]
 _.path = ["{{env.HOME}}/.cargo/bin"]
 
 [tools]
-actionlint = "1.7.11"
-hk = "1.37.0"
+actionlint = "1.7.12"
+hk = "1.39.0"
 pkl = "latest"
 
 [tasks.hooks-install]
