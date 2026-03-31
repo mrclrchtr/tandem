@@ -87,7 +87,7 @@ This repo includes agent packaging for both Claude Code and Codex.
 Claude Code:
 
 ```sh
-claude --plugin-dir ./plugin/tndm
+claude --plugin-dir ./plugins/tndm
 ```
 
 Codex:
@@ -96,4 +96,4 @@ Codex:
 - Personal marketplace: `~/.agents/plugins/marketplace.json`
 - Install `tndm` from that personal marketplace after restarting Codex
 
-See `plugin/tndm/README.md` for current install details and limitations.
+See `plugins/tndm/README.md` for current install details and limitations.

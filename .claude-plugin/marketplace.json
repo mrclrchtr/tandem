@@ -26,8 +26,8 @@
         "worktrees"
       ],
       "name": "tndm",
-      "source": "./plugin/tndm",
-      "version": "0.4.0"
+      "source": "./plugins/tndm",
+      "version": "0.4.1"
     }
   ]
 }
