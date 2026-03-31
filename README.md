@@ -80,14 +80,20 @@ Equivalent direct Cargo invocation:
 cargo run -p tandem-cli --bin tndm -- --help
 ```
 
-## Claude Code Plugin
+## Agent Plugin
 
-`plugin/tndm` is a Claude Code plugin that teaches agents to use the `tndm` CLI for ticket tracking and branch awareness.
+This repo includes agent packaging for both Claude Code and Codex.
 
-Load it per session:
+Claude Code:
 
 ```sh
 claude --plugin-dir ./plugin/tndm
 ```
 
-See `plugin/tndm/README.md` for details.
+Codex:
+
+- Personal plugin directory: `~/.codex/plugins/tndm`
+- Personal marketplace: `~/.agents/plugins/marketplace.json`
+- Install `tndm` from that personal marketplace after restarting Codex
+
+See `plugin/tndm/README.md` for current install details and limitations.

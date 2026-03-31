@@ -1,0 +1,47 @@
+{
+  "name": "tndm",
+  "version": "0.4.0",
+  "description": "Instructs agents to use the tndm ticket coordination CLI for task tracking and branch awareness in a monorepo.",
+  "author": {
+    "name": "tandem",
+    "url": "https://github.com/mrclrchtr/tandem"
+  },
+  "homepage": "https://github.com/mrclrchtr/tandem",
+  "repository": "https://github.com/mrclrchtr/tandem",
+  "license": "Apache-2.0",
+  "keywords": [
+    "tandem",
+    "tndm",
+    "tickets",
+    "coordination",
+    "projectmanagement",
+    "tracking",
+    "ai",
+    "llm",
+    "agents",
+    "git",
+    "worktrees"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks.json",
+  "interface": {
+    "displayName": "tndm",
+    "shortDescription": "Git-aware ticket coordination for Codex agents",
+    "longDescription": "Use tndm to create and update repo-local tickets, inspect work in flight across branches, and keep Codex agents coordinated through explicit ticket and awareness workflows.",
+    "developerName": "tandem",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/mrclrchtr/tandem",
+    "defaultPrompt": [
+      "Create or update a tndm ticket for this task before making changes",
+      "Check tndm awareness against main before starting overlapping work",
+      "List open tndm tickets and summarize what is currently in flight"
+    ],
+    "brandColor": "#0F766E",
+    "screenshots": []
+  }
+}

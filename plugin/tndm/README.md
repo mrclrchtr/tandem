@@ -1,7 +1,11 @@
-# tndm Claude Plugin
+# tndm Agent Plugin
 
 Instructs AI agents to use the `tndm` ticket coordination CLI for task tracking and branch
 awareness in a monorepo.
+
+This repository currently ships the same agent behavior for:
+- Claude Code via `plugin/tndm`
+- Codex via `plugins/tndm`
 
 ## What It Does
 
@@ -25,18 +29,18 @@ With this plugin loaded, agents:
 
 ## Usage
 
-### Load per session (development / ad-hoc)
+### Claude Code
+
+Load per session (development / ad-hoc):
 
 ```sh
 claude --plugin-dir ./plugin/tndm
 ```
 
-### Load for the project (all sessions)
-
 Install as a project-scoped plugin once a marketplace is configured, or add the `--plugin-dir`
 flag to your shell alias / `mise` task.
 
-### Verify it loaded
+Verify it loaded:
 
 ```
 /help
@@ -44,9 +48,42 @@ flag to your shell alias / `mise` task.
 
 Skills `/tndm:awareness` and `/tndm:ticket` should appear in the output.
 
+### Codex
+
+Current Codex support is through a personal marketplace.
+
+Install layout:
+- plugin directory: `~/.codex/plugins/tndm`
+- marketplace file: `~/.agents/plugins/marketplace.json`
+
+Marketplace entry:
+
+```json
+{
+  "name": "tndm",
+  "source": {
+    "source": "local",
+    "path": "./.codex/plugins/tndm"
+  },
+  "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+  },
+  "category": "Coding"
+}
+```
+
+Notes:
+- Restart Codex after adding or updating the personal marketplace.
+- Install `tndm` from the personal marketplace in the Codex plugin directory.
+- Keep the plugin self-contained. Nested symlinks inside the plugin folder are not reliable for
+  Codex installs because Codex loads the installed cached copy under
+  `~/.codex/plugins/cache/...`.
+
 ## Requirements
 
 - Claude Code ≥ 1.0.33
+- Codex with plugin support enabled
 - `tndm` CLI available in `PATH` (built with `cargo build` or installed via the repo's `tndm-dev` wrapper)
 
 ## Slash Commands

@@ -209,6 +209,11 @@ fn sync_version(check: bool) -> Result<(), Vec<String>> {
             "/version",
         ),
         (
+            "codex plugin",
+            root.join("plugins/tndm/.codex-plugin/plugin.json"),
+            "/version",
+        ),
+        (
             "marketplace",
             root.join(".claude-plugin/marketplace.json"),
             "/plugins/0/version",
