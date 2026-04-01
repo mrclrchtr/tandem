@@ -8,6 +8,7 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
+use tabled::{builder::Builder, settings::Style};
 use tandem_core::{
     awareness::compare_snapshots,
     ports::TicketStore,
@@ -469,7 +470,8 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
         };
         println!("{}", serde_json::to_string_pretty(&envelope)?);
     } else {
-        println!("ID\tSTATUS\tPRIORITY\tEFFORT\tDEPS\tTITLE");
+        let mut builder = Builder::new();
+        builder.push_record(["ID", "STATUS", "PRIO", "EFFORT", "DEPS", "TITLE"]);
         for ticket in &tickets {
             let deps = ticket
                 .meta
@@ -478,9 +480,8 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
                 .map(|id| id.as_str())
                 .collect::<Vec<_>>()
                 .join(", ");
-            println!(
-                "{}\t{}\t{}\t{}\t{}\t{}",
-                ticket.meta.id,
+            builder.push_record([
+                ticket.meta.id.as_str(),
                 ticket.state.status.as_str(),
                 ticket.meta.priority.as_str(),
                 ticket
@@ -489,10 +490,11 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
                     .as_ref()
                     .map(|e| e.as_str())
                     .unwrap_or("-"),
-                deps,
-                ticket.meta.title
-            );
+                &deps,
+                &ticket.meta.title,
+            ]);
         }
+        println!("{}", builder.build().with(Style::blank()));
     }
 
     Ok(())
