@@ -204,7 +204,7 @@ JSON output structure:
 }
 ```
 
-Field-level diffs are provided for: `status`, `priority`, `title`, `type`, `depends_on`, `tags`.
+Field-level diffs are provided for: `status`, `priority`, `effort`, `title`, `type`, `depends_on`, `tags`.
 
 ## tndm fmt
 
