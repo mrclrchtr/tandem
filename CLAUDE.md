@@ -89,3 +89,12 @@ GitHub Actions runs the same `mise` tasks (`fmt`, `compile`, `arch`, `clippy`, `
 
 - Commit messages follow Conventional Commits: `type(scope): summary`.
 - Run `mise run test` before committing.
+
+## Adding a new optional field to TicketMeta
+
+Touch all five sites in order:
+1. `crates/tandem-core/src/ticket.rs` — add field to struct, `new()`, and `to_canonical_toml()` (hand-written; not auto-serialized). Follow `TicketPriority` as the canonical enum pattern.
+2. `crates/tandem-core/src/awareness.rs` — add field to `AwarenessFieldDiffs`, compute diff in `between()`, add to `is_empty()`.
+3. `crates/tandem-storage/src/lib.rs` — add `Option<String>` to `RawTicketMeta`, parse after loading.
+4. `crates/tandem-cli/src/main.rs` — add clap flag; in `handle_ticket_update`, add `&& field.is_none()` at **both** sites of the `no_explicit_update` guard.
+5. `plugins/tndm/skills/ticket/references/command-reference.md` — document flag, update defaults line, add enum table, bump `plugin.json` version in both `.claude-plugin/` and `.codex-plugin/`.

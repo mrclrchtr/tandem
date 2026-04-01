@@ -20,5 +20,6 @@ Rules:
 
 After edits:
 - Check LSP diagnostics immediately.
+- If diagnostics show errors after a commit, verify with `cargo clippy` first — rust-analyzer frequently lags and shows false positives on recently committed code.
 - Fix introduced errors and warnings before proceeding.
-- If diagnostics are unavailable, state that clearly and use the best available fallback validation.
+- If diagnostics are unavailable, use `cargo clippy` as the authoritative fallback.
