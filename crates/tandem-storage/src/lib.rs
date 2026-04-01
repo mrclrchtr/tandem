@@ -11,8 +11,8 @@ use tandem_core::{
     awareness::TicketSnapshot,
     ports::TicketStore,
     ticket::{
-        NewTicket, Ticket, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus,
-        TicketType,
+        NewTicket, Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState,
+        TicketStatus, TicketType,
     },
 };
 
@@ -89,6 +89,7 @@ struct RawTicketMeta {
     #[serde(rename = "type")]
     ticket_type: Option<String>,
     priority: Option<String>,
+    effort: Option<String>,
     depends_on: Option<Vec<String>>,
     tags: Option<Vec<String>>,
 }
@@ -384,6 +385,14 @@ impl TicketStore for FileTicketStore {
                     meta_path.display()
                 ))
             })?;
+        }
+        if let Some(effort) = raw_meta.effort {
+            meta.effort = Some(TicketEffort::parse(&effort).map_err(|error| {
+                StorageError::new(format!(
+                    "invalid effort in {}: {error}",
+                    meta_path.display()
+                ))
+            })?);
         }
         meta.depends_on = depends_on;
         meta.tags = tags;
