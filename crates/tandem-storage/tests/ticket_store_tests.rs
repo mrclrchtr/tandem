@@ -2,7 +2,9 @@ use std::fs;
 
 use tandem_core::{
     ports::TicketStore,
-    ticket::{NewTicket, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType},
+    ticket::{
+        NewTicket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType,
+    },
 };
 use tandem_storage::{FileTicketStore, discover_repo_root};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
@@ -364,4 +366,152 @@ fn update_ticket_cleans_up_stale_staging_dirs() {
 
     let loaded = store.load_ticket(&id).expect("load updated ticket");
     assert_eq!(loaded.state.status, TicketStatus::Done);
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn load_ticket_parses_effort_from_meta_toml() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let id = TicketId::parse("TNDM-EFF01").expect("valid ticket id");
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join(id.as_str());
+    fs::create_dir_all(&ticket_dir).expect("create ticket dir");
+
+    fs::write(
+        ticket_dir.join("meta.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "id = \"TNDM-EFF01\"\n",
+            "title = \"Effort ticket\"\n",
+            "\n",
+            "type = \"task\"\n",
+            "priority = \"p2\"\n",
+            "effort = \"m\"\n",
+            "\n",
+            "depends_on = []\n",
+            "tags = []\n",
+        ),
+    )
+    .expect("write meta.toml");
+    fs::write(
+        ticket_dir.join("state.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "status = \"todo\"\n",
+            "updated_at = \"2026-04-01T10:00:00Z\"\n",
+            "revision = 1\n",
+        ),
+    )
+    .expect("write state.toml");
+    fs::write(ticket_dir.join("content.md"), "").expect("write content.md");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+    let ticket = store.load_ticket(&id).expect("load ticket");
+
+    assert_eq!(ticket.meta.effort, Some(TicketEffort::M));
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn load_ticket_defaults_effort_to_none_when_absent() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let id = TicketId::parse("TNDM-EFF02").expect("valid ticket id");
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join(id.as_str());
+    fs::create_dir_all(&ticket_dir).expect("create ticket dir");
+
+    fs::write(
+        ticket_dir.join("meta.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "id = \"TNDM-EFF02\"\n",
+            "title = \"No effort ticket\"\n",
+            "\n",
+            "type = \"task\"\n",
+            "priority = \"p2\"\n",
+            "\n",
+            "depends_on = []\n",
+            "tags = []\n",
+        ),
+    )
+    .expect("write meta.toml");
+    fs::write(
+        ticket_dir.join("state.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "status = \"todo\"\n",
+            "updated_at = \"2026-04-01T10:00:00Z\"\n",
+            "revision = 1\n",
+        ),
+    )
+    .expect("write state.toml");
+    fs::write(ticket_dir.join("content.md"), "").expect("write content.md");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+    let ticket = store.load_ticket(&id).expect("load ticket");
+
+    assert_eq!(ticket.meta.effort, None);
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn load_ticket_rejects_invalid_effort_in_meta_toml() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let id = TicketId::parse("TNDM-EFF03").expect("valid ticket id");
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join(id.as_str());
+    fs::create_dir_all(&ticket_dir).expect("create ticket dir");
+
+    fs::write(
+        ticket_dir.join("meta.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "id = \"TNDM-EFF03\"\n",
+            "title = \"Bad effort ticket\"\n",
+            "\n",
+            "type = \"task\"\n",
+            "priority = \"p2\"\n",
+            "effort = \"huge\"\n",
+            "\n",
+            "depends_on = []\n",
+            "tags = []\n",
+        ),
+    )
+    .expect("write meta.toml");
+    fs::write(
+        ticket_dir.join("state.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "status = \"todo\"\n",
+            "updated_at = \"2026-04-01T10:00:00Z\"\n",
+            "revision = 1\n",
+        ),
+    )
+    .expect("write state.toml");
+    fs::write(ticket_dir.join("content.md"), "").expect("write content.md");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+    let error = store
+        .load_ticket(&id)
+        .expect_err("should fail with invalid effort");
+
+    assert!(
+        error.to_string().contains("invalid effort"),
+        "error should mention invalid effort, got: {error}"
+    );
 }
