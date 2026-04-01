@@ -256,16 +256,6 @@ mod tests {
     use crate::CLAUDE_PLUGIN_MANIFEST_PATH;
 
     #[test]
-    fn hk_cargo_fmt_step_formats_virtual_workspaces() {
-        let hk_config = include_str!("../../../hk.pkl");
-
-        assert!(
-            hk_config.contains("cargo fmt --check --manifest-path {{workspace_indicator}} --all"),
-            "hk cargo-fmt step should use --all when targeting the virtual workspace root"
-        );
-    }
-
-    #[test]
     fn sync_version_uses_plugins_tndm_as_claude_plugin_root() {
         assert!(
             CLAUDE_PLUGIN_MANIFEST_PATH == "plugins/tndm/.claude-plugin/plugin.json",

@@ -15,9 +15,8 @@
     ],
     "category": "Coding",
     "defaultPrompt": [
-      "Create or update a tndm ticket for this task before making changes",
       "Check tndm awareness against main before starting overlapping work",
-      "List open tndm tickets and summarize what is currently in flight"
+      "If the user asks about tickets or asks to create or update one, list open tndm tickets and summarize what is currently in flight"
     ],
     "developerName": "tandem",
     "displayName": "tndm",
@@ -43,5 +42,5 @@
   "name": "tndm",
   "repository": "https://github.com/mrclrchtr/tandem",
   "skills": "./skills/",
-  "version": "0.4.1"
+  "version": "0.4.4"
 }
