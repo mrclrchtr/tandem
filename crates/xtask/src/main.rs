@@ -10,6 +10,9 @@ use std::{
 use cargo_metadata::MetadataCommand;
 
 const XTASK_USAGE: &str = "usage: cargo xtask <check-arch | sync-version [--check]>";
+const CLAUDE_PLUGIN_MANIFEST_PATH: &str = "plugins/tndm/.claude-plugin/plugin.json";
+const CODEX_PLUGIN_MANIFEST_PATH: &str = "plugins/tndm/.codex-plugin/plugin.json";
+const CLAUDE_MARKETPLACE_PATH: &str = ".claude-plugin/marketplace.json";
 const WORKSPACE_CRATES: &[&str] = &[
     "tandem-core",
     "tandem-storage",
@@ -203,19 +206,15 @@ fn sync_version(check: bool) -> Result<(), Vec<String>> {
     let version = read_workspace_version(&root.join("Cargo.toml"))?;
 
     let targets = [
-        (
-            "plugin",
-            root.join("plugin/tndm/.claude-plugin/plugin.json"),
-            "/version",
-        ),
+        ("plugin", root.join(CLAUDE_PLUGIN_MANIFEST_PATH), "/version"),
         (
             "codex plugin",
-            root.join("plugins/tndm/.codex-plugin/plugin.json"),
+            root.join(CODEX_PLUGIN_MANIFEST_PATH),
             "/version",
         ),
         (
             "marketplace",
-            root.join(".claude-plugin/marketplace.json"),
+            root.join(CLAUDE_MARKETPLACE_PATH),
             "/plugins/0/version",
         ),
     ];
@@ -254,6 +253,8 @@ fn sync_version(check: bool) -> Result<(), Vec<String>> {
 
 #[cfg(test)]
 mod tests {
+    use crate::CLAUDE_PLUGIN_MANIFEST_PATH;
+
     #[test]
     fn hk_cargo_fmt_step_formats_virtual_workspaces() {
         let hk_config = include_str!("../../../hk.pkl");
@@ -261,6 +262,14 @@ mod tests {
         assert!(
             hk_config.contains("cargo fmt --check --manifest-path {{workspace_indicator}} --all"),
             "hk cargo-fmt step should use --all when targeting the virtual workspace root"
+        );
+    }
+
+    #[test]
+    fn sync_version_uses_plugins_tndm_as_claude_plugin_root() {
+        assert!(
+            CLAUDE_PLUGIN_MANIFEST_PATH == "plugins/tndm/.claude-plugin/plugin.json",
+            "sync-version should target the consolidated plugins/tndm Claude manifest"
         );
     }
 }

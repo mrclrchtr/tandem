@@ -3,9 +3,10 @@
 Instructs AI agents to use the `tndm` ticket coordination CLI for task tracking and branch
 awareness in a monorepo.
 
-This repository currently ships the same agent behavior for:
-- Claude Code via `plugin/tndm`
-- Codex via `plugins/tndm`
+This repository ships the `tndm` plugin from a single canonical directory:
+- repo source: `plugins/tndm`
+- Claude Code packaging: `plugins/tndm/.claude-plugin`
+- Codex packaging: `plugins/tndm/.codex-plugin`
 
 ## What It Does
 
@@ -14,7 +15,7 @@ update status, and ignore the awareness workflow.
 
 With this plugin loaded, agents:
 - Automatically create a ticket before starting any development task
-- Keep ticket status current (`in_progress` → `blocked` → `done`)
+- Keep ticket status current (`in_progress` -> `blocked` -> `done`)
 - Run `tndm awareness` before branching to detect conflicts with other agents
 - Commit ticket changes immediately so other agents can see them
 
@@ -24,8 +25,8 @@ With this plugin loaded, agents:
 |---|---|---|
 | `skills/ticket` | Skill + slash command | `/tndm:ticket create\|update\|show\|list` — workflow protocol + full ticket lifecycle |
 | `skills/awareness` | Skill + slash command | `/tndm:awareness <ref>` — checks what changed on another branch |
-| `hooks/hooks.json` (SessionStart) | Hook | Injects open tickets as context so agents are aware from the start |
-| `hooks/hooks.json` (Stop/SubagentStop) | Hook | Lists open tickets in the transcript as a reminder when stopping |
+| `hooks/hooks.json` | Claude hook config | Injects open tickets as context on start and reminds agents on stop |
+| `hooks.json` | Codex hook config | Registers the same ticket checks for Codex plugin installs |
 
 ## Usage
 
@@ -34,7 +35,7 @@ With this plugin loaded, agents:
 Load per session (development / ad-hoc):
 
 ```sh
-claude --plugin-dir ./plugin/tndm
+claude --plugin-dir ./plugins/tndm
 ```
 
 Install as a project-scoped plugin once a marketplace is configured, or add the `--plugin-dir`
@@ -82,7 +83,7 @@ Notes:
 
 ## Requirements
 
-- Claude Code ≥ 1.0.33
+- Claude Code >= 1.0.33
 - Codex with plugin support enabled
 - `tndm` CLI available in `PATH` (built with `cargo build` or installed via the repo's `tndm-dev` wrapper)
 
