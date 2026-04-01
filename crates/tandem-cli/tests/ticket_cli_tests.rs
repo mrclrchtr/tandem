@@ -181,7 +181,7 @@ fn ticket_list_prints_sorted_tab_separated_lines() {
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
     assert_eq!(
         stdout,
-        "TNDM-1\ttodo\tp2\tFirst ticket\nTNDM-2\ttodo\tp2\tSecond ticket\n"
+        "TNDM-1\ttodo\tp2\t-\t\tFirst ticket\nTNDM-2\ttodo\tp2\t-\t\tSecond ticket\n"
     );
 }
 
@@ -1335,5 +1335,91 @@ fn ticket_create_rejects_invalid_depends_on() {
     assert!(
         stderr.contains("ticket id must not contain whitespace"),
         "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_create_with_effort_flag() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "create",
+            "Effort create test",
+            "--id",
+            "TNDM-EF01",
+            "--effort",
+            "m",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket create with effort");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", "TNDM-EF01"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("effort = \"m\""),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_with_effort_flag() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "create",
+            "Effort update test",
+            "--id",
+            "TNDM-EF02",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", "TNDM-EF02", "--effort", "xl"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update with effort");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", "TNDM-EF02"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("effort = \"xl\""),
+        "show output was: {show_stdout}"
     );
 }
