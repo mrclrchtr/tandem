@@ -1,0 +1,33 @@
+{
+  "planPath": "docs/superpowers/plans/2026-04-01-effort-and-dependencies-in-ticket-list.md",
+  "tasks": [
+    {
+      "id": 6,
+      "subject": "Task 1: Add TicketEffort to tandem-core",
+      "status": "pending",
+      "description": "**Goal:** Define `TicketEffort` type, attach it to `TicketMeta`, and track it in awareness diffs.\n\n**Files:**\n- Modify: `crates/tandem-core/src/ticket.rs`\n- Modify: `crates/tandem-core/src/awareness.rs`\n\n**Verify:** `cargo test -p tandem-core 2>&1 | tail -5`\n\n```json:metadata\n{\"files\": [\"crates/tandem-core/src/ticket.rs\", \"crates/tandem-core/src/awareness.rs\"], \"verifyCommand\": \"cargo test -p tandem-core 2>&1 | tail -5\", \"acceptanceCriteria\": [\"TicketEffort parses xs|s|m|l|xl\", \"effort absent from TOML when None\", \"effort present in TOML when Some\", \"awareness tracks effort diffs\"], \"requiresUserVerification\": false}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 2: Update tandem-storage to deserialize effort",
+      "status": "pending",
+      "blockedBy": [6],
+      "description": "**Goal:** Load the `effort` field from `meta.toml` into `TicketMeta.effort`.\n\n**Files:**\n- Modify: `crates/tandem-storage/src/lib.rs`\n\n**Verify:** `cargo test 2>&1 | tail -5`\n\n```json:metadata\n{\"files\": [\"crates/tandem-storage/src/lib.rs\"], \"verifyCommand\": \"cargo test 2>&1 | tail -5\", \"acceptanceCriteria\": [\"effort=Some loaded from TOML with effort key\", \"effort=None when key absent\", \"invalid effort value returns StorageError\"], \"requiresUserVerification\": false}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 3: Update tandem-cli — flags, list output, awareness text",
+      "status": "pending",
+      "blockedBy": [6, 7],
+      "description": "**Goal:** Expose `--effort` on create/update, widen ticket list to 6 columns, show effort diffs in awareness.\n\n**Files:**\n- Modify: `crates/tandem-cli/src/main.rs`\n\n**Verify:** `cargo test 2>&1 | tail -5`\n\n```json:metadata\n{\"files\": [\"crates/tandem-cli/src/main.rs\"], \"verifyCommand\": \"cargo test 2>&1 | tail -5\", \"acceptanceCriteria\": [\"--effort flag on create and update\", \"ticket list has 6 columns\", \"effort shows - when unset\", \"depends_on shown comma-separated\", \"awareness text shows effort diffs\"], \"requiresUserVerification\": false}\n```"
+    },
+    {
+      "id": 9,
+      "subject": "Task 4: Update plugin command reference",
+      "status": "pending",
+      "blockedBy": [8],
+      "description": "**Goal:** Document `--effort` in the command reference and bump plugin version.\n\n**Files:**\n- Modify: `plugins/tndm/skills/ticket/references/command-reference.md`\n- Modify: `plugins/tndm/.claude-plugin/plugin.json`\n- Modify: `plugins/tndm/.codex-plugin/plugin.json`\n\n**Verify:** `grep -n 'effort' plugins/tndm/skills/ticket/references/command-reference.md | wc -l`\n\n```json:metadata\n{\"files\": [\"plugins/tndm/skills/ticket/references/command-reference.md\", \"plugins/tndm/.claude-plugin/plugin.json\", \"plugins/tndm/.codex-plugin/plugin.json\"], \"verifyCommand\": \"grep -n 'effort' plugins/tndm/skills/ticket/references/command-reference.md | wc -l\", \"acceptanceCriteria\": [\"--effort documented in create and update\", \"Effort enum table added\", \"plugin.json version bumped\"], \"requiresUserVerification\": false}\n```"
+    }
+  ],
+  "lastUpdated": "2026-04-01T00:00:00Z"
+}
