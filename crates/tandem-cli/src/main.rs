@@ -11,7 +11,9 @@ use serde::Serialize;
 use tandem_core::{
     awareness::compare_snapshots,
     ports::TicketStore,
-    ticket::{NewTicket, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType},
+    ticket::{
+        NewTicket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType,
+    },
 };
 use tandem_repo::GitAwarenessProvider;
 use tandem_storage::{
@@ -131,6 +133,10 @@ enum TicketCommand {
         #[arg(long, short = 'd')]
         depends_on: Option<String>,
 
+        /// Effort estimate [possible values: xs, s, m, l, xl].
+        #[arg(long, short = 'e')]
+        effort: Option<TicketEffort>,
+
         #[command(flatten)]
         output: OutputArgs,
     },
@@ -178,6 +184,10 @@ enum TicketCommand {
         #[arg(long, short = 'd')]
         depends_on: Option<String>,
 
+        /// Effort estimate [possible values: xs, s, m, l, xl].
+        #[arg(long, short = 'e')]
+        effort: Option<TicketEffort>,
+
         /// Markdown file replacing content.
         #[arg(long, conflicts_with = "update_content")]
         content_file: Option<PathBuf>,
@@ -214,6 +224,7 @@ fn main() -> anyhow::Result<()> {
                 ticket_type,
                 tags,
                 depends_on,
+                effort,
                 output,
             } => handle_ticket_create(
                 title,
@@ -225,6 +236,7 @@ fn main() -> anyhow::Result<()> {
                 ticket_type,
                 tags,
                 depends_on,
+                effort,
                 output.json,
             ),
             TicketCommand::Show { id, output } => handle_ticket_show(id, output.json),
@@ -237,6 +249,7 @@ fn main() -> anyhow::Result<()> {
                 ticket_type,
                 tags,
                 depends_on,
+                effort,
                 content_file,
                 content,
                 output,
@@ -248,6 +261,7 @@ fn main() -> anyhow::Result<()> {
                 ticket_type,
                 tags,
                 depends_on,
+                effort,
                 content_file,
                 content,
                 output.json,
@@ -313,6 +327,7 @@ fn handle_ticket_create(
     ticket_type: Option<TicketType>,
     tags: Option<String>,
     depends_on: Option<String>,
+    effort: Option<TicketEffort>,
     json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -356,6 +371,9 @@ fn handle_ticket_create(
         parsed.sort();
         parsed.dedup();
         meta.depends_on = parsed;
+    }
+    if let Some(value) = effort {
+        meta.effort = Some(value);
     }
 
     let mut ticket = store
@@ -452,11 +470,25 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
         println!("{}", serde_json::to_string_pretty(&envelope)?);
     } else {
         for ticket in &tickets {
+            let deps = ticket
+                .meta
+                .depends_on
+                .iter()
+                .map(|id| id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
             println!(
-                "{}\t{}\t{}\t{}",
+                "{}\t{}\t{}\t{}\t{}\t{}",
                 ticket.meta.id,
                 ticket.state.status.as_str(),
                 ticket.meta.priority.as_str(),
+                ticket
+                    .meta
+                    .effort
+                    .as_ref()
+                    .map(|e| e.as_str())
+                    .unwrap_or("-"),
+                deps,
                 ticket.meta.title
             );
         }
@@ -474,6 +506,7 @@ fn handle_ticket_update(
     ticket_type: Option<TicketType>,
     tags: Option<String>,
     depends_on: Option<String>,
+    effort: Option<TicketEffort>,
     content_file: Option<PathBuf>,
     content: Option<String>,
     json: bool,
@@ -488,7 +521,8 @@ fn handle_ticket_update(
         && title.is_none()
         && ticket_type.is_none()
         && tags.is_none()
-        && depends_on.is_none();
+        && depends_on.is_none()
+        && effort.is_none();
     let stdin_content = if no_explicit_update && !io::stdin().is_terminal() {
         let mut buf = String::new();
         io::stdin()
@@ -505,6 +539,7 @@ fn handle_ticket_update(
         && ticket_type.is_none()
         && tags.is_none()
         && depends_on.is_none()
+        && effort.is_none()
         && content_file.is_none()
         && content.is_none()
         && stdin_content.is_none()
@@ -561,6 +596,9 @@ fn handle_ticket_update(
         parsed.sort();
         parsed.dedup();
         ticket.meta.depends_on = parsed;
+    }
+    if let Some(value) = effort {
+        ticket.meta.effort = Some(value);
     }
     if let Some(path) = content_file {
         ticket.content = fs::read_to_string(&path)
@@ -624,6 +662,12 @@ fn format_awareness_text(report: &tandem_core::awareness::AwarenessReport) -> St
             output.push_str(&format!(
                 "  priority:   {} -> {}\n",
                 priority.current, priority.against
+            ));
+        }
+        if let Some(ref effort) = ticket.fields.effort {
+            output.push_str(&format!(
+                "  effort:     {} -> {}\n",
+                effort.current, effort.against
             ));
         }
         if let Some(ref title) = ticket.fields.title {
