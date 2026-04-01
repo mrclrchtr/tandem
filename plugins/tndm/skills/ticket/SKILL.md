@@ -4,10 +4,9 @@ description: >
   This skill MUST be used when an agent or user mentions "ticket", "tndm", "TNDM-*", "track this
   work", "create a ticket", "update ticket", "mark ticket as done", "mark ticket as in_progress",
   "show ticket", "list tickets", "what tickets are open", "add a tag to ticket", "set priority on
-  ticket", "ticket status", "ticket blocked", or any ticket lifecycle operation. Also use when
-  starting any development task that should be tracked, or when a conversation references a ticket
-  ID (e.g. "fix TNDM-XXXXXX").
-version: 0.2.0
+  ticket", "ticket status", "ticket blocked", or any ticket lifecycle operation, or when a
+  conversation references a ticket ID (e.g. "fix TNDM-XXXXXX").
+version: 0.4.0
 argument-hint: create <title> | update <ID> [--status <s>] [--priority <p>] | show <ID> | list
 ---
 
@@ -19,7 +18,11 @@ so keeping it current is essential.
 
 ## Workflow Protocol
 
-Follow this for every development task:
+Use the section that matches the user's request.
+
+### Creating or Tracking New Work
+
+When asked to create a ticket or track new work, follow this workflow:
 
 ### 1. Create a ticket before starting work
 
@@ -59,7 +62,7 @@ tndm ticket update <ID> --status done
 Ticket creation and status updates are coordination signals — other agents can only see them once
 committed. Always commit `.tndm/` changes right away.
 
-## Working on an Existing Ticket
+### Working on an Existing Ticket
 
 When asked to fix, work on, or continue a ticket (e.g. "fix TNDM-XXXXXX"):
 
@@ -69,6 +72,15 @@ When asked to fix, work on, or continue a ticket (e.g. "fix TNDM-XXXXXX"):
 4. Do the work
 5. Set status to `done`: `tndm ticket update <ID> --status done`
 6. Commit the status change
+
+### Read-Only Ticket Requests
+
+When asked to show, list, or inspect tickets, use the read command that matches the request. Do
+not create or update a ticket unless the user asks for that explicitly.
+
+- Show one ticket: `tndm ticket show <ID>` or `tndm ticket show <ID> --json`
+- List open tickets: `tndm ticket list` or `tndm ticket list --json`
+- Include done tickets when needed: `tndm ticket list --all`
 
 ## Commands
 

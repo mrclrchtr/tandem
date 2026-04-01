@@ -14,7 +14,7 @@ Without this plugin, agents have no knowledge of `tndm` and will skip ticket cre
 update status, and ignore the awareness workflow.
 
 With this plugin loaded, agents:
-- Automatically create a ticket before starting any development task
+- Only create or update tickets when the user explicitly asks to track work or references a ticket
 - Keep ticket status current (`in_progress` -> `blocked` -> `done`)
 - Run `tndm awareness` before branching to detect conflicts with other agents
 - Commit ticket changes immediately so other agents can see them
