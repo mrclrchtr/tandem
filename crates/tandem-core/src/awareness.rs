@@ -212,7 +212,8 @@ fn canonicalize_tags(tags: &[String]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use crate::ticket::{
-        Ticket, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus, TicketType,
+        Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus,
+        TicketType,
     };
 
     use super::{
@@ -582,6 +583,61 @@ mod tests {
         );
         against_ticket.meta.tags = vec!["a".to_string(), "b".to_string()];
         let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert!(report.tickets.is_empty());
+    }
+
+    #[test]
+    fn compare_snapshots_reports_diverged_effort() {
+        let mut current_ticket = ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.meta.effort = Some(TicketEffort::M);
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+
+        let against = TicketSnapshot::from_tickets([ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        )]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        assert_eq!(
+            report.tickets[0].fields.effort,
+            Some(AwarenessFieldDiff {
+                current: "m".to_string(),
+                against: "-".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_omits_effort_diff_when_both_unset() {
+        let current = TicketSnapshot::from_tickets([ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        )]);
+        let against = TicketSnapshot::from_tickets([ticket(
+            "TNDM-1",
+            "Title",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        )]);
 
         let report = compare_snapshots("main", &current, &against);
 
