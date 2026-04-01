@@ -16,6 +16,7 @@ Options:
   -T, --type <TYPE>              Initial type. Values: task | bug | feature | chore | epic
   -g, --tags <TAGS>              Comma-separated tags.
   -d, --depends-on <IDS>         Comma-separated ticket IDs for dependencies.
+  -e, --effort <SIZE>            Effort estimate. Values: xs | s | m | l | xl
       --content <BODY>           Inline content body.
       --content-file <PATH>      Load ticket body from a markdown file.
       --json                     Output the created ticket as JSON.
@@ -24,7 +25,7 @@ Content can also be piped via stdin (heredoc recommended for agents).
 --content, --content-file, and stdin are mutually exclusive.
 ```
 
-Defaults when flags are omitted: status=todo, priority=p2, type=task, tags=[], depends_on=[].
+Defaults when flags are omitted: status=todo, priority=p2, type=task, effort=unset, tags=[], depends_on=[].
 
 Examples:
 
@@ -65,6 +66,7 @@ Options:
   -T, --type <TYPE>             Set type. Values: task | bug | feature | chore | epic
   -g, --tags <TAGS>             Comma-separated tags (replaces the full list; empty string clears).
   -d, --depends-on <IDS>        Comma-separated ticket IDs (replaces the full list).
+  -e, --effort <SIZE>           Effort estimate. Values: xs | s | m | l | xl
       --content <BODY>          Inline content body replacing existing content.
       --content-file <PATH>     Replace ticket body with content from a markdown file.
       --json                    Output the updated ticket as JSON.
@@ -259,13 +261,25 @@ The CLI writes canonical TOML automatically. Use `tndm fmt` to normalise files a
 | `chore`   | Maintenance / housekeeping|
 | `epic`    | Large multi-ticket effort |
 
+### Effort (`--effort`)
+
+| Value | Meaning           |
+|-------|-------------------|
+| `xs`  | Extra-small       |
+| `s`   | Small             |
+| `m`   | Medium            |
+| `l`   | Large             |
+| `xl`  | Extra-large       |
+
+Effort is optional. Omit to leave unset; omitting on update leaves the existing value unchanged.
+
 ## Ticket File Structure
 
 Each ticket is stored as a directory:
 
 ```
 .tndm/tickets/TNDM-XXXXXX/
-├── meta.toml     # stable metadata: id, title, type, priority, tags, depends_on
+├── meta.toml     # stable metadata: id, title, type, priority, effort (optional), tags, depends_on
 ├── state.toml    # volatile state: status, revision, updated_at
 └── content.md    # freeform markdown body (optional — set via heredoc, --content, or --content-file)
 ```
