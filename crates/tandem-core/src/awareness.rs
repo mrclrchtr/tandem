@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
-use crate::ticket::{Ticket, TicketId};
+use crate::ticket::{Ticket, TicketEffort, TicketId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TicketSnapshot {
@@ -76,6 +76,8 @@ pub struct AwarenessFieldDiffs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<AwarenessFieldDiff>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort: Option<AwarenessFieldDiff>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<AwarenessFieldDiff>,
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub ticket_type: Option<AwarenessFieldDiff>,
@@ -91,6 +93,10 @@ impl AwarenessFieldDiffs {
         let priority = diff_value(
             current.meta.priority.as_str(),
             against.meta.priority.as_str(),
+        );
+        let effort = diff_value(
+            current.meta.effort.map(TicketEffort::as_str).unwrap_or("-"),
+            against.meta.effort.map(TicketEffort::as_str).unwrap_or("-"),
         );
         let title = diff_value(&current.meta.title, &against.meta.title);
         let ticket_type = diff_value(
@@ -115,6 +121,7 @@ impl AwarenessFieldDiffs {
         let diffs = Self {
             status,
             priority,
+            effort,
             title,
             ticket_type,
             depends_on,
@@ -127,6 +134,7 @@ impl AwarenessFieldDiffs {
     fn is_empty(&self) -> bool {
         self.status.is_none()
             && self.priority.is_none()
+            && self.effort.is_none()
             && self.title.is_none()
             && self.ticket_type.is_none()
             && self.depends_on.is_none()

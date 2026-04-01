@@ -206,6 +206,59 @@ impl serde::Serialize for TicketStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TicketEffort {
+    Xs,
+    S,
+    M,
+    L,
+    Xl,
+}
+
+impl TicketEffort {
+    pub fn parse(value: &str) -> Result<Self, ValidationError> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "xs" => Ok(Self::Xs),
+            "s" => Ok(Self::S),
+            "m" => Ok(Self::M),
+            "l" => Ok(Self::L),
+            "xl" => Ok(Self::Xl),
+            _ => Err(ValidationError::new(
+                "invalid ticket effort [possible values: xs, s, m, l, xl]",
+            )),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Xs => "xs",
+            Self::S => "s",
+            Self::M => "m",
+            Self::L => "l",
+            Self::Xl => "xl",
+        }
+    }
+}
+
+impl FromStr for TicketEffort {
+    type Err = ValidationError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
+}
+
+impl fmt::Display for TicketEffort {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl serde::Serialize for TicketEffort {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TicketMeta {
     pub id: TicketId,
@@ -213,6 +266,7 @@ pub struct TicketMeta {
     #[serde(rename = "type")]
     pub ticket_type: TicketType,
     pub priority: TicketPriority,
+    pub effort: Option<TicketEffort>,
     pub depends_on: Vec<TicketId>,
     pub tags: Vec<String>,
 }
@@ -229,6 +283,7 @@ impl TicketMeta {
             title,
             ticket_type: TicketType::default(),
             priority: TicketPriority::default(),
+            effort: None,
             depends_on: Vec::new(),
             tags: Vec::new(),
         })
@@ -248,7 +303,13 @@ impl TicketMeta {
         output.push('\n');
         output.push_str("priority = ");
         output.push_str(&toml_basic_string(self.priority.as_str()));
-        output.push_str("\n\n");
+        output.push('\n');
+        if let Some(effort) = self.effort {
+            output.push_str("effort = ");
+            output.push_str(&toml_basic_string(effort.as_str()));
+            output.push('\n');
+        }
+        output.push('\n');
         output.push_str("depends_on = ");
         output.push_str(&toml_string_array(
             self.depends_on.iter().map(TicketId::as_str),
@@ -356,7 +417,9 @@ fn toml_string_array<'a>(values: impl IntoIterator<Item = &'a str>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus, TicketType};
+    use super::{
+        TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus, TicketType,
+    };
 
     #[test]
     fn parse_accepts_simple_id() {
@@ -686,5 +749,114 @@ mod tests {
         assert_eq!(json["status"], "todo");
         assert_eq!(json["updated_at"], "2026-03-17T12:00:00Z");
         assert_eq!(json["revision"], 3);
+    }
+
+    #[test]
+    fn ticket_effort_parse_and_as_str_roundtrip() {
+        for value in ["xs", "s", "m", "l", "xl"] {
+            assert_eq!(
+                TicketEffort::parse(value)
+                    .expect("effort should parse")
+                    .as_str(),
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn ticket_effort_parse_is_case_insensitive() {
+        assert_eq!(TicketEffort::parse("XS").unwrap(), TicketEffort::Xs);
+        assert_eq!(TicketEffort::parse("S").unwrap(), TicketEffort::S);
+        assert_eq!(TicketEffort::parse("M").unwrap(), TicketEffort::M);
+        assert_eq!(TicketEffort::parse("L").unwrap(), TicketEffort::L);
+        assert_eq!(TicketEffort::parse("XL").unwrap(), TicketEffort::Xl);
+    }
+
+    #[test]
+    fn ticket_effort_parse_rejects_unknown_value() {
+        let error = TicketEffort::parse("huge").expect_err("effort should be rejected");
+        assert_eq!(
+            error.message(),
+            "invalid ticket effort [possible values: xs, s, m, l, xl]"
+        );
+    }
+
+    #[test]
+    fn ticket_effort_display_renders_lowercase() {
+        assert_eq!(format!("{}", TicketEffort::Xs), "xs");
+        assert_eq!(format!("{}", TicketEffort::S), "s");
+        assert_eq!(format!("{}", TicketEffort::M), "m");
+        assert_eq!(format!("{}", TicketEffort::L), "l");
+        assert_eq!(format!("{}", TicketEffort::Xl), "xl");
+    }
+
+    #[test]
+    fn ticket_effort_serializes_as_str() {
+        assert_eq!(serde_json::to_string(&TicketEffort::Xs).unwrap(), "\"xs\"");
+        assert_eq!(serde_json::to_string(&TicketEffort::S).unwrap(), "\"s\"");
+        assert_eq!(serde_json::to_string(&TicketEffort::M).unwrap(), "\"m\"");
+        assert_eq!(serde_json::to_string(&TicketEffort::L).unwrap(), "\"l\"");
+        assert_eq!(serde_json::to_string(&TicketEffort::Xl).unwrap(), "\"xl\"");
+    }
+
+    #[test]
+    fn meta_without_effort_canonical_toml_unchanged() {
+        let id = TicketId::parse("TNDM-4K7D9Q").expect("id should parse");
+        let meta = TicketMeta::new(id, "Add foo").expect("meta should be valid");
+
+        assert_eq!(
+            meta.to_canonical_toml(),
+            concat!(
+                "schema_version = 1\n",
+                "id = \"TNDM-4K7D9Q\"\n",
+                "title = \"Add foo\"\n",
+                "\n",
+                "type = \"task\"\n",
+                "priority = \"p2\"\n",
+                "\n",
+                "depends_on = []\n",
+                "tags = []\n",
+            )
+        );
+    }
+
+    #[test]
+    fn meta_with_effort_formats_as_canonical_toml() {
+        let id = TicketId::parse("TNDM-4K7D9Q").expect("id should parse");
+        let mut meta = TicketMeta::new(id, "Add foo").expect("meta should be valid");
+        meta.effort = Some(TicketEffort::M);
+
+        assert_eq!(
+            meta.to_canonical_toml(),
+            concat!(
+                "schema_version = 1\n",
+                "id = \"TNDM-4K7D9Q\"\n",
+                "title = \"Add foo\"\n",
+                "\n",
+                "type = \"task\"\n",
+                "priority = \"p2\"\n",
+                "effort = \"m\"\n",
+                "\n",
+                "depends_on = []\n",
+                "tags = []\n",
+            )
+        );
+    }
+
+    #[test]
+    fn ticket_meta_serializes_effort_as_null_when_absent() {
+        let id = TicketId::parse("TNDM-TEST01").unwrap();
+        let meta = TicketMeta::new(id, "Test title").unwrap();
+        let json: serde_json::Value = serde_json::to_value(&meta).unwrap();
+        assert_eq!(json["effort"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn ticket_meta_serializes_effort_when_present() {
+        let id = TicketId::parse("TNDM-TEST01").unwrap();
+        let mut meta = TicketMeta::new(id, "Test title").unwrap();
+        meta.effort = Some(TicketEffort::M);
+        let json: serde_json::Value = serde_json::to_value(&meta).unwrap();
+        assert_eq!(json["effort"], "m");
     }
 }
