@@ -469,6 +469,7 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
         };
         println!("{}", serde_json::to_string_pretty(&envelope)?);
     } else {
+        println!("ID\tSTATUS\tPRIORITY\tEFFORT\tDEPS\tTITLE");
         for ticket in &tickets {
             let deps = ticket
                 .meta
