@@ -4,3 +4,5 @@
 .DS_Store
 out
 node_modules/
+.idea/git_toolbox_prj.xml
+.idea/detekt.xml
