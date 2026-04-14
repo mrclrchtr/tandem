@@ -90,6 +90,8 @@ Claude Code:
 claude --plugin-dir ./plugins/tndm
 ```
 
+The repository also exposes a top-level `skills/` symlink that points at `plugins/tndm/skills`, so direct installs via `npx skills add` can discover the same skills from the repo root.
+
 Codex:
 
 - Personal plugin directory: `~/.codex/plugins/tndm`
