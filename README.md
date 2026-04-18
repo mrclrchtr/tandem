@@ -72,6 +72,7 @@ Run the CLI:
 ```sh
 ./tndm-dev --help
 ./tndm-dev ticket list
+./tndm-dev ticket list --definition ready
 ```
 
 Equivalent direct Cargo invocation:
@@ -99,3 +100,9 @@ Codex:
 - Install `tndm` from that personal marketplace after restarting Codex
 
 See `plugins/tndm/README.md` for current install details and limitations.
+
+Ticket-definition convention:
+
+- Use `definition:questions` when a ticket still has unresolved `Open Questions`.
+- Use `definition:ready` when a ticket is currently implementable.
+- Keep detailed rationale in `content.md`; use tags as the coarse machine-readable signal.

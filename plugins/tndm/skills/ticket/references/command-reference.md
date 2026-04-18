@@ -43,9 +43,13 @@ tndm ticket create "Fix login redirect" --id TNDM-FIX001
 
 # With content via heredoc (preferred for agents — no temp files needed)
 tndm ticket create "Implement OAuth flow" --type feature <<'EOF'
-## Description
+## Context
 
-Add OAuth 2.0 authorization code flow.
+Users need to sign in with Google.
+
+## Goal
+
+Support OAuth 2.0 authorization code flow.
 EOF
 
 # With content from file (when content already exists on disk)
@@ -130,6 +134,9 @@ tndm ticket list [OPTIONS]
 
 Options:
   --all     Include tickets with status "done".
+  --definition <STATE>
+            Filter by definition state backed by reserved tags.
+            Values: ready | questions | unknown
   --json    Output as JSON array.
 ```
 
@@ -138,6 +145,8 @@ Examples:
 ```sh
 tndm ticket list
 tndm ticket list --all
+tndm ticket list --definition ready
+tndm ticket list --definition questions --json
 tndm ticket list --json
 
 # Filter in-progress tickets with jq
@@ -149,6 +158,18 @@ tndm ticket list --json | jq '[.[] | select(.status == "blocked")]'
 # Show done tickets
 tndm ticket list --all --json | jq '[.[] | select(.status == "done")]'
 ```
+
+Definition filtering uses reserved tags:
+
+- `definition:ready` — ticket is currently considered implementable
+- `definition:questions` — ticket still has open definition questions
+- `unknown` — no `definition:*` tag is present
+
+Convention:
+
+- Keep richer detail in `content.md`, especially `Open Questions`, `Acceptance`, and `Ready When`.
+- Use at most one current `definition:*` tag at a time.
+- Prefer tags for current state only; do not treat them as historical refinement counts.
 
 ## tndm awareness
 
@@ -289,6 +310,32 @@ Each ticket is stored as a directory:
 Optional config at `.tndm/config.toml`:
 
 ```toml
-id_prefix = "TNDM"          # prefix for auto-generated IDs
-content_template = "..."    # default markdown template for new tickets
+schema_version = 1
+
+[id]
+prefix = "TNDM"
+
+[templates]
+content = """
+## Context
+
+## Goal
+
+## Open Questions
+
+- [ ] Question or ambiguity 1
+- [ ] Question or ambiguity 2
+
+## Acceptance
+
+- [ ] Observable outcome 1
+- [ ] Observable outcome 2
+
+## Ready When
+
+- [ ] Scope is clear
+- [ ] Dependencies are known
+- [ ] Open questions are resolved or explicitly deferred
+- [ ] Acceptance is specific enough for implementation
+"""
 ```

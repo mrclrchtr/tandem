@@ -34,6 +34,7 @@ are not the primary ticket creators or consumers — agents are.
 V1 is useful when an agent can:
 
 - Create and manage tickets entirely through the CLI.
+- Use lightweight current-state signals such as `definition:*` tags together with structured ticket content.
 - Discover what tickets exist or changed on another branch or worktree via `tndm awareness --against <ref>`.
 - Consume structured JSON output to make autonomous decisions about conflicts or coordination.
 - Trust that ticket files produce clean diffs and pass `tndm fmt --check` in CI.

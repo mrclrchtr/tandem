@@ -16,8 +16,11 @@ update status, and ignore the awareness workflow.
 With this plugin loaded, agents:
 - Only create or update tickets when the user explicitly asks to track work or references a ticket
 - Keep ticket status current (`in_progress` -> `blocked` -> `done`)
+- Use `definition:ready` / `definition:questions` tags as the coarse ticket-definition signal and
+  keep the detailed rationale in `content.md`
 - Run `tndm awareness` before branching to detect conflicts with other agents
 - Commit ticket changes immediately so other agents can see them
+- See current ticket definition state in hook summaries as `READY`, `QUESTIONS`, or `UNKNOWN`
 
 ## Components
 
@@ -95,4 +98,4 @@ Notes:
 | `/tndm:ticket create <title>` | Create a new ticket |
 | `/tndm:ticket update <ID> [flags]` | Update ticket fields |
 | `/tndm:ticket show <ID>` | Show a single ticket |
-| `/tndm:ticket list` | List tickets (done hidden by default; use `--all` to include) |
+| `/tndm:ticket list` | List tickets (done hidden by default; supports `--all` and `--definition`) |
