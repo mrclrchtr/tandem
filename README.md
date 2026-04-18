@@ -90,7 +90,7 @@ Claude Code:
 claude --plugin-dir ./plugins/tndm
 ```
 
-The repository also exposes a top-level `skills/` symlink that points at `plugins/tndm/skills`, so direct installs via `npx skills add` can discover the same skills from the repo root.
+The repository also exposes a top-level `skills/` symlink that points at `plugins/tndm/skills`, so `npx skills add https://github.com/mrclrchtr/tandem` can discover the same skills from the repo root.
 
 Codex:
 
