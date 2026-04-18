@@ -14,4 +14,13 @@ if [ "$count" -eq 0 ]; then
 fi
 
 echo "Open tndm tickets ($count):"
-echo "$output" | jq -r '.tickets[] | "  \(.id)  \(.status | ascii_upcase)  \(.title)"'
+echo "$output" | jq -r '
+  .tickets[] |
+  (
+    if (.tags | index("definition:ready")) then "READY"
+    elif (.tags | index("definition:questions")) then "QUESTIONS"
+    else "UNKNOWN"
+    end
+  ) as $definition |
+  "  \(.id)  \(.status | ascii_upcase)  [\($definition)]  \(.title)"
+'

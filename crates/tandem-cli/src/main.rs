@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
 };
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 use tabled::{builder::Builder, settings::Style};
 use tandem_core::{
@@ -95,6 +95,13 @@ struct OutputArgs {
     json: bool,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+enum TicketDefinitionFilter {
+    Ready,
+    Questions,
+    Unknown,
+}
+
 #[derive(Subcommand, Debug)]
 enum TicketCommand {
     /// Create a new ticket.
@@ -152,6 +159,11 @@ enum TicketCommand {
         #[arg(long)]
         all: bool,
 
+        /// Filter by current definition state backed by reserved tags:
+        /// definition:ready, definition:questions, or no definition:* tag.
+        #[arg(long = "definition", value_enum)]
+        definition: Option<TicketDefinitionFilter>,
+
         #[command(flatten)]
         output: OutputArgs,
     },
@@ -206,7 +218,25 @@ enum TicketCommand {
     },
 }
 
-const DEFAULT_CONTENT_TEMPLATE: &str = "## Description\n\n## Design\n\n## Acceptance\n\n## Notes\n";
+const DEFAULT_CONTENT_TEMPLATE: &str = concat!(
+    "## Context\n\n",
+    "What problem are we solving? What area of the repo or behavior is affected?\n\n",
+    "## Goal\n\n",
+    "What outcome should exist when this ticket is done?\n\n",
+    "## Open Questions\n\n",
+    "- [ ] Question or ambiguity 1\n",
+    "- [ ] Question or ambiguity 2\n\n",
+    "## Acceptance\n\n",
+    "- [ ] Observable outcome 1\n",
+    "- [ ] Observable outcome 2\n\n",
+    "## Ready When\n\n",
+    "- [ ] Scope is clear\n",
+    "- [ ] Dependencies are known\n",
+    "- [ ] Open questions are resolved or explicitly deferred\n",
+    "- [ ] Acceptance is specific enough for implementation\n"
+);
+const DEFINITION_TAG_READY: &str = "definition:ready";
+const DEFINITION_TAG_QUESTIONS: &str = "definition:questions";
 const CROCKFORD_BASE32: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 fn main() -> anyhow::Result<()> {
@@ -241,7 +271,11 @@ fn main() -> anyhow::Result<()> {
                 output.json,
             ),
             TicketCommand::Show { id, output } => handle_ticket_show(id, output.json),
-            TicketCommand::List { all, output } => handle_ticket_list(output.json, all),
+            TicketCommand::List {
+                all,
+                definition,
+                output,
+            } => handle_ticket_list(output.json, all, definition),
             TicketCommand::Update {
                 id,
                 status,
@@ -431,7 +465,11 @@ fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
+fn handle_ticket_list(
+    json: bool,
+    all: bool,
+    definition: Option<TicketDefinitionFilter>,
+) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
@@ -444,7 +482,11 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
         let ticket = store
             .load_ticket(&id)
             .map_err(|error| anyhow::anyhow!("{error}"))?;
-        if all || ticket.state.status != TicketStatus::Done {
+        let matches_status = all || ticket.state.status != TicketStatus::Done;
+        let matches_definition = definition
+            .map(|value| ticket_matches_definition_filter(&ticket, value))
+            .unwrap_or(true);
+        if matches_status && matches_definition {
             tickets.push(ticket);
         }
     }
@@ -498,6 +540,28 @@ fn handle_ticket_list(json: bool, all: bool) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn ticket_matches_definition_filter(
+    ticket: &tandem_core::ticket::Ticket,
+    filter: TicketDefinitionFilter,
+) -> bool {
+    let has_ready = ticket
+        .meta
+        .tags
+        .iter()
+        .any(|tag| tag == DEFINITION_TAG_READY);
+    let has_questions = ticket
+        .meta
+        .tags
+        .iter()
+        .any(|tag| tag == DEFINITION_TAG_QUESTIONS);
+
+    match filter {
+        TicketDefinitionFilter::Ready => has_ready,
+        TicketDefinitionFilter::Questions => has_questions,
+        TicketDefinitionFilter::Unknown => !has_ready && !has_questions,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

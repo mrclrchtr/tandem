@@ -7,7 +7,7 @@ description: >
   the branch", "what's in flight on another branch", "coordination", "worktree", "branch
   coordination", or "run awareness against <ref>". Use when starting work that may overlap with
   another branch or worktree.
-version: 0.2.0
+version: 0.2.1
 argument-hint: <branch-or-ref>
 ---
 
@@ -78,7 +78,13 @@ object with field-level changes:
 | `added_against` contains `in_progress` tickets touching the same area | Coordinate before proceeding — create a dependency or adjust scope |
 | `diverged` has a ticket where `against.status == "done"` but `current.status != "done"` | The other branch already finished this — check whether to adopt its resolution |
 | `diverged` has conflicting `depends_on` | Reconcile dependency chains before merging |
+| `diverged` has conflicting `tags` including `definition:ready` / `definition:questions` | Reconcile the ticket’s current definition state before parallel implementation continues |
 | All arrays empty | No ticket conflicts — safe to proceed |
+
+Definition-state note:
+
+- Treat `definition:ready` and `definition:questions` as coarse current-state signals only.
+- If branches disagree on these tags, inspect `content.md` sections like `Open Questions`, `Acceptance`, and `Ready When` before choosing which state to keep.
 
 ## After Awareness — Commit Any Ticket Updates
 

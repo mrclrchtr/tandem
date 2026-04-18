@@ -29,8 +29,8 @@ Architectural and design decisions for tandem. See `docs/vision.md` for product 
     - `.tndm/tickets/<TICKET-ID>/content.md`
 - The split between stable metadata (`meta.toml`) and volatile state (`state.toml`) reduces Git friction.
 - Repository-wide configuration lives in `.tndm/config.toml` (optional). It controls:
-    - `id_prefix` — prefix for generated ticket IDs (default: `TNDM`)
-    - `content_template` — default markdown template for new ticket content
+    - `[id].prefix` — prefix for generated ticket IDs (default: `TNDM`)
+    - `[templates].content` — default markdown template for new ticket content
 
 ## File format + determinism
 
@@ -54,7 +54,7 @@ The ticket model is strictly validated. Fields are split across two files:
 | `type` | enum | `task` (default), `bug`, `feature`, `chore`, `epic` |
 | `priority` | enum | `p0`, `p1`, `p2` (default), `p3`, `p4` |
 | `depends_on` | string array | Ticket IDs this ticket depends on |
-| `tags` | string array | Freeform labels |
+| `tags` | string array | Freeform labels, including reserved coordination tags such as `definition:ready` and `definition:questions` |
 
 **`state.toml`** (volatile state):
 
@@ -67,9 +67,29 @@ The ticket model is strictly validated. Fields are split across two files:
 
 All enums parse case-insensitively for CLI friendliness. There is no assignee field.
 
+The system uses a lightweight convention for current ticket-definition quality:
+
+- `definition:questions` means the ticket still has open definition questions.
+- `definition:ready` means the ticket is currently considered implementable.
+- Absence of a `definition:*` tag means definition state is still unknown or unreviewed.
+
+These tags describe current coordination state only. Historical refinement remains in Git history and ticket content,
+not in dedicated mutable counters.
+
 `updated_at` is load-bearing for freshness, awareness, and change comparison. Because wall clocks can skew across
 machines/worktrees, the system avoids relying on `updated_at` as the only ordering signal. The `revision` field
 provides a monotonic, tool-derived counter for unambiguous ordering within a single ticket.
+
+The default `content.md` template is intentionally structured around:
+
+- `Context`
+- `Goal`
+- `Open Questions`
+- `Acceptance`
+- `Ready When`
+
+This keeps rich ticket nuance in markdown while allowing agents to use reserved tags as coarse machine-readable
+signals.
 
 ## Awareness model
 
@@ -91,6 +111,8 @@ provides a monotonic, tool-derived counter for unambiguous ordering within a sin
 - JSON is the standard machine-readable format across the CLI.
 - The awareness command outputs a schema-versioned JSON report (`AwarenessReport`).
 - Other commands (e.g. `ticket list`, `ticket show`) should follow the same pattern for agent interoperability.
+- `ticket list` may expose lightweight workflow filters backed by existing metadata, such as tag-backed definition
+  state, without expanding the core schema.
 
 ## Branch/worktree information in tickets
 

@@ -6,7 +6,7 @@ description: >
   "show ticket", "list tickets", "what tickets are open", "add a tag to ticket", "set priority on
   ticket", "ticket status", "ticket blocked", or any ticket lifecycle operation, or when a
   conversation references a ticket ID (e.g. "fix TNDM-XXXXXX").
-version: 0.4.0
+version: 0.4.1
 argument-hint: create <title> | update <ID> [--status <s>] [--priority <p>] | show <ID> | list
 ---
 
@@ -104,9 +104,13 @@ With optional content body (use a heredoc — do **not** create temporary files)
 
 ```sh
 tndm ticket create "Implement OAuth flow" <<'EOF'
-## Description
+## Context
 
-Add OAuth 2.0 authorization code flow.
+Users need to sign in with Google.
+
+## Goal
+
+Support OAuth 2.0 authorization code flow.
 
 ## Acceptance
 
@@ -136,9 +140,9 @@ tndm ticket update TNDM-XXXXXX --depends-on TNDM-AAAAAA,TNDM-BBBBBB
 
 # Replace content body (use a heredoc — do not create temporary files)
 tndm ticket update TNDM-XXXXXX <<'EOF'
-## Notes
+## Open Questions
 
-Updated design after review feedback.
+- [ ] Should we support multiple OAuth providers in V1?
 EOF
 
 # Combine multiple fields
@@ -159,6 +163,8 @@ By default, done tickets are hidden. Use `--all` to include them.
 ```sh
 tndm ticket list
 tndm ticket list --all
+tndm ticket list --definition ready
+tndm ticket list --definition questions --json
 tndm ticket list --json
 
 # Useful jq filters
@@ -168,6 +174,21 @@ tndm ticket list --json | jq '[.tickets[] | select(.status == "blocked")]'
 tndm ticket list --json | jq '[.tickets[] | select(.priority == "p0" or .priority == "p1")]'
 ```
 
+Definition-state convention:
+
+- Use `definition:questions` when `content.md` still has unresolved `Open Questions`.
+- Use `definition:ready` when the ticket is currently implementable.
+- Leave both absent when definition state is still unknown or unreviewed.
+- Do not set both at once.
+
+Recommended default `content.md` sections:
+
+- `Context`
+- `Goal`
+- `Open Questions`
+- `Acceptance`
+- `Ready When`
+
 ## Field Reference
 
 | Flag           | Values                                          |
@@ -175,6 +196,7 @@ tndm ticket list --json | jq '[.tickets[] | select(.priority == "p0" or .priorit
 | `--status`     | `todo` `in_progress` `blocked` `done`           |
 | `--priority`   | `p0` `p1` `p2` `p3` `p4`  (p0 = critical)      |
 | `--type`       | `task` `bug` `feature` `chore` `epic`           |
+| `--definition` | `ready` `questions` `unknown` on `ticket list`  |
 | `--tags`       | comma-separated strings                         |
 | `--depends-on` | comma-separated ticket IDs                      |
 
