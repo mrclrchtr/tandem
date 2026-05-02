@@ -8,6 +8,14 @@ Architecture overview: `docs/architecture.md`.
 
 ## Install
 
+Preferred (prebuilt binaries from GitHub Releases):
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/mrclrchtr/tandem/releases/latest/download/tndm-installer.sh | sh
+```
+
+Development/local install:
+
 ```sh
 cargo install --path crates/tandem-cli
 ```
@@ -81,6 +89,30 @@ Equivalent direct Cargo invocation:
 cargo run -p tandem-cli --bin tndm -- --help
 ```
 
+## Release process
+
+Releases are automated via:
+
+- `.github/workflows/release-please.yml` (version PR + tag creation)
+- `.github/workflows/release.yml` (cargo-dist builds + GitHub Release artifacts)
+
+Flow:
+
+1. Merge Conventional Commit PRs into `main`.
+2. `release-please` opens/updates a release PR with version + changelog updates.
+3. Merge the release PR.
+4. `release-please` creates a `vX.Y.Z` tag.
+5. cargo-dist builds release binaries and publishes assets to GitHub Releases.
+
+Notes:
+
+- Version source of truth is `Cargo.toml` (`workspace.package.version`).
+- Plugin/manifests are version-synced in the same release PR.
+- Set up a GitHub App with repo contents + PR write permissions, then configure:
+  - Repository variable: `RELEASE_APP_ID`
+  - Repository secret: `RELEASE_APP_PRIVATE_KEY`
+  This lets `actions/create-github-app-token` generate a short-lived token for release-please, so tag pushes reliably trigger downstream release workflows.
+
 ## Agent Plugin
 
 This repo includes agent packaging for both Claude Code and Codex.
@@ -90,6 +122,8 @@ Claude Code:
 ```sh
 claude --plugin-dir ./plugins/tndm
 ```
+
+Release archives also include `tndm-plugin-vX.Y.Z.tar.gz` for plugin-only installs.
 
 The repository also exposes a top-level `skills/` symlink that points at `plugins/tndm/skills`, so `npx skills add https://github.com/mrclrchtr/tandem` can discover the same skills from the repo root.
 
