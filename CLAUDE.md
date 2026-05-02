@@ -73,6 +73,12 @@ hk run check
 hk run fix
 ```
 
+## Git hooks and `hk`
+
+- `cargo-clippy` runs in hk `pre-commit`, `pre-push`, and `check`.
+- `cargo-test` is intentionally not in `hk.pkl`; use `mise run test` (runs `cargo test --workspace --locked`).
+- Renovate updates `hk.pkl`. If hk-related checks fail after a version bump, update `hk` in `mise.toml` and run `mise install` to refresh `mise.lock`.
+
 ## Coding and testing conventions
 
 - `rustfmt` is the formatter; `clippy` runs with warnings treated as errors.
