@@ -15,26 +15,24 @@ exclude =
 local linters = new Mapping<String, Step | Group> {
   ["actionlint"] = Builtins.actionlint
   ["sync-version"] = new Step {
-    workspace_indicator = "Cargo.toml"
+    workspace_indicator = "rust-toolchain.toml"
     check = "cargo xtask sync-version --check"
     fix = "cargo xtask sync-version"
   }
   ["cargo-fmt"] = (Builtins.cargo_fmt) {
-    workspace_indicator = "Cargo.toml"
-    check = "cargo fmt --check --manifest-path {{workspace_indicator}} --all"
-    fix = "cargo fmt --manifest-path {{workspace_indicator}} --all"
+    workspace_indicator = "rust-toolchain.toml"
+    check = "cargo fmt --check --all"
+    fix = "cargo fmt --all"
   }
   ["cargo-check"] = (Builtins.cargo_check) {
-    workspace_indicator = "Cargo.toml"
-    check =
-      "cargo check --manifest-path {{workspace_indicator}} --workspace --all-targets --all-features --locked"
+    workspace_indicator = "rust-toolchain.toml"
+    check = "cargo check --workspace --all-targets --all-features --locked"
   }
   ["cargo-clippy"] = (Builtins.cargo_clippy) {
-    workspace_indicator = "Cargo.toml"
-    check =
-      "cargo clippy --manifest-path {{workspace_indicator}} --workspace --all-targets --all-features --locked -- -D warnings"
+    workspace_indicator = "rust-toolchain.toml"
+    check = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
     fix =
-      "cargo clippy --manifest-path {{workspace_indicator}} --workspace --all-targets --all-features --fix --allow-dirty --allow-staged --locked -- -D warnings"
+      "cargo clippy --workspace --all-targets --all-features --fix --allow-dirty --allow-staged --locked -- -D warnings"
   }
   ["newlines"] = Builtins.newlines
   ["trailing-whitespace"] = Builtins.trailing_whitespace
