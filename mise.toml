@@ -8,7 +8,7 @@ _.path = ["{{env.HOME}}/.cargo/bin"]
 
 [tools]
 actionlint = "1.7.12"
-hk = "1.39.0"
+hk = "1.44.3"
 pkl = "latest"
 
 [tasks.hooks-install]
