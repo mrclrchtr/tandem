@@ -33,6 +33,9 @@ With this plugin loaded, agents:
 
 ## Usage
 
+You can use the in-repo plugin (`plugins/tndm`) or extract the `tndm-plugin-vX.Y.Z.tar.gz`
+asset from a GitHub Release.
+
 ### Claude Code
 
 Load per session (development / ad-hoc):

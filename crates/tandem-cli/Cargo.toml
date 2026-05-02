@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+repository = "https://github.com/mrclrchtr/tandem"
 
 [[bin]]
 name = "tndm"
@@ -25,6 +26,9 @@ time.workspace = true
 regex = "=1.12.3"
 serde_json.workspace = true
 tempfile.workspace = true
+
+[package.metadata.dist]
+dist = true
 
 [lints]
 workspace = true
