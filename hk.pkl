@@ -13,6 +13,11 @@ exclude =
 
 local linters = new Mapping<String, Step | Group> {
   ["actionlint"] = Builtins.actionlint
+  ["sync-version"] = new Step {
+    workspace_indicator = "Cargo.toml"
+    check = "cargo xtask sync-version --check"
+    fix = "cargo xtask sync-version"
+  }
   ["cargo-fmt"] = (Builtins.cargo_fmt) {
     workspace_indicator = "Cargo.toml"
     check = "cargo fmt --check --manifest-path {{workspace_indicator}} --all"
