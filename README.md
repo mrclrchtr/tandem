@@ -14,6 +14,12 @@ Preferred (prebuilt binaries from GitHub Releases):
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/mrclrchtr/tandem/releases/latest/download/tndm-installer.sh | sh
 ```
 
+Homebrew (macOS and Linux):
+
+```sh
+brew install mrclrchtr/tap/tndm
+```
+
 Development/local install:
 
 ```sh
@@ -112,6 +118,9 @@ Notes:
   - Repository variable: `RELEASE_APP_CLIENT_ID`
   - Repository secret: `RELEASE_APP_PRIVATE_KEY`
   This lets `actions/create-github-app-token` generate a short-lived token for release-please, so tag pushes reliably trigger downstream release workflows.
+- Homebrew tap publishing requires:
+  - A `mrclrchtr/homebrew-tap` repository on GitHub.
+  - The same GitHub App (used for release-please) installed on the tap repo with **Contents** read/write permission.
 
 ## Agent Plugin
 
