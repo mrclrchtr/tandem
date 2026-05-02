@@ -109,7 +109,7 @@ Notes:
 - Version source of truth is `Cargo.toml` (`workspace.package.version`).
 - Plugin/manifests are version-synced in the same release PR.
 - Set up a GitHub App with repo contents + PR write permissions, then configure:
-  - Repository variable: `RELEASE_APP_ID`
+  - Repository variable: `RELEASE_APP_CLIENT_ID`
   - Repository secret: `RELEASE_APP_PRIVATE_KEY`
   This lets `actions/create-github-app-token` generate a short-lived token for release-please, so tag pushes reliably trigger downstream release workflows.
 
