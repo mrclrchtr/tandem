@@ -1,3 +1,13 @@
+# Runs on push to main. Release-please opens a PR with version bumps
+# (Cargo.toml, plugin manifests, CHANGELOG). It does NOT regenerate
+# Cargo.lock — so we add a post-hook to do that before CI sees the PR.
+#
+# Why not release-type: "rust"?
+# The project uses [workspace.package] (not [package]) in the root
+# Cargo.toml, which the Rust strategy's CargoToml updater rejects.
+# The "simple" type + extra-files works, but Cargo.lock needs a
+# manual `cargo update --workspace` — handled below.
+
 name: release-please
 
 on:
@@ -18,12 +28,24 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # Token with repo push access — needed so the lock file commit
+      # triggers downstream CI (default GITHUB_TOKEN suppresses it).
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      # Checked out so we can git fetch/checkout the release-please PR
+      # branch and push to it. Must use the App token, not GITHUB_TOKEN.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      # Bumps versions, creates PR. Outputs:
+      #   prs_created — "true" if a PR was created or updated
+      #   pr          — JSON with headBranchName, number, title, …
       - name: Release PR + tag automation
         id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
@@ -32,3 +54,25 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           skip-github-release: true
+
+      # Post-hook: after the version bump, regenerate Cargo.lock so
+      # `cargo check --locked` in CI passes on the release PR.
+      # Runs synchronously before the pull_request:opened event fires,
+      # so CI sees the PR with Cargo.lock already in sync.
+      - name: Update Cargo.lock on release PR
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BRANCH: ${{ fromJson(steps.release.outputs.pr).headBranchName }}
+        run: |
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+          rustup toolchain install --no-self-update
+          cargo update --workspace
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --exit-code Cargo.lock; then
+            git add Cargo.lock
+            git commit -m "chore: update Cargo.lock for version bump"
+            git push origin "$BRANCH"
+          fi
