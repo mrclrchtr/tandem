@@ -4,6 +4,7 @@ use std::{
     env, fs,
     io::{self, IsTerminal, Read},
     path::PathBuf,
+    sync::LazyLock,
 };
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -23,6 +24,13 @@ use tandem_storage::{
     ticket_dir,
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
+use syntect::{
+    easy::HighlightLines,
+    highlighting::ThemeSet,
+    parsing::SyntaxSet,
+    util::{LinesWithEndings, as_24_bit_terminal_escaped},
+};
 
 #[derive(Serialize)]
 struct TicketJsonEntry<'a> {
@@ -525,24 +533,74 @@ fn print_ticket_human(ticket: &Ticket) {
     println!("  {b}Content{n}");
     println!("{sep}");
 
-    if use_color {
+    let (tw, _) = termimad::terminal_size();
+    let cw = if tw > 4 { (tw - 2) as usize } else { 78 };
+
+    if !use_color {
+        // Non-TTY: preserve raw content for scripting and tests
+        for line in ticket.content.lines() {
+            println!("  {line}");
+        }
+    } else if !ticket.content.contains("```") {
+        // TTY, no fenced code blocks: render everything with termimad
         let mut skin = termimad::MadSkin::default();
-        // Remove background colors that can clash with terminal themes
         skin.inline_code.object_style.background_color = None;
         skin.code_block.compound_style.object_style.background_color = None;
-        // Indent to match the 2-space layout
-        let (tw, _) = termimad::terminal_size();
-        let cw = if tw > 4 { (tw - 2) as usize } else { 78 };
         let rendered = skin.text(&ticket.content, Some(cw)).to_string();
         for line in rendered.lines() {
             println!("  {line}");
         }
     } else {
-        for line in ticket.content.lines() {
-            println!("  {line}");
+        // TTY with fenced code blocks: syntax-highlight code, termimad for the rest
+        let mut skin = termimad::MadSkin::default();
+        skin.inline_code.object_style.background_color = None;
+        skin.code_block.compound_style.object_style.background_color = None;
+
+        let parts: Vec<&str> = ticket.content.split("```").collect();
+        for (i, part) in parts.iter().enumerate() {
+            if i % 2 == 0 {
+                // Non-code segment — render with termimad
+                if part.is_empty() {
+                    continue;
+                }
+                let rendered = skin.text(part, Some(cw)).to_string();
+                for line in rendered.lines() {
+                    println!("  {line}");
+                }
+            } else if let Some(newline) = part.find('\n') {
+                let lang = part[..newline].trim();
+                let code = &part[newline + 1..];
+                let code = code.strip_suffix('\n').unwrap_or(code);
+
+                if let Some(syntax) = SYNTAX_SET.find_syntax_by_token(lang) {
+                    // Syntax-highlight this code block
+                    let mut h = HighlightLines::new(syntax, &THEME);
+                    for line in LinesWithEndings::from(code) {
+                        if let Ok(ranges) = h.highlight_line(line, &SYNTAX_SET) {
+                            print!("  {}", as_24_bit_terminal_escaped(&ranges, false));
+                        } else {
+                            print!("  {line}");
+                        }
+                    }
+                } else {
+                    // Unrecognized language — let termimad style the block
+                    let block = format!("```{lang}\n{code}```");
+                    let rendered = skin.text(&block, Some(cw)).to_string();
+                    for line in rendered.lines() {
+                        println!("  {line}");
+                    }
+                }
+            }
         }
     }
 }
+
+/// Lazy-loaded syntax definitions for code highlighting (~35 MB).
+static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
+static THEME: LazyLock<syntect::highlighting::Theme> = LazyLock::new(|| {
+    let ts = ThemeSet::load_defaults();
+    ts.themes["base16-ocean.dark"].clone()
+});
 
 /// Strip fractional seconds from an RFC 3339 timestamp and replace T with a space.
 fn format_timestamp(raw: &str) -> String {
