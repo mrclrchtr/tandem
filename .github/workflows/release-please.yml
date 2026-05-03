@@ -55,6 +55,27 @@ jobs:
           manifest-file: .release-please-manifest.json
           skip-github-release: true
 
+      # Create a git tag if one is missing. With skip-github-release: true,
+      # release-please bumps versions but never creates tags. The tag
+      # triggers the cargo-dist Release workflow which builds artifacts,
+      # creates the GitHub Release, and publishes to Homebrew.
+      - name: Create release tag
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          VERSION=$(jq -r '."."' .release-please-manifest.json)
+          TAG="v${VERSION}"
+          git fetch --tags origin
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists, skipping."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "${TAG}" -m "${TAG}"
+            git push origin "${TAG}"
+            echo "Created and pushed tag ${TAG}"
+          fi
+
       # Post-hook: after the version bump, regenerate Cargo.lock so
       # `cargo check --locked` in CI passes on the release PR.
       # Runs synchronously before the pull_request:opened event fires,
