@@ -54,14 +54,27 @@ tndm fmt --check
 
 ## Agent plugin
 
-Load the `tndm` plugin into Claude Code or Codex so agents create tickets,
+Load the `tndm` plugin into Claude Code, Codex, or any skills.sh-compatible agent so agents
+create tickets, update status, and run awareness checks automatically.
+
+### Via skills.sh (any agent)
+
+```sh
+npx skills add mrclrchtr/tandem --skill ticket --skill awareness
+```
+
+This installs the `ticket` and `awareness` skills locally so your agent will create tickets,
 update status, and run awareness checks automatically.
+
+### Claude Code
 
 ```sh
 claude --plugin-dir ./plugins/tndm
 ```
 
-See [`plugins/tndm/README.md`](plugins/tndm/README.md) for full install details.
+### Codex
+
+See [`plugins/tndm/README.md`](plugins/tndm/README.md) for marketplace setup instructions.
 
 ## Documentation
 

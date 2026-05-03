@@ -33,8 +33,18 @@ With this plugin loaded, agents:
 
 ## Usage
 
-You can use the in-repo plugin (`plugins/tndm`) or extract the `tndm-plugin-vX.Y.Z.tar.gz`
-asset from a GitHub Release.
+You can install the tndm skills via [skills.sh](https://github.com/vercel-labs/skills), use the
+in-repo plugin (`plugins/tndm`), or extract the `tndm-plugin-vX.Y.Z.tar.gz` asset from a
+GitHub Release.
+
+### Via skills.sh (any agent)
+
+```sh
+npx skills add mrclrchtr/tandem --skill ticket --skill awareness
+```
+
+This installs the `ticket` and `awareness` skills from the tandem repository into any
+skills.sh-compatible agent (Claude Code, Codex, Cursor, OpenCode, and 40+ others).
 
 ### Claude Code
 
