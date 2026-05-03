@@ -105,38 +105,40 @@ fn ticket_show_prints_exact_canonical_sections() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    let updated_at_pattern =
-        Regex::new(r#"Updated +· ([^ ]+) \(rev"#).expect("regex should compile");
+    let updated_at_pattern = Regex::new(r#"Updated +(.+?) \(rev"#).expect("regex should compile");
     let captures = updated_at_pattern
         .captures(&stdout)
         .expect("ticket show output should include updated_at");
-    let updated_at = captures
+    let ts_display = captures
         .get(1)
         .expect("updated_at capture should exist")
         .as_str();
-    OffsetDateTime::parse(updated_at, &Rfc3339).expect("updated_at should parse as RFC3339");
+    // Reconstruct RFC 3339 (T separator) for validation
+    let rfc3339_ts = ts_display.replacen(' ', "T", 1).to_string();
+    OffsetDateTime::parse(&rfc3339_ts, &Rfc3339).expect("updated_at should parse as RFC3339");
 
-    let sep = format!("  {}", "─".repeat(46));
+    let indented_content: String = content
+        .lines()
+        .map(|line| format!("  {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
     let expected = format!(
         concat!(
-            "  {ticket_id} · Show ticket content\n",
-            "{sep}\n",
+            "  {ticket_id}  Show ticket content\n",
             "\n",
-            "  Status      · todo\n",
-            "  Priority    · p2\n",
-            "  Type        · task\n",
+            "  Status        todo\n",
+            "  Priority      p2\n",
+            "  Type          task\n",
             "\n",
-            "  Updated     · {updated_at} (rev 1)\n",
+            "  Updated       {ts_display} (rev 1)\n",
             "\n",
-            "{sep}\n",
-            "  Content\n",
-            "{sep}\n",
-            "{content}"
+            "  ── Content ──\n",
+            "\n",
+            "{indented_content}\n"
         ),
         ticket_id = ticket_id,
-        sep = sep,
-        updated_at = updated_at,
-        content = content,
+        ts_display = ts_display,
+        indented_content = indented_content,
     );
     assert_eq!(stdout, expected);
 }
@@ -681,13 +683,13 @@ fn ticket_update_bumps_revision_and_timestamp() {
         "show output was: {show_stdout}"
     );
 
-    let updated_at_pattern =
-        Regex::new(r#"Updated +· ([^ ]+) \(rev"#).expect("regex should compile");
+    let updated_at_pattern = Regex::new(r#"Updated +(.+?) \(rev"#).expect("regex should compile");
     let captures = updated_at_pattern
         .captures(&show_stdout)
         .expect("should contain updated_at");
-    let updated_at = captures.get(1).expect("capture should exist").as_str();
-    OffsetDateTime::parse(updated_at, &Rfc3339).expect("updated_at should parse as RFC3339");
+    let ts_display = captures.get(1).expect("capture should exist").as_str();
+    let rfc3339_ts = ts_display.replacen(' ', "T", 1).to_string();
+    OffsetDateTime::parse(&rfc3339_ts, &Rfc3339).expect("updated_at should parse as RFC3339");
 }
 
 #[test]
