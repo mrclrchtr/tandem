@@ -13,7 +13,8 @@ use tandem_core::{
     awareness::compare_snapshots,
     ports::TicketStore,
     ticket::{
-        NewTicket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType,
+        NewTicket, Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus,
+        TicketType,
     },
 };
 use tandem_repo::GitAwarenessProvider;
@@ -458,11 +459,82 @@ fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
         };
         println!("{}", serde_json::to_string_pretty(&envelope)?);
     } else {
-        print!("## meta.toml\n{}\n", ticket.meta.to_canonical_toml());
-        print!("## state.toml\n{}\n", ticket.state.to_canonical_toml());
-        print!("## content.md\n{}", ticket.content);
+        print_ticket_human(&ticket);
     }
     Ok(())
+}
+
+fn print_ticket_human(ticket: &Ticket) {
+    let use_color = io::stdout().is_terminal();
+    let (b, r, g, y, bl, n) = if use_color {
+        (
+            "\x1b[1m", "\x1b[31m", "\x1b[32m", "\x1b[33m", "\x1b[34m", "\x1b[0m",
+        )
+    } else {
+        ("", "", "", "", "", "")
+    };
+
+    let status_color = match ticket.state.status {
+        TicketStatus::Done => g,
+        TicketStatus::InProgress => bl,
+        TicketStatus::Blocked => r,
+        TicketStatus::Todo => y,
+    };
+
+    let sep = format!("  {}", "─".repeat(46));
+
+    // Header
+    println!("  {b}{}{n} · {}", ticket.meta.id, ticket.meta.title);
+    println!("{sep}");
+    println!();
+
+    // Metadata
+    println!(
+        "  {b}Status     {n} · {sc}{}{n}",
+        ticket.state.status.as_str(),
+        sc = status_color
+    );
+    println!("  {b}Priority   {n} · {}", ticket.meta.priority);
+    println!("  {b}Type       {n} · {}", ticket.meta.ticket_type);
+
+    if let Some(effort) = ticket.meta.effort {
+        println!("  {b}Effort     {n} · {effort}");
+    }
+
+    if !ticket.meta.tags.is_empty() {
+        println!("  {b}Tags       {n} · {}", ticket.meta.tags.join(", "));
+    }
+
+    if !ticket.meta.depends_on.is_empty() {
+        let deps: Vec<&str> = ticket
+            .meta
+            .depends_on
+            .iter()
+            .map(TicketId::as_str)
+            .collect();
+        println!("  {b}Depends on {n} · {}", deps.join(", "));
+    }
+
+    println!();
+    println!(
+        "  {b}Updated    {n} · {} (rev {})",
+        ticket.state.updated_at, ticket.state.revision
+    );
+
+    // Content section
+    println!();
+    println!("{sep}");
+    println!("  {b}Content{n}");
+    println!("{sep}");
+
+    if use_color {
+        // In terminal: render markdown with colors
+        let skin = termimad::MadSkin::default();
+        skin.print_text(&ticket.content);
+    } else {
+        // Piped output: show raw content (marks preserved)
+        print!("{}", ticket.content);
+    }
 }
 
 fn handle_ticket_list(

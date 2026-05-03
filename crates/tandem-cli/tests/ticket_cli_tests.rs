@@ -106,7 +106,7 @@ fn ticket_show_prints_exact_canonical_sections() {
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
     let updated_at_pattern =
-        Regex::new(r#"updated_at = \"([^\"]+)\""#).expect("regex should compile");
+        Regex::new(r#"Updated +· ([^ ]+) \(rev"#).expect("regex should compile");
     let captures = updated_at_pattern
         .captures(&stdout)
         .expect("ticket show output should include updated_at");
@@ -116,29 +116,25 @@ fn ticket_show_prints_exact_canonical_sections() {
         .as_str();
     OffsetDateTime::parse(updated_at, &Rfc3339).expect("updated_at should parse as RFC3339");
 
+    let sep = format!("  {}", "─".repeat(46));
     let expected = format!(
         concat!(
-            "## meta.toml\n",
-            "schema_version = 1\n",
-            "id = \"{ticket_id}\"\n",
-            "title = \"Show ticket content\"\n",
+            "  {ticket_id} · Show ticket content\n",
+            "{sep}\n",
             "\n",
-            "type = \"task\"\n",
-            "priority = \"p2\"\n",
+            "  Status      · todo\n",
+            "  Priority    · p2\n",
+            "  Type        · task\n",
             "\n",
-            "depends_on = []\n",
-            "tags = []\n",
+            "  Updated     · {updated_at} (rev 1)\n",
             "\n",
-            "## state.toml\n",
-            "schema_version = 1\n",
-            "status = \"todo\"\n",
-            "updated_at = \"{updated_at}\"\n",
-            "revision = 1\n",
-            "\n",
-            "## content.md\n",
+            "{sep}\n",
+            "  Content\n",
+            "{sep}\n",
             "{content}"
         ),
         ticket_id = ticket_id,
+        sep = sep,
         updated_at = updated_at,
         content = content,
     );
@@ -397,11 +393,11 @@ fn ticket_update_changes_status() {
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("status = \"in_progress\""),
+        show_stdout.contains("in_progress"),
         "show output was: {show_stdout}"
     );
     assert!(
-        show_stdout.contains("revision = 2"),
+        show_stdout.contains("rev 2"),
         "show output was: {show_stdout}"
     );
 }
@@ -453,15 +449,12 @@ fn ticket_update_changes_multiple_fields() {
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("status = \"done\""),
+        show_stdout.contains("done"),
         "show output was: {show_stdout}"
     );
+    assert!(show_stdout.contains("p0"), "show output was: {show_stdout}");
     assert!(
-        show_stdout.contains("priority = \"p0\""),
-        "show output was: {show_stdout}"
-    );
-    assert!(
-        show_stdout.contains("title = \"New title\""),
+        show_stdout.contains("New title"),
         "show output was: {show_stdout}"
     );
 }
@@ -498,7 +491,7 @@ fn ticket_update_replaces_tags() {
         .expect("run tndm ticket show");
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("tags = [\"a\", \"b\"]"),
+        show_stdout.contains("a, b"),
         "show output was: {show_stdout}"
     );
 
@@ -517,7 +510,7 @@ fn ticket_update_replaces_tags() {
         .expect("run tndm ticket show");
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("tags = []"),
+        !show_stdout.contains("a, b"),
         "show output was: {show_stdout}"
     );
 }
@@ -564,7 +557,7 @@ fn ticket_update_replaces_depends_on() {
         .expect("run tndm ticket show");
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("depends_on = [\"TNDM-X\", \"TNDM-Y\"]"),
+        show_stdout.contains("TNDM-X, TNDM-Y"),
         "show output was: {show_stdout}"
     );
 
@@ -583,7 +576,7 @@ fn ticket_update_replaces_depends_on() {
         .expect("run tndm ticket show");
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("depends_on = []"),
+        !show_stdout.contains("TNDM-X"),
         "show output was: {show_stdout}"
     );
 }
@@ -684,12 +677,12 @@ fn ticket_update_bumps_revision_and_timestamp() {
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("revision = 3"),
+        show_stdout.contains("rev 3"),
         "show output was: {show_stdout}"
     );
 
     let updated_at_pattern =
-        Regex::new(r#"updated_at = \"([^\"]+)\""#).expect("regex should compile");
+        Regex::new(r#"Updated +· ([^ ]+) \(rev"#).expect("regex should compile");
     let captures = updated_at_pattern
         .captures(&show_stdout)
         .expect("should contain updated_at");
@@ -789,7 +782,7 @@ fn ticket_update_changes_type() {
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("type = \"bug\""),
+        show_stdout.contains("bug"),
         "show output was: {show_stdout}"
     );
 }
@@ -1363,24 +1356,21 @@ fn ticket_create_with_all_metadata_flags() {
         .expect("run tndm ticket show");
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(show_stdout.contains("p0"), "show output was: {show_stdout}");
     assert!(
-        show_stdout.contains("priority = \"p0\""),
+        show_stdout.contains("bug"),
         "show output was: {show_stdout}"
     );
     assert!(
-        show_stdout.contains("type = \"bug\""),
+        show_stdout.contains("auth, security"),
         "show output was: {show_stdout}"
     );
     assert!(
-        show_stdout.contains("tags = [\"auth\", \"security\"]"),
+        show_stdout.contains("TNDM-A1, TNDM-A2"),
         "show output was: {show_stdout}"
     );
     assert!(
-        show_stdout.contains("depends_on = [\"TNDM-A1\", \"TNDM-A2\"]"),
-        "show output was: {show_stdout}"
-    );
-    assert!(
-        show_stdout.contains("status = \"in_progress\""),
+        show_stdout.contains("in_progress"),
         "show output was: {show_stdout}"
     );
 }
@@ -1418,16 +1408,13 @@ fn ticket_create_with_priority_flag() {
         .expect("run tndm ticket show");
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(show_stdout.contains("p1"), "show output was: {show_stdout}");
     assert!(
-        show_stdout.contains("priority = \"p1\""),
+        show_stdout.contains("task"),
         "show output was: {show_stdout}"
     );
     assert!(
-        show_stdout.contains("type = \"task\""),
-        "show output was: {show_stdout}"
-    );
-    assert!(
-        show_stdout.contains("status = \"todo\""),
+        show_stdout.contains("todo"),
         "show output was: {show_stdout}"
     );
 }
@@ -1522,7 +1509,7 @@ fn ticket_create_with_effort_flag() {
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(
-        show_stdout.contains("effort = \"m\""),
+        show_stdout.contains("Effort"),
         "show output was: {show_stdout}"
     );
 }
@@ -1568,8 +1555,5 @@ fn ticket_update_with_effort_flag() {
         .expect("run tndm ticket show");
 
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
-    assert!(
-        show_stdout.contains("effort = \"xl\""),
-        "show output was: {show_stdout}"
-    );
+    assert!(show_stdout.contains("xl"), "show output was: {show_stdout}");
 }

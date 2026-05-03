@@ -44,6 +44,24 @@ tndm ticket create "Refactor auth module"
 # Update status
 tndm ticket update TNDM-A1B2C3 --status in_progress
 
+# View a ticket with its rich, formatted output
+tndm ticket show TNDM-A1B2C3
+# →
+#   TNDM-A1B2C3 · Refactor auth module
+#   ──────────────────────────────────────────────
+#
+#     Status      · in_progress   ← blue in terminal
+#     Priority    · p2
+#     Type        · task
+#
+#     Updated     · 2026-05-03T21:28:10Z (rev 1)
+#
+#   ──────────────────────────────────────────────
+#   Content
+#   ──────────────────────────────────────────────
+#   ## Context
+#   ...
+
 # Check what another branch is doing
 tndm awareness --against branch-a
 # → JSON report of added, removed, and diverged tickets
@@ -51,6 +69,12 @@ tndm awareness --against branch-a
 # Keep formatting consistent
 tndm fmt --check
 ```
+
+**Human-friendly output.** `tndm ticket show` formats tickets with color-coded status
+(done → green, in_progress → blue, blocked → red, todo → yellow),
+aligned fields, and rendered Markdown content — headings, bold, italic,
+code blocks, lists, and blockquotes are all styled in the terminal.
+Colors disable automatically when output is piped.
 
 ## Agent plugin
 
