@@ -35,9 +35,6 @@ unsafe_code = "forbid"
 all = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 
-[workspace.metadata.dist]
-allow-dirty = [".github/workflows/release.yml"]
-
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"

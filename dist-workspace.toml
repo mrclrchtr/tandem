@@ -22,3 +22,5 @@ tap = "mrclrchtr/homebrew-tap"
 pr-run-mode = "skip"
 # Custom publish job to attach plugin release artifacts
 publish-jobs = ["homebrew", "./upload-plugin"]
+# Allow manual edits to release workflow without dist rejecting it as dirty
+allow-dirty = [".github/workflows/release.yml"]
