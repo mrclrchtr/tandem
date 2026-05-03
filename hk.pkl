@@ -60,4 +60,13 @@ hooks {
     fix = true
     steps = linters
   }
+
+  ["commit-msg"] {
+    fix = false
+    steps {
+      ["commitlint"] = new Step {
+        check = "commitlint --edit {{commit_msg_file}}"
+      }
+    }
+  }
 }

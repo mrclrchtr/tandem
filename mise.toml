@@ -2,14 +2,20 @@
 experimental = true
 lockfile = true
 disable_tools = ["rust"]
+npm.package_manager = "pnpm"
 
 [env]
-_.path = ["{{env.HOME}}/.cargo/bin"]
+_.path = [
+  "{{env.HOME}}/.cargo/bin",
+  "{{config_root}}/node_modules/.bin",
+]
 
 [tools]
 actionlint = "1.7.12"
 hk = "1.44.3"
+node = "24.15.0"
 pkl = "latest"
+"npm:pnpm" = "10.33.2"
 
 [tasks.hooks-install]
 description = "Install git hooks (mise wrapper)"
