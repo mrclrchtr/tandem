@@ -105,7 +105,7 @@ fn ticket_show_prints_exact_canonical_sections() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    let updated_at_pattern = Regex::new(r#"Updated +(.+?) \(rev"#).expect("regex should compile");
+    let updated_at_pattern = Regex::new(r#"Updated +· (.+?) \(rev"#).expect("regex should compile");
     let captures = updated_at_pattern
         .captures(&stdout)
         .expect("ticket show output should include updated_at");
@@ -122,21 +122,25 @@ fn ticket_show_prints_exact_canonical_sections() {
         .map(|line| format!("  {line}"))
         .collect::<Vec<_>>()
         .join("\n");
+    let sep = format!("  {}", "─".repeat(46));
     let expected = format!(
         concat!(
-            "  {ticket_id}  Show ticket content\n",
+            "  {ticket_id} · Show ticket content\n",
+            "{sep}\n",
             "\n",
-            "  Status        todo\n",
-            "  Priority      p2\n",
-            "  Type          task\n",
+            "  Status      · todo\n",
+            "  Priority    · p2\n",
+            "  Type        · task\n",
             "\n",
-            "  Updated       {ts_display} (rev 1)\n",
+            "  Updated     · {ts_display} (rev 1)\n",
             "\n",
-            "  ── Content ──\n",
-            "\n",
+            "{sep}\n",
+            "  Content\n",
+            "{sep}\n",
             "{indented_content}\n"
         ),
         ticket_id = ticket_id,
+        sep = sep,
         ts_display = ts_display,
         indented_content = indented_content,
     );
@@ -683,7 +687,7 @@ fn ticket_update_bumps_revision_and_timestamp() {
         "show output was: {show_stdout}"
     );
 
-    let updated_at_pattern = Regex::new(r#"Updated +(.+?) \(rev"#).expect("regex should compile");
+    let updated_at_pattern = Regex::new(r#"Updated +· (.+?) \(rev"#).expect("regex should compile");
     let captures = updated_at_pattern
         .captures(&show_stdout)
         .expect("should contain updated_at");

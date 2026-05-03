@@ -481,25 +481,28 @@ fn print_ticket_human(ticket: &Ticket) {
         TicketStatus::Todo => y,
     };
 
+    let sep = format!("  {}", "─".repeat(46));
+
     // Header
-    println!("  {b}{}{n}  {}", ticket.meta.id, ticket.meta.title);
+    println!("  {b}{}{n} · {}", ticket.meta.id, ticket.meta.title);
+    println!("{sep}");
     println!();
 
-    // Metadata — labels padded to 14 chars, values follow at column 17
+    // Metadata
     println!(
-        "  {b}Status        {n}{sc}{}{n}",
+        "  {b}Status     {n} · {sc}{}{n}",
         ticket.state.status.as_str(),
         sc = status_color
     );
-    println!("  {b}Priority      {n}{}", ticket.meta.priority);
-    println!("  {b}Type          {n}{}", ticket.meta.ticket_type);
+    println!("  {b}Priority   {n} · {}", ticket.meta.priority);
+    println!("  {b}Type       {n} · {}", ticket.meta.ticket_type);
 
     if let Some(effort) = ticket.meta.effort {
-        println!("  {b}Effort        {n}{effort}");
+        println!("  {b}Effort     {n} · {effort}");
     }
 
     if !ticket.meta.tags.is_empty() {
-        println!("  {b}Tags          {n}{}", ticket.meta.tags.join(", "));
+        println!("  {b}Tags       {n} · {}", ticket.meta.tags.join(", "));
     }
 
     if !ticket.meta.depends_on.is_empty() {
@@ -509,21 +512,25 @@ fn print_ticket_human(ticket: &Ticket) {
             .iter()
             .map(TicketId::as_str)
             .collect();
-        println!("  {b}Depends on    {n}{}", deps.join(", "));
+        println!("  {b}Depends on {n} · {}", deps.join(", "));
     }
 
     println!();
     let ts = format_timestamp(&ticket.state.updated_at);
-    println!("  {b}Updated       {n}{ts} (rev {})", ticket.state.revision);
+    println!("  {b}Updated    {n} · {ts} (rev {})", ticket.state.revision);
 
     // Content section
     println!();
-    println!("  {b}── Content ──{n}");
-    println!();
+    println!("{sep}");
+    println!("  {b}Content{n}");
+    println!("{sep}");
 
     if use_color {
-        let skin = termimad::MadSkin::default();
-        // Indent to match the 2-space layout, reduce width accordingly
+        let mut skin = termimad::MadSkin::default();
+        // Remove background colors that can clash with terminal themes
+        skin.inline_code.object_style.background_color = None;
+        skin.code_block.compound_style.object_style.background_color = None;
+        // Indent to match the 2-space layout
         let (tw, _) = termimad::terminal_size();
         let cw = if tw > 4 { (tw - 2) as usize } else { 78 };
         let rendered = skin.text(&ticket.content, Some(cw)).to_string();
