@@ -14,7 +14,7 @@ actionlint = "1.7.12"
 hk = "1.44.3"
 node = "24.15.0"
 pkl = "latest"
-pnpm = "10.33.2"
+pnpm = "10.33.4"
 
 [tasks.hooks-install]
 description = "Install git hooks (mise wrapper)"
