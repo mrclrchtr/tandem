@@ -40,32 +40,32 @@ url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_
 provenance = "github-attestations"
 
 [[tools.hk]]
-version = "1.44.3"
+version = "1.45.0"
 backend = "aqua:jdx/hk"
 
 [tools.hk."platforms.linux-arm64"]
-checksum = "sha256:85e0f8b7c3107f5b7853390bf8201d3d9839021e3f2d7629f5457f7569218fcc"
-url = "https://github.com/jdx/hk/releases/download/v1.44.3/hk-aarch64-unknown-linux-gnu.tar.gz"
+checksum = "sha256:22293f9c742f0def32299689022891ced7c5c9d5024c91afd33a83e6f714686c"
+url = "https://github.com/jdx/hk/releases/download/v1.45.0/hk-aarch64-unknown-linux-gnu.tar.gz"
 
 [tools.hk."platforms.linux-arm64-musl"]
-checksum = "sha256:1794def830f7bea3e1ab162ea8eb0cef91f9292bb3ce660385f761048cca8599"
-url = "https://github.com/jdx/hk/releases/download/v1.44.3/hk-aarch64-unknown-linux-musl.tar.gz"
+checksum = "sha256:81b64f76df8a399f926a4158bfcbef0fa28dcd60b40799b9474ca2ab21d89c02"
+url = "https://github.com/jdx/hk/releases/download/v1.45.0/hk-aarch64-unknown-linux-musl.tar.gz"
 
 [tools.hk."platforms.linux-x64"]
-checksum = "sha256:8ff22722b831acae2ac61eddbe349497f9538ac7ac28f4b1a2e3dd7c0e43ee8c"
-url = "https://github.com/jdx/hk/releases/download/v1.44.3/hk-x86_64-unknown-linux-gnu.tar.gz"
+checksum = "sha256:47a3338403f689cc295d36213cfede4e1098c335d18064416ea9ac2b9739c148"
+url = "https://github.com/jdx/hk/releases/download/v1.45.0/hk-x86_64-unknown-linux-gnu.tar.gz"
 
 [tools.hk."platforms.linux-x64-musl"]
-checksum = "sha256:41b0fbe9ddec1bf0879b56d05abb9177a8a2fb98a2a6fa3d279576fbc4da5eac"
-url = "https://github.com/jdx/hk/releases/download/v1.44.3/hk-x86_64-unknown-linux-musl.tar.gz"
+checksum = "sha256:afdb201d251f35615f00f3880daa5a4e97d7948304473c259245a7123c0fedcf"
+url = "https://github.com/jdx/hk/releases/download/v1.45.0/hk-x86_64-unknown-linux-musl.tar.gz"
 
 [tools.hk."platforms.macos-arm64"]
-checksum = "sha256:e9000438928e7c66fd7790f0b47ca9b1c0b971c834238c1fa5faffae7fd92625"
-url = "https://github.com/jdx/hk/releases/download/v1.44.3/hk-aarch64-apple-darwin.tar.gz"
+checksum = "sha256:17bd1d9eccbfc894c4b0191871a964dc67df80c1bfbee072e5c12d4bb893a8a6"
+url = "https://github.com/jdx/hk/releases/download/v1.45.0/hk-aarch64-apple-darwin.tar.gz"
 
 [tools.hk."platforms.windows-x64"]
-checksum = "sha256:c59c6bf1c45157903ce58a5572257a959ca5e3895b6b9cbfb808a744d4858fb9"
-url = "https://github.com/jdx/hk/releases/download/v1.44.3/hk-x86_64-pc-windows-msvc.zip"
+checksum = "sha256:94c7c460d05748524a96583b656e8dec31a11a30ce6a997b9a5b5d8ec4d1b7e7"
+url = "https://github.com/jdx/hk/releases/download/v1.45.0/hk-x86_64-pc-windows-msvc.zip"
 
 [[tools.node]]
 version = "24.15.0"
@@ -132,33 +132,35 @@ checksum = "sha256:a8834481667325b44c539dbb758d7365a16389070f343c04b639bbe525ede
 url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-windows-amd64.exe"
 
 [[tools.pnpm]]
-version = "10.33.2"
+version = "11.0.8"
 backend = "aqua:pnpm/pnpm"
 
 [tools.pnpm."platforms.linux-arm64"]
-checksum = "sha256:0828e5ee23be89d22bd53cc36e93c181ce9d5c47d75f9fe9bf4bdc7a65c66322"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.33.2/pnpm-linux-arm64"
+checksum = "sha256:4393edba64b8c874123b8fca85fa940cc5224a392650993e5e84909dfaf80f9f"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.0.8/pnpm-linux-arm64.tar.gz"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.linux-arm64-musl"]
-checksum = "sha256:0828e5ee23be89d22bd53cc36e93c181ce9d5c47d75f9fe9bf4bdc7a65c66322"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.33.2/pnpm-linux-arm64"
+checksum = "sha256:3e2af32322c039b55c8eecae911fcd29febf2a4cbf50cfd4860770001131b232"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.0.8/pnpm-linux-arm64-musl.tar.gz"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.linux-x64"]
-checksum = "sha256:39d7b6600239712bc9581ea219b17ffef46ba60998779cb717be2e068be029ef"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.33.2/pnpm-linux-x64"
+checksum = "sha256:ac9fed9acf78cb9eacf3b6e7964e34dc196e93c2aad2ed3540fe5ef5c2effaeb"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.0.8/pnpm-linux-x64.tar.gz"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.linux-x64-musl"]
-checksum = "sha256:39d7b6600239712bc9581ea219b17ffef46ba60998779cb717be2e068be029ef"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.33.2/pnpm-linux-x64"
+checksum = "sha256:a5070cfda413b6fcda3a501fc6b0b1c57309ee590eadc8ba51f05e3a2b24195f"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.0.8/pnpm-linux-x64-musl.tar.gz"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.macos-arm64"]
-checksum = "sha256:a99a4d5d0e6bd3728949c24ff74a2f2f2d07f73bc48fd308e4eea75d8e72acdc"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.33.2/pnpm-macos-arm64"
-
-[tools.pnpm."platforms.macos-x64"]
-checksum = "sha256:3b66abb865f4e7a82393861f0f3784d67a704a31a4021739874d4b7910793dca"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.33.2/pnpm-macos-x64"
+checksum = "sha256:d988a3824d9ffd6f74eb9d9d703d24b7a42630dacfa7de375b8becef0706295c"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.0.8/pnpm-darwin-arm64.tar.gz"
+provenance = "github-attestations"
 
 [tools.pnpm."platforms.windows-x64"]
-checksum = "sha256:3d1af71e9da7081efd58f95942e1f7e2107bf8fcdae03eb2331c0b6cea59510b"
-url = "https://github.com/pnpm/pnpm/releases/download/v10.33.2/pnpm-win-x64.exe"
+checksum = "sha256:19c4a2d675920adf02a6614c2055a44393a221c5ba914708489be396e1763bd1"
+url = "https://github.com/pnpm/pnpm/releases/download/v11.0.8/pnpm-win32-x64.zip"
+provenance = "github-attestations"
