@@ -76,6 +76,31 @@ jobs:
             echo "Created and pushed tag ${TAG}"
           fi
 
+      # With skip-github-release: true, release-please never updates
+      # PR labels from "autorelease: pending" to "autorelease: tagged"
+      # after a release PR is merged. Clean up any stale pending labels
+      # so future runs aren't blocked by "untagged, merged release PRs
+      # outstanding" errors.
+      - name: Clean up stale release PR labels
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          # Find merged PRs that still have the autorelease: pending label
+          PRS=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state merged \
+            --label "autorelease: pending" \
+            --json number \
+            --jq '.[].number')
+          if [ -z "$PRS" ]; then
+            echo "No stale release PR labels to clean up."
+          else
+            for PR in $PRS; do
+              echo "Removing autorelease: pending label from PR #${PR}"
+              gh pr edit "$PR" --remove-label "autorelease: pending"
+            done
+          fi
+
       # Post-hook: after the version bump, regenerate Cargo.lock so
       # `cargo check --locked` in CI passes on the release PR.
       # Runs synchronously before the pull_request:opened event fires,
