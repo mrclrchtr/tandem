@@ -22,7 +22,8 @@ Start with:
 - `crates/xtask` — dev tooling, including `cargo xtask check-arch`.
 - `docs/` — product and architecture docs; start with `docs/vision.md`, `docs/decisions.md`, and `docs/architecture.md`.
 - `target/` — local build output; do not commit.
-- `plugins/tndm` — shared Claude Code and Codex plugin: skills, hooks, and slash commands that teach agents to use the `tndm` CLI.
+- `plugins/tndm` — Claude Code and Codex plugin: skills, hooks, and slash commands that teach agents to use the `tndm` CLI.
+- `plugins/supi-flow` — PI-only extension: spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. Registers custom tools (`supi_tndm_cli`, `supi_flow_*`) and auto-discovers 6 flow skills. Not a Claude Code plugin.
 - Before using any `tndm` command, read `plugins/tndm/skills/ticket/references/command-reference.md` for available subcommands and flags.
 - When changing CLI behavior, update the plugin command reference: `plugins/tndm/skills/ticket/references/command-reference.md`.
 - When changing plugin behavior, bump `version` in `plugins/tndm/.claude-plugin/plugin.json` and keep `plugins/tndm/.codex-plugin/plugin.json` in sync.

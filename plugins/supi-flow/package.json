@@ -1,0 +1,23 @@
+{
+  "name": "@mrclrchtr/supi-flow-tandem",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SuPi flow extension — spec-driven workflow coupled to TNDM ticket coordination",
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "main": "src/index.ts",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.74.0",
+    "@earendil-works/pi-coding-agent": "*",
+    "@types/node": "^25.6.0",
+    "typebox": "^1.1.38",
+    "vitest": "^4.1.4"
+  }
+}

@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.pnpm-workspace-state-v1.json
+.modules.yaml
+node_modules/
