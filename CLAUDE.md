@@ -24,11 +24,6 @@ Start with:
 - `target/` — local build output; do not commit.
 - `plugins/tndm` — Claude Code and Codex plugin: skills, hooks, and slash commands that teach agents to use the `tndm` CLI.
 - `plugins/supi-flow` — PI-only extension: spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. Registers custom tools (`supi_tndm_cli`, `supi_flow_*`) and auto-discovers 6 flow skills. Not a Claude Code plugin.
-- Before using any `tndm` command, read `plugins/tndm/skills/ticket/references/command-reference.md` for available subcommands and flags.
-- When changing CLI behavior, update the plugin command reference: `plugins/tndm/skills/ticket/references/command-reference.md`.
-- When changing plugin behavior, bump `version` in `plugins/tndm/.claude-plugin/plugin.json` and keep `plugins/tndm/.codex-plugin/plugin.json` in sync.
-- Prompt-based hooks (Stop, SubagentStop, etc.) must respond with `{"ok": true/false, "reason": "..."}`. Use `$ARGUMENTS` in the prompt to inject hook input.
-- `.agents/`, `.claude/` — agent tooling/config kept out of hook file selection.
 
 ## Workspace invariants (Rust)
 
@@ -71,9 +66,21 @@ mise run test
 mise run check
 mise run fix
 
+# Version management
+mise run bump <version>          # bump workspace version + sync plugin manifests
+mise run sync-version            # sync plugin.json versions from Cargo.toml
+mise run sync-version-check      # verify plugin versions match Cargo.toml (included in `mise run check`)
+
 hk run check
 hk run fix
 ```
+
+## Plugin and hook conventions
+
+- When changing CLI behavior, update `plugins/tndm/skills/ticket/references/command-reference.md`.
+- When changing plugin behavior, bump `version` in `plugins/tndm/.claude-plugin/plugin.json` and keep `plugins/tndm/.codex-plugin/plugin.json` in sync. Or use `mise run bump` / `mise run sync-version`.
+- Prompt-based hooks (Stop, SubagentStop, etc.) must respond with `{"ok": true/false, "reason": "..."}`. Use `$ARGUMENTS` in the prompt to inject hook input.
+- `.agents/`, `.claude/` — agent tooling/config kept out of hook file selection.
 
 ## Git hooks and `hk`
 
