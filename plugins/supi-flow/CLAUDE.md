@@ -57,6 +57,12 @@ pnpm exec vitest run
 pnpm exec vitest run __tests__/cli.test.ts
 ```
 
+## Verification shortcuts
+
+- After changing `src/index.ts`, tool schemas, or resource discovery, run `pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/resources.test.ts`.
+- After changing `src/cli.ts` or tool execution paths, run `pnpm exec vitest run __tests__/cli.test.ts`.
+- After changing `skills/` or `prompts/`, `/reload` or restart PI before validating behavior.
+
 ## Coding conventions
 
 - **TypeScript** with `strict: true`, `target: ES2022`, `module: ES2022`.

@@ -60,6 +60,7 @@ mise run hooks-install
 cargo build
 ./tndm-dev --help
 ./tndm-dev ticket list
+./tndm-dev fmt --check  # verify canonical .tndm formatting after serializer/CLI format changes
 
 mise run fmt
 mise run fmt-fix
@@ -79,6 +80,10 @@ hk run fix
 - `cargo-clippy` runs in hk `pre-commit`, `pre-push`, and `check`.
 - `cargo-test` is intentionally not in `hk.pkl`; use `mise run test` (runs `cargo test --workspace --locked`).
 - Renovate updates `hk.pkl`. If hk-related checks fail after a version bump, update `hk` in `mise.toml` and run `mise install` to refresh `mise.lock`.
+
+## Verification shortcuts
+
+- After changing ticket serialization, formatting, or canonical TOML output, run `./tndm-dev fmt --check`.
 
 ## Coding and testing conventions
 
