@@ -31,7 +31,7 @@ async function run(
  * Throws on non-zero exit, timeout, or other exec error.
  */
 export async function tndm(args: string[]): Promise<ExecResult> {
-  return run("tndm", args);
+  return run("tndm", args, { timeout: 30_000 });
 }
 
 /**
@@ -65,8 +65,11 @@ export async function gitAddCommit(message: string): Promise<{ commitHash: strin
     const { stdout } = await run("git", ["commit", "-m", message]);
     const match = stdout.match(/\[[^\]]+ ([a-f0-9]+)\]/);
     return { commitHash: match ? match[1] : "" };
-  } catch {
-    // Expected when nothing to commit
-    return { commitHash: "" };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("nothing to commit")) {
+      // Expected when nothing changed since last commit
+      return { commitHash: "" };
+    }
+    throw error; // Real git error, propagate to caller
   }
 }

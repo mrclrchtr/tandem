@@ -69,6 +69,9 @@ Options:
   -t, --title <TITLE>           Replace the ticket title.
   -T, --type <TYPE>             Set type. Values: task | bug | feature | chore | epic
   -g, --tags <TAGS>             Comma-separated tags (replaces the full list; empty string clears).
+      --add-tags <TAGS>         Comma-separated tags to add (preserves existing tags).
+      --remove-tags <TAGS>      Comma-separated tags to remove from the list.
+      --add-tags and --remove-tags conflict with --tags.
   -d, --depends-on <IDS>        Comma-separated ticket IDs (replaces the full list).
   -e, --effort <SIZE>           Effort estimate. Values: xs | s | m | l | xl
       --content <BODY>          Inline content body replacing existing content.
@@ -93,8 +96,14 @@ EOF
 # Set priority and type
 tndm ticket update TNDM-A1B2C3 -p p1 -T bug
 
-# Add tags
+# Replace tags
 tndm ticket update TNDM-A1B2C3 -g auth,security,p1
+
+# Add tags (preserves existing)
+tndm ticket update TNDM-A1B2C3 --add-tags flow:planned
+
+# Remove tags
+tndm ticket update TNDM-A1B2C3 --remove-tags oldtag,deprecated
 
 # Declare dependency
 tndm ticket update TNDM-A1B2C3 -d TNDM-B2C3D4

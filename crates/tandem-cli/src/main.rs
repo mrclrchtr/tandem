@@ -202,6 +202,14 @@ enum TicketCommand {
         #[arg(long, short = 'g')]
         tags: Option<String>,
 
+        /// Tags to add (comma-separated, preserves existing tags).
+        #[arg(long, conflicts_with = "tags")]
+        add_tags: Option<String>,
+
+        /// Tags to remove (comma-separated).
+        #[arg(long, conflicts_with = "tags")]
+        remove_tags: Option<String>,
+
         /// Comma-separated ticket IDs for dependencies (replaces existing list, empty string clears).
         #[arg(long, short = 'd')]
         depends_on: Option<String>,
@@ -292,6 +300,8 @@ fn main() -> anyhow::Result<()> {
                 title,
                 ticket_type,
                 tags,
+                add_tags,
+                remove_tags,
                 depends_on,
                 effort,
                 content_file,
@@ -304,6 +314,8 @@ fn main() -> anyhow::Result<()> {
                 title,
                 ticket_type,
                 tags,
+                add_tags,
+                remove_tags,
                 depends_on,
                 effort,
                 content_file,
@@ -720,6 +732,8 @@ fn handle_ticket_update(
     title: Option<String>,
     ticket_type: Option<TicketType>,
     tags: Option<String>,
+    add_tags: Option<String>,
+    remove_tags: Option<String>,
     depends_on: Option<String>,
     effort: Option<TicketEffort>,
     content_file: Option<PathBuf>,
@@ -736,6 +750,8 @@ fn handle_ticket_update(
         && title.is_none()
         && ticket_type.is_none()
         && tags.is_none()
+        && add_tags.is_none()
+        && remove_tags.is_none()
         && depends_on.is_none()
         && effort.is_none();
     let stdin_content = if no_explicit_update && !io::stdin().is_terminal() {
@@ -753,6 +769,8 @@ fn handle_ticket_update(
         && title.is_none()
         && ticket_type.is_none()
         && tags.is_none()
+        && add_tags.is_none()
+        && remove_tags.is_none()
         && depends_on.is_none()
         && effort.is_none()
         && content_file.is_none()
@@ -814,6 +832,19 @@ fn handle_ticket_update(
     }
     if let Some(value) = effort {
         ticket.meta.effort = Some(value);
+    }
+    if let Some(value) = add_tags {
+        for tag in value.split(',') {
+            let trimmed = tag.trim().to_string();
+            if !trimmed.is_empty() && !ticket.meta.tags.contains(&trimmed) {
+                ticket.meta.tags.push(trimmed);
+            }
+        }
+        ticket.meta.tags.sort();
+    }
+    if let Some(value) = remove_tags {
+        let to_remove: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
+        ticket.meta.tags.retain(|t| !to_remove.contains(t));
     }
     if let Some(path) = content_file {
         ticket.content = fs::read_to_string(&path)

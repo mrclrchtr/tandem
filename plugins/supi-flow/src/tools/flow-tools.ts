@@ -96,8 +96,10 @@ export async function executeFlowPlan(params: FlowPlanParams) {
     params.ticket_id,
     "--content",
     content,
-    "--tags",
+    "--add-tags",
     "flow:planned",
+    "--remove-tags",
+    "flow:brainstorm",
   ]);
 
   return {
@@ -122,23 +124,36 @@ export const supiFlowCompleteTaskParams = Type.Object({
 
 export type FlowCompleteTaskParams = Static<typeof supiFlowCompleteTaskParams>;
 
-function checkTask(content: string, taskNumber: number): string | null {
+type CheckTaskResult =
+  | { kind: "unchecked"; updatedContent: string }
+  | { kind: "already_checked" }
+  | { kind: "not_found" };
+
+function checkTask(content: string, taskNumber: number): CheckTaskResult {
   // Match a task line like "- [ ] **Task N:**" or "  - [ ] **Task N:**"
   const lines = content.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trimStart();
-    const match = trimmed.match(
+
+    const uncheckedMatch = trimmed.match(
       new RegExp(`^- \\[ \\] \\*\\*Task ${taskNumber}\\*\\*:`),
     );
-    if (match) {
+    if (uncheckedMatch) {
       // Replace the [ ] with [x] in the trimmed version
       const indent = line.slice(0, line.length - trimmed.length);
       lines[i] = indent + trimmed.replace("- [ ]", "- [x]");
-      return lines.join("\n");
+      return { kind: "unchecked", updatedContent: lines.join("\n") };
+    }
+
+    const checkedMatch = trimmed.match(
+      new RegExp(`^- \\[x\\] \\*\\*Task ${taskNumber}\\*\\*:`),
+    );
+    if (checkedMatch) {
+      return { kind: "already_checked" };
     }
   }
-  return null;
+  return { kind: "not_found" };
 }
 
 export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
@@ -160,40 +175,49 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
     };
   }
 
-  const updatedContent = checkTask(existing.content, params.task_number);
-  if (!updatedContent) {
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Task ${params.task_number} not found in ticket ${params.ticket_id}. It may already be completed or doesn't exist.`,
+  const result = checkTask(existing.content, params.task_number);
+
+  switch (result.kind) {
+    case "unchecked":
+      await tndm(["ticket", "update", params.ticket_id, "--content", result.updatedContent]);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Task ${params.task_number} checked off in ${params.ticket_id}.`,
+          },
+        ],
+        details: {
+          action: "flow_complete_task",
+          ticketId: params.ticket_id,
+          taskNumber: params.task_number,
+          completed: true,
         },
-      ],
-      details: {
-        action: "flow_complete_task",
-        ticketId: params.ticket_id,
-        taskNumber: params.task_number,
-        completed: false,
-      },
-    };
+      };
+
+    case "already_checked":
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Task ${params.task_number} is already checked off in ${params.ticket_id}.`,
+          },
+        ],
+        details: {
+          action: "flow_complete_task",
+          ticketId: params.ticket_id,
+          taskNumber: params.task_number,
+          completed: true,
+          skipped: true,
+        },
+      };
+
+    case "not_found":
+      throw new Error(
+        `Task ${params.task_number} not found in ticket ${params.ticket_id}.` +
+        ` Task must exist as '- [ ] **Task N:**' or '- [x] **Task N:**'.`,
+      );
   }
-
-  await tndm(["ticket", "update", params.ticket_id, "--content", updatedContent]);
-
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: `Task ${params.task_number} checked off in ${params.ticket_id}.`,
-      },
-    ],
-    details: {
-      action: "flow_complete_task",
-      ticketId: params.ticket_id,
-      taskNumber: params.task_number,
-      completed: true,
-    },
-  };
 }
 
 // ─── supi_flow_close ───────────────────────────────────────────
@@ -226,7 +250,16 @@ export async function executeFlowClose(params: FlowCloseParams) {
   }
 
   if (params.verification_results) {
-    content += `\n\n## Verification Results\n\n${params.verification_results}`;
+    // Update existing ## Verification Results section or append new one
+    const sectionRegex = /## Verification Results[\s\S]*?(?=\n## |\n*$)/;
+    if (sectionRegex.test(content)) {
+      content = content.replace(
+        sectionRegex,
+        `## Verification Results\n\n${params.verification_results}`,
+      );
+    } else {
+      content += `\n\n## Verification Results\n\n${params.verification_results}`;
+    }
   }
 
   const updateArgs: string[] = [
@@ -235,8 +268,10 @@ export async function executeFlowClose(params: FlowCloseParams) {
     params.ticket_id,
     "--status",
     "done",
-    "--tags",
+    "--add-tags",
     "flow:done",
+    "--remove-tags",
+    "flow:applying",
   ];
   if (content) {
     updateArgs.push("--content", content);

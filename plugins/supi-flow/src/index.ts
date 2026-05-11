@@ -31,7 +31,7 @@ export default function (pi: ExtensionAPI) {
     description:
       "Execute tndm ticket operations. Action determines which params apply:\n" +
       "- create: title (required), status, priority, type, tags, depends_on, effort, content\n" +
-      "- update: id (required), status, priority, type, tags, depends_on, effort, content\n" +
+      "- update: id (required), title, status, priority, type, tags, add_tags, remove_tags, depends_on, effort, content\n" +
       "- show: id (required)\n" +
       "- list: all (boolean), definition (ready|questions|unknown)\n" +
       "- awareness: against (git ref, required)",

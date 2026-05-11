@@ -34,7 +34,17 @@ export const supi_tndm_cli_params = Type.Object({
   ),
   tags: Type.Optional(
     Type.String({
-      description: "Comma-separated tags (e.g. 'auth,security,flow:brainstorm')",
+      description: "Comma-separated tags (replaces existing list; e.g. 'auth,security,flow:brainstorm')",
+    }),
+  ),
+  add_tags: Type.Optional(
+    Type.String({
+      description: "Comma-separated tags to add (preserves existing tags)",
+    }),
+  ),
+  remove_tags: Type.Optional(
+    Type.String({
+      description: "Comma-separated tags to remove from existing list",
     }),
   ),
   depends_on: Type.Optional(
@@ -67,8 +77,8 @@ export const supi_tndm_cli_params = Type.Object({
  * supi_tndm_cli — thin wrapper around the tndm CLI.
  *
  * Actions map to tndm subcommands:
- *   create     → tndm ticket create <title> [--status] [--priority] [--type] [--tags] [--depends-on] [--effort]
- *   update     → tndm ticket update <id> [--status] [--priority] [--type] [--tags] [--depends-on] [--effort] [--content]
+ *   create     → tndm ticket create <title> [--status] [--priority] [--type] [--tags] [--depends-on] [--effort] [--content]
+ *   update     → tndm ticket update <id> [--title] [--status] [--priority] [--type] [--tags] [--add-tags] [--remove-tags] [--depends-on] [--effort] [--content]
  *   show       → tndm ticket show <id> --json
  *   list       → tndm ticket list [--all] [--definition <state>] --json
  *   awareness  → tndm awareness --against <ref> --json
@@ -80,8 +90,10 @@ export async function executeTndmCli(params: TndmCliParams) {
 
   switch (action) {
     case "create": {
-      const args: string[] = ["ticket", "create"];
-      if (params.title) args.push(params.title);
+      if (!params.title) {
+        throw new Error("supi_tndm_cli: title is required for create");
+      }
+      const args: string[] = ["ticket", "create", params.title];
       addOptionalFlags(args, params, [
         "status",
         "priority",
@@ -101,17 +113,17 @@ export async function executeTndmCli(params: TndmCliParams) {
 
     case "update": {
       if (!params.id) {
-        return {
-          content: [{ type: "text" as const, text: "Error: id is required for update" }],
-          details: { action: "update", error: "Missing id" },
-        };
+        throw new Error("supi_tndm_cli: id is required for update");
       }
       const args: string[] = ["ticket", "update", params.id];
       addOptionalFlags(args, params, [
+        "title",
         "status",
         "priority",
         "type",
         "tags",
+        "add_tags",
+        "remove_tags",
         "depends_on",
         "effort",
         "content",
@@ -126,10 +138,7 @@ export async function executeTndmCli(params: TndmCliParams) {
 
     case "show": {
       if (!params.id) {
-        return {
-          content: [{ type: "text" as const, text: "Error: id is required for show" }],
-          details: { action: "show", error: "Missing id" },
-        };
+        throw new Error("supi_tndm_cli: id is required for show");
       }
       const result = await tndmJson<Record<string, unknown>>([
         "ticket",
@@ -164,10 +173,7 @@ export async function executeTndmCli(params: TndmCliParams) {
 
     case "awareness": {
       if (!params.against) {
-        return {
-          content: [{ type: "text" as const, text: "Error: against is required for awareness" }],
-          details: { action: "awareness", error: "Missing --against ref" },
-        };
+        throw new Error("supi_tndm_cli: --against is required for awareness");
       }
       const result = await tndmJson<Record<string, unknown>>([
         "awareness",
