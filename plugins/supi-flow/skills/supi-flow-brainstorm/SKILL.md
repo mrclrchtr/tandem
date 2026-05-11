@@ -13,14 +13,20 @@ Do NOT write code, scaffold anything, or take implementation action until you ha
 
 ## Core flow
 
-1. **Create a ticket:** call `supi_flow_start` to create a TNDM ticket. Every flow requires one.
-2. **Explore context:** check relevant files, docs, recent commits, and existing tickets.
-3. **Check scope:** if the request really contains multiple independent changes, decompose it before going deeper.
-4. **Ask clarifying questions:** one at a time. Focus on purpose, constraints, and success criteria.
-5. **Propose 2-3 approaches:** include trade-offs and a recommendation.
-6. **Present the design:** scale detail to complexity and get approval.
-7. **Save the design:** use `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }` to store the design in the ticket's content.md.
-8. **Recommend `/supi-flow-plan <ID>`:** that is the next step.
+1. **Explore context:** check relevant files, docs, recent commits, and existing tickets.
+2. **Check scope:** if the request really contains multiple independent changes, decompose it before going deeper.
+3. **Ask clarifying questions:** one at a time. Focus on purpose, constraints, and success criteria.
+4. **Propose 2-3 approaches:** include trade-offs and a recommendation.
+5. **Present the design:** scale detail to complexity and get approval.
+6. **Classify and decide:** propose whether this change is trivial or non-trivial.
+   - **Trivial:** single file, no tests/docs needed, one verification step, or user says "just do it".
+     → "This looks trivial — skip ticket and implement directly?"
+     If user agrees: implement directly, verify, done. No ticket.
+   - **Non-trivial:** multi-file, needs tests or docs, multi-step, or likely multi-session.
+     → Call `supi_flow_start` to create a TNDM ticket, then store the design via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
+7. **Recommend next step:**
+   - If trivial: implement directly by following the approved design.
+   - If non-trivial: `/supi-flow-plan <ID>`
 
 ## Understanding the idea
 
@@ -68,8 +74,10 @@ Keep each section proportional to the complexity. A small change may only need a
 
 After approval:
 
-- The design must be saved to the ticket's content.md via `supi_tndm_cli { action: "update", id: "<ID>", content: "..." }`.
-- Every flow has a ticket. There is no ticket-less mode.
+- **Default to conversation-first.** The design can live in the chat for small, single-session work.
+- **Offer saving to a ticket** when the work is larger, likely multi-session, or would benefit from a durable reference.
+- If a ticket exists, save the design via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
+- **Retroactive escalation:** if a trivial change grows in scope mid-implementation, stop, create a retroactive ticket via `supi_flow_start`, and store a summary of completed work + new scope.
 
 ## Self-review
 
@@ -93,10 +101,12 @@ Present the outcome in a compact form:
 **Why**: ...
 **Constraints / non-goals**: ...
 **Open questions**: ...
-**Ticket**: TNDM-XXXXXX
+**Ticket**: TNDM-XXXXXX / none
 ```
 
-Then recommend: `/supi-flow-plan TNDM-XXXXXX`
+Then recommend:
+- If non-trivial: `/supi-flow-plan TNDM-XXXXXX`
+- If trivial: proceed with direct implementation
 
 ## Key principles
 

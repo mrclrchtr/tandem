@@ -4,7 +4,7 @@ Guidance for Claude Code when working on the supi-flow plugin.
 
 ## Purpose
 
-`supi-flow` is a **PI-only extension** (not a Claude Code plugin) that implements a spec-driven workflow (brainstorm → plan → apply → archive) coupled to mandatory TNDM ticket coordination. It ships inside the tandem repository under `plugins/supi-flow/`.
+`supi-flow` is a **PI-only extension** (not a Claude Code plugin) that implements a spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination for non-trivial changes. Trivial changes can be implemented directly without a ticket. It ships inside the tandem repository under `plugins/supi-flow/`.
 
 It registers 5 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`) and auto-discovers 6 flow skills from `skills/`. All `tndm` CLI interactions go through these tools — agents should not shell out to `tndm` directly.
 

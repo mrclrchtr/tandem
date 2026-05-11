@@ -1,6 +1,6 @@
 # supi-flow
 
-PI extension for spec-driven workflow with mandatory TNDM ticket coordination.
+PI extension for spec-driven workflow with TNDM ticket coordination (optional for trivial changes).
 
 ## Flow
 
@@ -10,10 +10,14 @@ flowchart TD
     BRAIN["/skill:supi-flow-brainstorm
          HARD-GATE: no code yet
          Explore, design, approve
-         Creates ticket via supi_flow_start"]
+         Classify trivial vs non-trivial"]
     BRAIN --> APPROVED{Design approved?}
     APPROVED -->|"No"| BRAIN
-    APPROVED -->|"Yes"| PLAN
+    APPROVED -->|"Yes"| TRIVIAL{Trivial change?}
+
+    TRIVIAL -->|"Yes (skip ticket)"| LIGHT["Implement directly
+         No ticket needed"]
+    TRIVIAL -->|"No"| PLAN
 
     PLAN["/skill:supi-flow-plan [ID]
          Bite-sized tasks
@@ -28,6 +32,7 @@ flowchart TD
     APPLY["/skill:supi-flow-apply [ID]
          Iron Law: fresh verify each task
          TDD gate: test-first or delete
+         Sets flow:applying at start
          Checks off tasks via supi_flow_complete_task"]
     APPLY --> BLOCKED{"Verification
          failed?"}
@@ -69,12 +74,13 @@ flowchart TD
     classDef blocker fill:#ffebee,stroke:#f44336
 
     class BRAIN,PLAN,APPLY,ARCHIVE,CLOSE phase
-    class APPROVED,APPROVE2,BLOCKED,FIXED,DONE decision
+    class APPROVED,APPROVE2,BLOCKED,FIXED,DONE,TRIVIAL decision
     class START entry
     class USER blocker
+    class LIGHT entry
 ```
 
-Every flow starts with a TNDM ticket created by `supi_flow_start`. Tickets are mandatory.
+Non-trivial flows require a TNDM ticket created by `supi_flow_start`. Trivial changes can be implemented directly without a ticket.
 
 ## Skills
 
@@ -82,7 +88,7 @@ Six skills ship under `skills/`:
 
 | Skill | Trigger | Purpose |
 |---|---|---|
-| `supi-flow-brainstorm` | `/supi-flow-brainstorm` | Explore intent + design before code |
+| `supi-flow-brainstorm` | `/supi-flow-brainstorm` | Explore intent + design, classify trivial vs non-trivial, create ticket if needed |
 | `supi-flow-plan` | `/supi-flow-plan [ID]` | Create bite-sized implementation plan |
 | `supi-flow-apply` | `/supi-flow-apply` | Execute plan task by task |
 | `supi-flow-archive` | `/supi-flow-archive` | Verify, update docs, close out |

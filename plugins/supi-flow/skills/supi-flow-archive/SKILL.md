@@ -19,6 +19,7 @@ Before claiming the change is done, the docs are accurate, or the ticket can be 
 
 - A TNDM-ID was set during plan phase. Read the plan from the ticket:
   `supi_tndm_cli { action: "show", id: "<ID>" }` — read the Plan and Verification sections.
+- Archive runs only when a ticket exists. Trivial flows that skipped the ticket close out directly in conversation — do not run archive.
 - If nothing is clear: ask which change to archive.
 
 ## Step 2: Verify completion
