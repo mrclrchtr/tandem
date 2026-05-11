@@ -8,6 +8,12 @@ Guidance for Claude Code when working on the supi-flow plugin.
 
 It registers 5 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`) and auto-discovers 6 flow skills from `skills/`. All `tndm` CLI interactions go through these tools — agents should not shell out to `tndm` directly.
 
+## PI-specific guardrails
+
+- Never guess PI extension APIs or conventions from memory; read the installed PI docs first (`README.md`, `docs/index.md`, relevant files in `docs/`, and matching `examples/`) and follow linked `.md` cross-references.
+- PI loads this extension directly from the working tree; after editing `src/`, `skills/`, or `prompts/`, use `/reload` or restart PI before validating behavior.
+- Keep `package.json` `pi.extensions` limited to `./src/index.ts`; `skills/` and `prompts/` are exposed via `pi.on("resources_discover")` in `src/index.ts`, not static `pi.prompts` / `pi.skills` manifest entries.
+
 ## Relationship to the tandem repo
 
 - **tandem** (Rust) provides the `tndm` CLI that this plugin shells out to via `child_process.execFile`.
@@ -65,6 +71,7 @@ pnpm exec vitest run __tests__/cli.test.ts
 2. Export the schema and execute function.
 3. Register in `src/index.ts` via `pi.registerTool({ name, label, description, promptSnippet, promptGuidelines, parameters, execute })`.
 4. Add a test in `__tests__/resources.test.ts` verifying the tool name appears in the registered tools list.
+5. Prefer stable guidance in `promptGuidelines`; PI flattens these bullets into the system prompt, so each bullet should name the tool it governs.
 
 ## Skill conventions
 
@@ -78,3 +85,4 @@ pnpm exec vitest run __tests__/cli.test.ts
 - If a new npm dependency is added, run `pnpm install` to update `pnpm-lock.yaml`.
 - Bump `version` in `package.json` following semantic versioning.
 - The tandem repo's root `CLAUDE.md` references this plugin — keep the description there current.
+- Keep `@earendil-works/pi-*` peer dependency ranges at `"*"`; put non-PI runtime deps in `dependencies`, not `peerDependencies`.
