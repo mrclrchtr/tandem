@@ -4,11 +4,77 @@ PI extension for spec-driven workflow with mandatory TNDM ticket coordination.
 
 ## Flow
 
-```
-/skill:supi-flow-brainstorm → /skill:supi-flow-plan → /skill:supi-flow-apply → /skill:supi-flow-archive
+```mermaid
+flowchart TD
+    START(["Start a change"]) --> BRAIN
+    BRAIN["/skill:supi-flow-brainstorm
+         HARD-GATE: no code yet
+         Explore, design, approve
+         Creates ticket via supi_flow_start"]
+    BRAIN --> APPROVED{Design approved?}
+    APPROVED -->|"No"| BRAIN
+    APPROVED -->|"Yes"| PLAN
+
+    PLAN["/skill:supi-flow-plan [ID]
+         Bite-sized tasks
+         Exact file paths
+         No placeholders
+         TDD: red-green-refactor
+         Stores plan via supi_flow_plan"]
+    PLAN --> APPROVE2{"Plan approved?"}
+    APPROVE2 -->|"No"| PLAN
+    APPROVE2 -->|"Yes"| APPLY
+
+    APPLY["/skill:supi-flow-apply [ID]
+         Iron Law: fresh verify each task
+         TDD gate: test-first or delete
+         Checks off tasks via supi_flow_complete_task"]
+    APPLY --> BLOCKED{"Verification
+         failed?"}
+
+    BLOCKED -->|"Yes"| DEBUG["/skill:supi-flow-debug
+         4-phase systematic debugging
+         3-fix → question architecture"]
+    DEBUG --> FIXED{Fixed?}
+    FIXED -->|"Yes"| APPLY
+    FIXED -->|"No"| USER["Talk to user
+         before fix #4"]
+
+    BLOCKED -->|"No"| DONE{"All tasks
+         done?"}
+    DONE -->|"No"| APPLY
+    DONE -->|"Yes"| ARCHIVE
+
+    ARCHIVE["/skill:supi-flow-archive [ID]
+         Fresh verification (gate function)
+         Update living documentation
+         Slop-scan docs
+         Quality gate checklist"]
+    ARCHIVE --> SLOP["/skill:supi-flow-slop-detect
+         Tier 1-4 vocabulary
+         11 structural patterns
+         Score target: < 1.5"]
+    SLOP --> QGATE{"Quality gate
+         passes?"}
+    QGATE -->|"No"| SLOP
+    QGATE -->|"Yes"| CLOSE
+
+    CLOSE["supi_flow_close
+         Sets status=done, flow:done
+         Auto-commits .tndm/"]
+
+    classDef phase fill:#e8f5e9,stroke:#4caf50,stroke-width:2
+    classDef decision fill:#e3f2fd,stroke:#2196f3
+    classDef entry fill:#e8e8e8,stroke:#666
+    classDef blocker fill:#ffebee,stroke:#f44336
+
+    class BRAIN,PLAN,APPLY,ARCHIVE,CLOSE phase
+    class APPROVED,APPROVE2,BLOCKED,FIXED,DONE decision
+    class START entry
+    class USER blocker
 ```
 
-Every flow starts with a TNDM ticket. Tickets are mandatory.
+Every flow starts with a TNDM ticket created by `supi_flow_start`. Tickets are mandatory.
 
 ## Skills
 

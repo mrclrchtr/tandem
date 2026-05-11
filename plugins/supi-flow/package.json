@@ -10,7 +10,11 @@
     ]
   },
   "main": "src/index.ts",
+  "dependencies": {
+    "typebox": "^1.1.38"
+  },
   "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
