@@ -1,0 +1,9 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-12T15:22:54.797709Z"
+revision = 13
+
+[document_fingerprints]
+archive = "sha256:0c5cc6aa1335a2e13d8d1679dd9d0f6fa563afbc1f67c83bc6f5c4953d0fb55b"
+content = "sha256:f447fd3897b081651a46e5b501e23b04221b325627dbc7d5a3011d0d7c879dfe"
+plan = "sha256:f625ecb999e96f6d65add94ae30a1730c413670700bebc71756ca5932f2a5e0a"
