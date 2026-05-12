@@ -46,6 +46,12 @@ Product vision lives in `docs/vision.md`; design decisions in `docs/decisions.md
 
 ## Common development commands
 
+Install via Homebrew (production release):
+
+```sh
+brew install mrclrchtr/tap/tandem-cli
+```
+
 Tooling is managed via `mise` (except Rust itself — Rust is pinned by `rust-toolchain.toml` and managed via `rustup`, not mise).
 
 ```sh

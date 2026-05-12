@@ -145,7 +145,12 @@ Flow phases map to TNDM statuses and tags:
 
 ## Dependencies
 
-- **tndm CLI**: required (all ticket operations shell out to `tndm`)
+- **tndm CLI** (`tandem-cli`): required (all ticket operations shell out to `tndm`)
+
+  ```sh
+  brew install mrclrchtr/tap/tandem-cli
+  ```
+
 - **pi**: discovers bundled skills and prompt templates automatically from the package
 
 ## PI package

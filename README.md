@@ -50,7 +50,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/mrclrchtr/tandem/releases/latest/download/tndm-installer.sh | sh
 
 # Homebrew
-brew install mrclrchtr/tap/tndm
+brew install mrclrchtr/tap/tandem-cli
 
 # From source
 cargo install --path crates/tandem-cli
