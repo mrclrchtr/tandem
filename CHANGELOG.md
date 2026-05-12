@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.3](https://github.com/mrclrchtr/tandem/compare/v0.8.2...v0.8.3) (2026-05-12)
+
+
+### Bug Fixes
+
+* **ci:** make npm publish a standalone workflow triggered by tag push ([9f215f6](https://github.com/mrclrchtr/tandem/commit/9f215f6f5350ecd507d419484947207d057f9fcc))
+* **supi-flow:** add repository field for provenance verification ([eaee021](https://github.com/mrclrchtr/tandem/commit/eaee021286d607dcbecb88157eca3cb00882869f))
+
 ## [0.8.2](https://github.com/mrclrchtr/tandem/compare/v0.8.1...v0.8.2) (2026-05-12)
 
 
