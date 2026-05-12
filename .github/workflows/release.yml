@@ -345,16 +345,28 @@ jobs:
       "id-token": "write"
       "packages": "write"
 
+  publish-npm:
+    needs:
+      - plan
+      - host
+    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+    uses: ./.github/workflows/publish-npm.yml
+    secrets: inherit
+    permissions:
+      "contents": "read"
+      "id-token": "write"
+
   announce:
     needs:
       - plan
       - host
       - publish-homebrew-formula
       - custom-upload-plugin
+      - publish-npm
     # use "always() && ..." to allow us to wait for all publish jobs while
     # still allowing individual publish jobs to skip themselves (for prereleases).
     # "host" however must run to completion, no skipping allowed!
-    if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') && (needs.custom-upload-plugin.result == 'skipped' || needs.custom-upload-plugin.result == 'success') }}
+    if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') && (needs.custom-upload-plugin.result == 'skipped' || needs.custom-upload-plugin.result == 'success') && (needs.publish-npm.result == 'skipped' || needs.publish-npm.result == 'success') }}
     runs-on: "ubuntu-24.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

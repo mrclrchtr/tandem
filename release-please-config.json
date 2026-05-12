@@ -25,6 +25,11 @@
           "type": "json",
           "path": ".claude-plugin/marketplace.json",
           "jsonpath": "$.plugins[0].version"
+        },
+        {
+          "type": "json",
+          "path": "plugins/supi-flow/package.json",
+          "jsonpath": "$.version"
         }
       ]
     }

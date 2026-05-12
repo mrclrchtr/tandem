@@ -13,6 +13,7 @@ const XTASK_USAGE: &str = "usage: cargo xtask <check-arch | sync-version [--chec
 const CLAUDE_PLUGIN_MANIFEST_PATH: &str = "plugins/tndm/.claude-plugin/plugin.json";
 const CODEX_PLUGIN_MANIFEST_PATH: &str = "plugins/tndm/.codex-plugin/plugin.json";
 const CLAUDE_MARKETPLACE_PATH: &str = ".claude-plugin/marketplace.json";
+const SUPI_FLOW_PACKAGE_PATH: &str = "plugins/supi-flow/package.json";
 const WORKSPACE_CRATES: &[&str] = &[
     "tandem-core",
     "tandem-storage",
@@ -216,6 +217,11 @@ fn sync_version(check: bool) -> Result<(), Vec<String>> {
             "marketplace",
             root.join(CLAUDE_MARKETPLACE_PATH),
             "/plugins/0/version",
+        ),
+        (
+            "supi-flow package",
+            root.join(SUPI_FLOW_PACKAGE_PATH),
+            "/version",
         ),
     ];
 
