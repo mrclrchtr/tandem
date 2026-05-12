@@ -53,15 +53,10 @@ flowchart TD
     ARCHIVE["/skill:supi-flow-archive [ID]
          Fresh verification (gate function)
          Update living documentation
-         Slop-scan docs
          Quality gate checklist"]
-    ARCHIVE --> SLOP["/skill:supi-flow-slop-detect
-         Tier 1-4 vocabulary
-         11 structural patterns
-         Score target: < 1.5"]
-    SLOP --> QGATE{"Quality gate
+    ARCHIVE --> QGATE{"Quality gate
          passes?"}
-    QGATE -->|"No"| SLOP
+    QGATE -->|"No"| ARCHIVE
     QGATE -->|"Yes"| CLOSE
 
     CLOSE["supi_flow_close
@@ -84,7 +79,7 @@ Non-trivial flows require a TNDM ticket created by `supi_flow_start`. Trivial ch
 
 ## Skills
 
-Six skills ship under `skills/`:
+Five skills ship under `skills/`:
 
 | Skill | Trigger | Purpose |
 |---|---|---|
@@ -93,7 +88,6 @@ Six skills ship under `skills/`:
 | `supi-flow-apply` | `/supi-flow-apply` | Execute plan task by task |
 | `supi-flow-archive` | `/supi-flow-archive` | Verify, update docs, close out |
 | `supi-flow-debug` | Loaded on demand when blocked | Root-cause debugging protocol |
-| `supi-flow-slop-detect` | Loaded on demand during archive | AI-prose detection in docs |
 
 ## Tools
 

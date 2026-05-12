@@ -1,6 +1,6 @@
 ---
 name: supi-flow-archive
-description: Verify implementation against the plan, update living documentation, run slop detection, and close out the change.
+description: Verify implementation against the plan, update living documentation, and close out the change.
 ---
 
 # Archive and document
@@ -52,21 +52,7 @@ Update docs only where the change actually affects them.
 3. Update them with grounded, specific language.
 4. Reference actual file paths, commands, settings, or behavior when helpful.
 
-## Step 4: Run slop detection
-
-Load `/skill:supi-flow-slop-detect` and scan every edited documentation file.
-
-Quality checks:
-
-- no tier-1 slop words in edited docs
-- claims are grounded in specifics
-- wording is direct, not formulaic
-- AI-sycophantic filler is removed
-- the slop score is acceptable
-
-If the scan fails, fix the docs and re-scan.
-
-## Step 5: Verify doc accuracy
+## Step 4: Verify doc accuracy
 
 Do the docs match the actual code and workflow?
 
@@ -77,13 +63,13 @@ Do the docs match the actual code and workflow?
 
 Do not assume documentation is correct just because it sounds right.
 
-## Step 6: Close out
+## Step 5: Close out
 
 - Call `supi_flow_close { ticket_id: "<ID>", verification_results: "..." }` with the full verification evidence.
   This will set status=done, tags=flow:done, store verification results in archive.md, and auto-commit .tndm/ changes.
 - There is no ticket-less closeout.
 
-## Step 7: Verify commit
+## Step 6: Verify commit
 
 Check that the `.tndm/` changes were committed. If `supi_flow_close` did not commit (e.g. no changes to commit), commit any remaining doc changes manually:
 

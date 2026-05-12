@@ -8,8 +8,6 @@ export const actionEnum = StringEnum([
   "show",
   "list",
   "awareness",
-  "doc_create",
-  "sync",
 ] as const);
 
 export const supi_tndm_cli_params = Type.Object({
@@ -61,11 +59,6 @@ export const supi_tndm_cli_params = Type.Object({
     Type.String({ description: "Markdown content body for the ticket" }),
   ),
 
-  // Document params
-  name: Type.Optional(
-    Type.String({ description: "Document name for doc_create (e.g. 'plan', 'archive')" }),
-  ),
-
   // List params
   all: Type.Optional(Type.Boolean({ description: "Include done tickets in list" })),
   definition: Type.Optional(
@@ -89,6 +82,7 @@ export const supi_tndm_cli_params = Type.Object({
  *   show       → tndm ticket show <id> --json
  *   list       → tndm ticket list [--all] [--definition <state>] --json
  *   awareness  → tndm awareness --against <ref> --json
+ *   doc_create and sync are internal operations used by flow tools, not exposed here.
  */
 export type TndmCliParams = Static<typeof supi_tndm_cli_params>;
 
@@ -190,43 +184,6 @@ export async function executeTndmCli(params: TndmCliParams) {
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         details: { action: "awareness", awareness: result },
-      };
-    }
-
-    case "doc_create": {
-      if (!params.id) {
-        throw new Error("supi_tndm_cli: id is required for doc_create");
-      }
-      if (!params.name) {
-        throw new Error("supi_tndm_cli: name is required for doc_create");
-      }
-      const result = await tndm(["ticket", "doc", "create", params.id, params.name]);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: result.stdout || `Document '${params.name}' created for ${params.id}`,
-          },
-        ],
-        details: {
-          action: "doc_create",
-          ticketId: params.id,
-          name: params.name,
-          path: result.stdout.trim(),
-        },
-      };
-    }
-
-    case "sync": {
-      if (!params.id) {
-        throw new Error("supi_tndm_cli: id is required for sync");
-      }
-      const result = await tndm(["ticket", "sync", params.id]);
-      return {
-        content: [
-          { type: "text" as const, text: result.stdout || `Ticket ${params.id} synced` },
-        ],
-        details: { action: "sync", ticketId: params.id },
       };
     }
   }
