@@ -28,12 +28,5 @@
     "@earendil-works/pi-coding-agent": "0.74.0",
     "@types/node": "25.7.0",
     "vitest": "4.1.6"
-  },
-  "pnpm": {
-    "allowBuilds": {
-      "@google/genai": true,
-      "koffi": true,
-      "protobufjs": true
-    }
   }
 }
