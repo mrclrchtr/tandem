@@ -11,6 +11,10 @@
     "ticket-coordination"
   ],
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrclrchtr/tandem"
+  },
   "pi": {
     "extensions": [
       "./src/index.ts"
