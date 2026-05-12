@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-6Z9HRT"
+title = "Fix supi-flow multi-file layout: plan.md, archive.md, and stale binary"
+
+type = "bug"
+priority = "p2"
+
+depends_on = []
+tags = ["flow:done", "flow:planned"]
+[[documents]]
+name = "content"
+path = "content.md"
+[[documents]]
+name = "plan"
+path = "docs/plan.md"
