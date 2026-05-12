@@ -1,6 +1,6 @@
 {
   "name": "@mrclrchtr/supi-flow",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": false,
   "description": "SuPi flow extension — spec-driven workflow coupled to TNDM ticket coordination",
   "license": "Apache-2.0",
