@@ -30,6 +30,10 @@
     "vitest": "4.1.6"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@google/genai", "koffi", "protobufjs"]
+    "allowBuilds": {
+      "@google/genai": true,
+      "koffi": true,
+      "protobufjs": true
+    }
   }
 }
