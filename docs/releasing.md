@@ -13,7 +13,6 @@ Releases are automated via GitHub Actions.
 ## Version source of truth
 
 `Cargo.toml` (`workspace.package.version`).
-Plugin manifests are version-synced in the same release PR.
 
 ## GitHub App setup
 

@@ -20,7 +20,6 @@ install-updater = false
 tap = "mrclrchtr/homebrew-tap"
 # Skip running release CI logic on pull requests
 pr-run-mode = "skip"
-# Custom publish job to attach plugin release artifacts
-publish-jobs = ["homebrew", "./upload-plugin"]
+publish-jobs = ["homebrew"]
 # Allow manual edits to release workflow without dist rejecting it as dirty
 allow-dirty = ["ci"]

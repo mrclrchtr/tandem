@@ -15,7 +15,7 @@ No central service. No background process. Just `tndm`.
 - [Project status](#project-status)
 - [Quick install](#quick-install)
 - [30-second tour](#30-second-tour)
-- [Agent plugin](#agent-plugin)
+- [PI extension](#pi-coding-agent)
 - [Documentation](#documentation)
 - [Getting help](#getting-help)
 - [Contributing](#contributing)
@@ -125,31 +125,7 @@ Colors disable automatically when output is piped.
 output — no parsing human-readable text required.
 
 
-## Agent plugin
-
-Load the `tndm` plugin into Claude Code, Codex, or any skills.sh-compatible agent so agents
-create tickets, update status, and run awareness checks automatically.
-
-### Via skills.sh (any agent)
-
-```sh
-npx skills add mrclrchtr/tandem --skill ticket --skill awareness
-```
-
-This installs the `ticket` and `awareness` skills locally so your agent will create tickets,
-update status, and run awareness checks automatically.
-
-### Claude Code
-
-```sh
-claude --plugin-dir ./plugins/tndm
-```
-
-### Codex
-
-See [`plugins/tndm/README.md`](plugins/tndm/README.md) for marketplace setup instructions.
-
-### PI (coding agent)
+## PI (coding agent)
 
 [`plugins/supi-flow/`](plugins/supi-flow/) is a **PI extension** that adds a spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. It ships with 6 auto-discovered skills and 5 custom tools (`supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`, `supi_tndm_cli`).
 
@@ -183,7 +159,7 @@ mise run test       # run the test suite
 mise run check      # fmt + compile + arch + clippy
 ```
 
-See [`CLAUDE.md`](CLAUDE.md) for development conventions and [`docs/releasing.md`](docs/releasing.md) for the release process.
+See [`docs/architecture.md`](docs/architecture.md) for development conventions and [`docs/releasing.md`](docs/releasing.md) for the release process.
 
 ## License
 

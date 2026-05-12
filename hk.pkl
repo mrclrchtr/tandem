@@ -1,24 +1,10 @@
 amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
 import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
 
-// Exclude skill trees from hook file selection. This prevents hk from stashing/restoring
-// when commits only touch skills (and avoids edge-cases with symlink-to-directory entries
-// like `.claude/skills/*`).
-exclude =
-  List(
-    ".agents/**",
-    ".claude/**",
-    "skills-lock.json",
-    ".github/workflows/release.yml",
-  )
+exclude = List(".github/workflows/release.yml")
 
 local linters = new Mapping<String, Step | Group> {
   ["actionlint"] = Builtins.actionlint
-  ["sync-version"] = new Step {
-    workspace_indicator = "rust-toolchain.toml"
-    check = "cargo xtask sync-version --check"
-    fix = "cargo xtask sync-version"
-  }
   ["cargo-fmt"] = (Builtins.cargo_fmt) {
     workspace_indicator = "rust-toolchain.toml"
     check = "cargo fmt --check --all"

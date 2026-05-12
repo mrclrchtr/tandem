@@ -40,24 +40,6 @@ run = "hk run check --all --check --step cargo-check"
 description = "Validate workspace architecture boundaries"
 run = "cargo xtask check-arch"
 
-[tasks.sync-version]
-description = "Sync plugin/marketplace versions from Cargo.toml"
-run = "cargo xtask sync-version"
-
-[tasks.sync-version-check]
-description = "Check plugin/marketplace versions match Cargo.toml"
-run = "cargo xtask sync-version --check"
-
-[tasks.bump]
-description = "Bump workspace version and sync derived files"
-usage = '''
-arg "<version>" help="New version number (e.g. 0.4.0)"
-'''
-run = """
-version="${usage_version:?}"
-sed -i '' -e 's|^version = ".*"|version = "'"${version}"'"|' Cargo.toml
-mise run sync-version
-"""
 
 [tasks.test]
 description = "Run tests"
@@ -65,7 +47,7 @@ run = "cargo test --workspace --locked"
 
 [tasks.check]
 description = "Run all checks"
-depends = ["fmt", "compile", "arch", "clippy", "test", "sync-version-check"]
+depends = ["fmt", "compile", "arch", "clippy", "test"]
 
 [tasks.fix]
 description = "Run all auto-fixes"
