@@ -49,10 +49,10 @@ Use enough detail that an agent can execute without guessing, but do not force h
 
 ```markdown
 - [ ] **Task 1**: Create the CLI helper module
-  - File: `src/cli.ts`
+  - File: `extensions/cli.ts`
   - Verification: `pnpm exec tsc --noEmit`
 - [ ] **Task 2**: Register the tools
-  - File: `src/tools/tndm-cli.ts`
+  - File: `extensions/tools/tndm-cli.ts`
   - Verification: `pnpm exec vitest run`
 ```
 

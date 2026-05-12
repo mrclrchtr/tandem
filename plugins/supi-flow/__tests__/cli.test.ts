@@ -10,7 +10,7 @@ vi.mock("node:child_process", () => {
 });
 
 // Dynamic import so mocks are set up first
-const { tndm, tndmJson, gitAddCommit } = await import("../src/cli.js");
+const { tndm, tndmJson, tndmVersion, gitAddCommit } = await import("../extensions/cli.js");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -63,6 +63,56 @@ describe("tndm", () => {
     await expect(tndm(["bad"])).rejects.toThrow(
       '"tndm bad" failed: some error',
     );
+  });
+
+  it("gives helpful message when tndm is not found (ENOENT)", async () => {
+    const mock = vi.mocked(execFile);
+    const enoent = new Error("spawn tndm ENOENT");
+    (enoent as NodeJS.ErrnoException).code = "ENOENT";
+    mock.mockImplementation((_file, _args, _opts, cb) => {
+      if (typeof cb === "function") {
+        cb(enoent, "", "");
+      }
+      return {} as never;
+    });
+
+    await expect(tndm(["ticket", "list"])).rejects.toThrow(
+      /tndm is not installed or not on your PATH/,
+    );
+  });
+});
+
+describe("tndmVersion", () => {
+  it("parses version from tndm --version output", async () => {
+    const mock = vi.mocked(execFile);
+    mock.mockImplementation((_file, _args, _opts, cb) => {
+      if (typeof cb === "function") cb(null, "tndm 0.9.0\n", "");
+      return {} as never;
+    });
+
+    await expect(tndmVersion()).resolves.toBe("0.9.0");
+  });
+
+  it("returns null when output does not match version pattern", async () => {
+    const mock = vi.mocked(execFile);
+    mock.mockImplementation((_file, _args, _opts, cb) => {
+      if (typeof cb === "function") cb(null, "unexpected output", "");
+      return {} as never;
+    });
+
+    await expect(tndmVersion()).resolves.toBeNull();
+  });
+
+  it("returns null when tndm is not found (ENOENT)", async () => {
+    const mock = vi.mocked(execFile);
+    const enoent = new Error("spawn tndm ENOENT");
+    (enoent as NodeJS.ErrnoException).code = "ENOENT";
+    mock.mockImplementation((_file, _args, _opts, cb) => {
+      if (typeof cb === "function") cb(enoent, "", "");
+      return {} as never;
+    });
+
+    await expect(tndmVersion()).resolves.toBeNull();
   });
 });
 

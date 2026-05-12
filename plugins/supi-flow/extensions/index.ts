@@ -1,8 +1,9 @@
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import { tndmJson } from "./cli.js";
+import { tndmJson, tndmVersion } from "./cli.js";
 import { supi_tndm_cli_params, executeTndmCli } from "./tools/tndm-cli.js";
 import {
   supiFlowStartParams,
@@ -16,13 +17,34 @@ import {
 } from "./tools/flow-tools.js";
 
 const baseDir = dirname(dirname(fileURLToPath(import.meta.url)));
+const pkg = JSON.parse(readFileSync(join(baseDir, "package.json"), "utf-8"));
+export const FLOW_VERSION: string = pkg.version;
+
+/**
+ * Check tndm version against supi-flow version. Notifies on mismatch.
+ * Exported for testing.
+ */
+export async function checkTndmVersion(
+  event: { reason: string },
+  ctx: { ui: { notify: (message: string, type?: "info" | "warning" | "error") => void } },
+): Promise<void> {
+  if (event.reason !== "startup" && event.reason !== "reload") return;
+  const tndmVer = await tndmVersion();
+  if (!tndmVer) return;
+  if (tndmVer !== FLOW_VERSION) {
+    ctx.ui.notify(
+      `tndm v${tndmVer} found, but supi-flow expects v${FLOW_VERSION}. ` +
+        `Install matching version: brew install mrclrchtr/tap/tndm`,
+      "warning",
+    );
+  }
+}
 
 export default function (pi: ExtensionAPI) {
-  // ── Resource discovery ──────────────────────────────────────
-  pi.on("resources_discover", () => ({
-    skillPaths: [join(baseDir, "skills")],
-    promptPaths: [join(baseDir, "prompts")],
-  }));
+  // ── Version check on startup ────────────────────────────────
+  pi.on("session_start", async (event, ctx) => {
+    await checkTndmVersion(event, ctx);
+  });
 
   // ── Tool: supi_tndm_cli ─────────────────────────────────────
   pi.registerTool({

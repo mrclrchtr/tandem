@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 // Mock cli.ts modules used by flow-tools
-vi.mock("../src/cli.js", () => {
+vi.mock("../extensions/cli.js", () => {
   const mockTndm = vi.fn();
   const mockTndmJson = vi.fn();
   const mockGitAddCommit = vi.fn();
@@ -15,8 +15,8 @@ vi.mock("../src/cli.js", () => {
   };
 });
 
-const { tndm, tndmJson, gitAddCommit } = await import("../src/cli.js");
-const flowTools = await import("../src/tools/flow-tools.js");
+const { tndm, tndmJson, gitAddCommit } = await import("../extensions/cli.js");
+const flowTools = await import("../extensions/tools/flow-tools.js");
 
 beforeEach(() => {
   vi.clearAllMocks();

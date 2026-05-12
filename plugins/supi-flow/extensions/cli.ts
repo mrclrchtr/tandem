@@ -15,7 +15,13 @@ async function run(
     const child = execFile(file, args, options, (error, stdout, stderr) => {
       if (error) {
         const msg = toString(stderr).trim() || error.message;
-        reject(new Error(`"${file} ${args.join(" ")}" failed: ${msg}`));
+        const wrapped = new Error(`"${file} ${args.join(" ")}" failed: ${msg}`);
+        // Preserve ENOENT and similar system error codes for callers
+        const errno = error as NodeJS.ErrnoException;
+        if (errno.code) {
+          (wrapped as NodeJS.ErrnoException).code = errno.code;
+        }
+        reject(wrapped);
         return;
       }
       resolve({
@@ -31,7 +37,37 @@ async function run(
  * Throws on non-zero exit, timeout, or other exec error.
  */
 export async function tndm(args: string[]): Promise<ExecResult> {
-  return run("tndm", args, { timeout: 30_000 });
+  try {
+    return await run("tndm", args, { timeout: 30_000 });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      throw new Error(
+        "tndm is not installed or not on your PATH.\n\n" +
+          "Install it with one of:\n" +
+          "  brew install mrclrchtr/tap/tndm\n" +
+          "  cargo install tandem-cli\n" +
+          "  curl -LsSf https://github.com/mrclrchtr/tandem/releases/latest/download/tandem-cli-installer.sh | sh\n",
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Run tndm --version and return the parsed semver string, or null if unavailable.
+ * Never throws — callers handle absence gracefully.
+ */
+export async function tndmVersion(): Promise<string | null> {
+  try {
+    const { stdout } = await run("tndm", ["--version"], { timeout: 5_000 });
+    const match = stdout.match(/tndm\s+(\d+\.\d+\.\d+)/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

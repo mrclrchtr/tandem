@@ -15,12 +15,7 @@
     "type": "git",
     "url": "https://github.com/mrclrchtr/tandem"
   },
-  "pi": {
-    "extensions": [
-      "./src/index.ts"
-    ]
-  },
-  "main": "src/index.ts",
+  "main": "extensions/index.ts",
   "dependencies": {
     "typebox": "^1.1.38"
   },
@@ -29,7 +24,7 @@
     "@earendil-works/pi-coding-agent": "*"
   },
   "files": [
-    "src/",
+    "extensions/",
     "skills/",
     "prompts/",
     "README.md"

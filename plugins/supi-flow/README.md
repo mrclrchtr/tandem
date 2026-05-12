@@ -171,7 +171,7 @@ ln -s "$(pwd)/plugins/supi-flow" ~/.pi/agent/extensions/supi-flow
 
 # Option 2: settings.json
 # Add to ~/.pi/agent/settings.json:
-# { "extensions": ["./plugins/supi-flow/src/index.ts"] }
+# { "extensions": ["./plugins/supi-flow/extensions/index.ts"] }
 ```
 
 ## Development

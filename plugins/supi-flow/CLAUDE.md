@@ -11,21 +11,22 @@ It registers 5 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_p
 ## PI-specific guardrails
 
 - Never guess PI extension APIs or conventions from memory; read the installed PI docs first (`README.md`, `docs/index.md`, relevant files in `docs/`, and matching `examples/`) and follow linked `.md` cross-references.
-- PI loads this extension directly from the working tree; after editing `src/`, `skills/`, or `prompts/`, use `/reload` or restart PI before validating behavior.
-- Keep `package.json` `pi.extensions` limited to `./src/index.ts`; `skills/` and `prompts/` are exposed via `pi.on("resources_discover")` in `src/index.ts`, not static `pi.prompts` / `pi.skills` manifest entries.
+- PI loads this extension directly from the working tree; after editing `extensions/`, `skills/`, or `prompts/`, use `/reload` or restart PI before validating behavior.
+- This package uses PI's conventional directory structure (no `pi` manifest in `package.json`): `extensions/`, `skills/`, and `prompts/` are all auto-discovered by pi.
+- Do not register a `resources_discover` handler for `skills/` or `prompts/` paths — pi already auto-discovers them from convention directories. Returning already-discovered paths causes duplicate-discovery warnings at startup.
 
 ## Relationship to the tandem repo
 
 - **tandem** (Rust) provides the `tndm` CLI that this plugin shells out to via `child_process.execFile`.
-- This plugin is consumed by pi (not Claude Code), so its `package.json` uses `pi.extensions` instead of a Claude Code `plugin.json` manifest.
+- This plugin is consumed by pi (not Claude Code), so its `package.json` uses PI's conventional directory structure instead of a Claude Code `plugin.json` manifest.
 - The sibling `plugins/tndm/` is a separate Claude Code plugin that teaches agents to use `tndm` directly. This plugin wraps those same operations in structured PI tools.
 
 ## File structure
 
 ```
 plugins/supi-flow/
-├── src/
-│   ├── index.ts          # Extension entry point: registers tools, commands, resource discovery
+├── extensions/
+│   ├── index.ts          # Extension entry point: registers tools and commands
 │   ├── cli.ts            # Node.js wrappers around tndm / git via child_process.execFile
 │   └── tools/
 │       ├── tndm-cli.ts   # supi_tndm_cli tool (create, update, show, list, awareness)
@@ -33,9 +34,10 @@ plugins/supi-flow/
 ├── skills/               # 6 flow skills (auto-discovered by pi)
 ├── prompts/              # supi-coding-retro prompt template
 ├── __tests__/
-│   ├── resources.test.ts # Extension registration + resource discovery tests
+│   ├── resources.test.ts # Extension registration tests
 │   ├── index.test.ts     # Command-level tests for /supi-flow and /supi-flow-status
-│   └── cli.test.ts       # Unit tests for cli.ts (vitest mocks)
+│   ├── cli.test.ts       # Unit tests for cli.ts (vitest mocks)
+│   └── flow-tools.test.ts# Unit tests for flow tools
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -60,8 +62,8 @@ pnpm exec vitest run __tests__/cli.test.ts
 
 ## Verification shortcuts
 
-- After changing `src/index.ts`, command behavior, tool schemas, or resource discovery, run `pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/index.test.ts __tests__/resources.test.ts`.
-- After changing `src/cli.ts` or tool execution paths, run `pnpm exec vitest run __tests__/cli.test.ts`.
+- After changing `extensions/index.ts`, command behavior, or tool schemas, run `pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/index.test.ts __tests__/resources.test.ts`.
+- After changing `extensions/cli.ts` or tool execution paths, run `pnpm exec vitest run __tests__/cli.test.ts`.
 - After changing `skills/` or `prompts/`, `/reload` or restart PI before validating behavior.
 
 ## Coding conventions
@@ -76,7 +78,7 @@ pnpm exec vitest run __tests__/cli.test.ts
 
 1. Define parameters with TypeBox in the tool's source file.
 2. Export the schema and execute function.
-3. Register in `src/index.ts` via `pi.registerTool({ name, label, description, promptSnippet, promptGuidelines, parameters, execute })`.
+3. Register in `extensions/index.ts` via `pi.registerTool({ name, label, description, promptSnippet, promptGuidelines, parameters, execute })`.
 4. Add a test in `__tests__/resources.test.ts` verifying the tool name appears in the registered tools list.
 5. Prefer stable guidance in `promptGuidelines`; PI flattens these bullets into the system prompt, so each bullet should name the tool it governs.
 

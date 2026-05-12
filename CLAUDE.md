@@ -23,7 +23,7 @@ Start with:
 - `docs/` — product and architecture docs; start with `docs/vision.md`, `docs/decisions.md`, and `docs/architecture.md`.
 - `target/` — local build output; do not commit.
 - `plugins/tndm` — Claude Code and Codex plugin: skills, hooks, and slash commands that teach agents to use the `tndm` CLI.
-- `plugins/supi-flow` — PI-only extension: spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. Registers custom tools (`supi_tndm_cli`, `supi_flow_*`) and auto-discovers 6 flow skills. Not a Claude Code plugin.
+- `plugins/supi-flow` — PI-only extension using conventional directory layout (`extensions/`, `skills/`, `prompts/`). Spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. Registers 5 custom tools (`supi_tndm_cli`, `supi_flow_*`) and auto-discovers 6 flow skills + 1 prompt template. Not a Claude Code plugin.
 
 ## Workspace invariants (Rust)
 
