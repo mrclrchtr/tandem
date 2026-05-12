@@ -21,7 +21,10 @@ Options:
       --content-file <PATH>      Load ticket body from a markdown file.
       --json                     Output the created ticket as JSON.
 
-Content can also be piped via stdin.
+Content can also be piped via stdin when **no other flags** are provided.
+When flags like `--status`, `--tags`, etc. are present, stdin is not read and the
+default content template is used instead. This prevents hangs in non-TTY environments.
+
 --content, --content-file, and stdin are mutually exclusive.
 ```
 
@@ -64,7 +67,10 @@ Options:
       --content-file <PATH>     Replace ticket body with content from a markdown file.
       --json                    Output the updated ticket as JSON.
 
-Content can also be piped via stdin.
+Content can also be piped via stdin when **no other flags** are provided.
+When any update flags (--status, --title, --tags, etc.) are present, stdin is not read.
+This prevents hangs in non-TTY environments.
+
 --content, --content-file, and stdin are mutually exclusive.
 ```
 

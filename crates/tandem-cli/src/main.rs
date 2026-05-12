@@ -446,12 +446,34 @@ fn handle_ticket_create(
     let store = FileTicketStore::new(repo_root.clone());
     let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
 
+    // Only read stdin when no explicit create flags are provided. Speculatively reading
+    // stdin when flags like --status or --tags are present causes an infinite hang in
+    // non-TTY environments (e.g. Node.js execFile) where the write end of stdin stays open.
+    let no_explicit_create = content_file.is_none()
+        && content.is_none()
+        && id.is_none()
+        && status.is_none()
+        && priority.is_none()
+        && ticket_type.is_none()
+        && tags.is_none()
+        && depends_on.is_none()
+        && effort.is_none();
+    let stdin_content = if no_explicit_create && !io::stdin().is_terminal() {
+        let mut buf = String::new();
+        io::stdin()
+            .read_to_string(&mut buf)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        if buf.is_empty() { None } else { Some(buf) }
+    } else {
+        None
+    };
+
     let ticket_id = match id {
         Some(value) => TicketId::parse(value)?,
         None => generate_ticket_id(&store, &config.id_prefix)?,
     };
 
-    let content = load_ticket_content(content_file, content, &config)?;
+    let content = load_ticket_content(content_file, content, stdin_content, &config)?;
     let mut meta = TicketMeta::new(ticket_id, title)?;
 
     if let Some(value) = priority {
@@ -1180,6 +1202,7 @@ fn generate_ticket_id(store: &FileTicketStore, prefix: &str) -> anyhow::Result<T
 fn load_ticket_content(
     content_file: Option<PathBuf>,
     content: Option<String>,
+    stdin_content: Option<String>,
     config: &TandemConfig,
 ) -> anyhow::Result<String> {
     if let Some(path) = content_file {
@@ -1190,14 +1213,8 @@ fn load_ticket_content(
         return Ok(value);
     }
 
-    if !io::stdin().is_terminal() {
-        let mut buf = String::new();
-        io::stdin()
-            .read_to_string(&mut buf)
-            .map_err(|error| anyhow::anyhow!("{error}"))?;
-        if !buf.is_empty() {
-            return Ok(buf);
-        }
+    if let Some(value) = stdin_content {
+        return Ok(value);
     }
 
     if !config.content_template.is_empty() {
