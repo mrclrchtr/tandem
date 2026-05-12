@@ -1,9 +1,19 @@
+# CI runs on PRs and pushes to main. On push to main, release-please
+# runs after CI passes — no independent release-please on failed CI.
+#
+# Why not release-type: "rust" in release-please?
+# The project uses [workspace.package] (not [package]) in the root
+# Cargo.toml, which the Rust strategy's CargoToml updater rejects.
+# The "simple" type + extra-files works, but Cargo.lock needs a
+# manual `cargo update --workspace` — handled in the post-hook below.
+
 name: ci
 
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -75,3 +85,108 @@ jobs:
 
       - name: Test
         run: mise run test
+
+  supi-flow:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/supi-flow
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          experimental: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Run tests
+        run: pnpm exec vitest run
+
+  release-please:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [commitlint, rust, supi-flow]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Release PR + tag automation
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: true
+
+      - name: Create release tag
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          VERSION=$(jq -r '."."' .release-please-manifest.json)
+          TAG="v${VERSION}"
+          git fetch --tags origin
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists, skipping."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "${TAG}" -m "${TAG}"
+            git push origin "${TAG}"
+            echo "Created and pushed tag ${TAG}"
+          fi
+
+      - name: Clean up stale release PR labels
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          PRS=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state merged \
+            --label "autorelease: pending" \
+            --json number \
+            --jq '.[].number')
+          if [ -z "$PRS" ]; then
+            echo "No stale release PR labels to clean up."
+          else
+            for PR in $PRS; do
+              echo "Removing autorelease: pending label from PR #${PR}"
+              gh pr edit "$PR" --remove-label "autorelease: pending"
+            done
+          fi
+
+      - name: Update Cargo.lock on release PR
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          BRANCH=$(echo "$PR_JSON" | jq -r '.headBranchName')
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+          rustup toolchain install --no-self-update
+          cargo update --workspace
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --exit-code Cargo.lock; then
+            git add Cargo.lock
+            git commit -m "chore: update Cargo.lock for version bump"
+            git push origin "$BRANCH"
+          fi
