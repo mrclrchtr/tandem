@@ -46,7 +46,7 @@ See [`docs/vision.md`](docs/vision.md) for scope and roadmap.
 
 ```sh
 # Prebuilt binary (macOS / Linux)
-curl --proto '=https' --tlsv1.2 -LsSf \
+curl -LsSf \
   https://github.com/mrclrchtr/tandem/releases/latest/download/tndm-installer.sh | sh
 
 # Homebrew
