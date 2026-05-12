@@ -56,20 +56,25 @@ export async function tndmJson<T = Record<string, unknown>>(
 
 /**
  * Run `git add .tndm/` and `git commit -m <message>`.
- * Throws on non-zero exit.
+ * Uses `git diff --cached --quiet` to check for staged changes via exit code,
+ * avoiding locale-dependent string parsing.
+ * Throws on non-zero exit from `git commit`.
  */
 export async function gitAddCommit(message: string): Promise<{ commitHash: string }> {
   await run("git", ["add", ".tndm/"]);
 
+  // Check exit code instead of parsing locale-dependent output strings.
+  // git diff --cached --quiet exits 0 (no staged changes), non-zero (changes exist or error).
   try {
-    const { stdout } = await run("git", ["commit", "-m", message]);
-    const match = stdout.match(/\[[^\]]+ ([a-f0-9]+)\]/);
-    return { commitHash: match ? match[1] : "" };
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("nothing to commit")) {
-      // Expected when nothing changed since last commit
-      return { commitHash: "" };
-    }
-    throw error; // Real git error, propagate to caller
+    await run("git", ["diff", "--cached", "--quiet"]);
+    // Exit 0: no changes staged — nothing to commit
+    return { commitHash: "" };
+  } catch {
+    // Exit non-zero: changes exist, or a real git error.
+    // Proceed to commit; real errors will surface there.
   }
+
+  const { stdout } = await run("git", ["commit", "-m", message]);
+  const match = stdout.match(/\[[^\]]+ ([a-f0-9]+)\]/);
+  return { commitHash: match ? match[1] : "" };
 }

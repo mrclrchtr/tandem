@@ -11,7 +11,7 @@
  * Output: Human-readable summary (default) or JSON (with --json-only).
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { type DocProfile, outputJSON } from "./slop-helpers.ts";
 
 interface VocabResult {
@@ -78,9 +78,10 @@ function siblingPath(name: string): string {
 }
 
 function runScript(script: string, files: string[]): string {
-  const fileArgs = files.map((f) => `"${f}"`).join(" ");
-  const cmd = `pnpm exec jiti "${script}" ${fileArgs}`;
-  return execSync(cmd, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+  return execFileSync("pnpm", ["exec", "jiti", script, ...files], {
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  });
 }
 
 function rate(finalScore: number): { rating: CombinedReport["rating"]; recommendation: string } {

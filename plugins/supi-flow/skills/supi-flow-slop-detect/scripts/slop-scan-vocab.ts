@@ -13,7 +13,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { outputJSON } from "./slop-helpers.ts";
+import { outputJSON, stripCodeBlocks, stripInlineCode } from "./slop-helpers.ts";
 
 /** Resolve path relative to this script file. jiti provides __dirname at runtime. */
 function resolveAdjacent(filename: string): string {
@@ -101,8 +101,10 @@ function readFile(path: string): string {
 /** Scan a single file for vocabulary markers. */
 function scanFile(filePath: string): VocabResult {
   const content = readFile(filePath);
-  const lowerContent = content.toLowerCase();
-  const wordCount = content.split(/[\s\n]+/).filter((w) => w.length > 0).length;
+  // Strip code blocks and inline code to avoid false positives from quoted terms
+  const prose = stripInlineCode(stripCodeBlocks(content));
+  const lowerContent = prose.toLowerCase();
+  const wordCount = prose.split(/[\s\n]+/).filter((w) => w.length > 0).length;
 
   const hits: VocabHit[] = [];
   let totalScore = 0;
@@ -117,11 +119,11 @@ function scanFile(filePath: string): VocabResult {
     const count = matches.length;
     totalScore += count * entry.score;
 
-    // Context snippet around first occurrence
+    // Context snippet around first occurrence (uses prose indices)
     const idx = matches[0].index;
     const start = Math.max(0, idx - 30);
-    const end = Math.min(content.length, idx + entry.term.length + 30);
-    const context = content.slice(start, end).replace(/\n/g, " ").trim();
+    const end = Math.min(prose.length, idx + entry.term.length + 30);
+    const context = prose.slice(start, end).replace(/\n/g, " ").trim();
 
     hits.push({ term: entry.term, tier: entry.tier, score: entry.score, count, context });
   }

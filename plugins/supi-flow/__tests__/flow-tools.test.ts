@@ -19,6 +19,63 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+// ─── executeFlowStart ──────────────────────────────────────────
+
+describe("executeFlowStart", () => {
+  it("creates a ticket with title, status todo, and flow:brainstorm tag", async () => {
+    vi.mocked(tndm).mockResolvedValue({ stdout: "TNDM-TEST\n", stderr: "" });
+
+    const result = await flowTools.executeFlowStart({
+      title: "My change",
+    });
+
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+      "ticket",
+      "create",
+      "My change",
+      "--status",
+      "todo",
+      "--tags",
+      "flow:brainstorm",
+    ]);
+    expect(result.content[0].text).toContain("Created ticket TNDM-TEST");
+    expect(result.details).toEqual({
+      action: "flow_start",
+      ticketId: "TNDM-TEST",
+      status: "todo",
+      tags: "flow:brainstorm",
+    });
+  });
+
+  it("passes optional priority, type, and context", async () => {
+    vi.mocked(tndm).mockResolvedValue({ stdout: "TNDM-OPT\n", stderr: "" });
+
+    const result = await flowTools.executeFlowStart({
+      title: "Optimized change",
+      priority: "p1",
+      type: "feature",
+      context: "Design summary for the change",
+    });
+
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+      "ticket",
+      "create",
+      "Optimized change",
+      "--status",
+      "todo",
+      "--tags",
+      "flow:brainstorm",
+      "--priority",
+      "p1",
+      "--type",
+      "feature",
+      "--content",
+      "Design summary for the change",
+    ]);
+    expect(result.details.ticketId).toBe("TNDM-OPT");
+  });
+});
+
 // ─── executeFlowPlan ───────────────────────────────────────────
 
 describe("executeFlowPlan", () => {
@@ -202,6 +259,54 @@ describe("executeFlowClose", () => {
     // Should preserve sections around it
     expect(content).toContain("## Context");
     expect(content).toContain("## Other");
+  });
+
+  it("preserves trailing content under h1 headings when replacing verification results", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({
+      id: "TNDM-TEST",
+      content:
+        "## Context\n\nWork.\n\n## Verification Results\n\nOld results.\n\n# Appendix\n\nMore stuff.",
+    });
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+    vi.mocked(gitAddCommit).mockResolvedValue({ commitHash: "" });
+
+    await flowTools.executeFlowClose({
+      ticket_id: "TNDM-TEST",
+      verification_results: "New results.",
+    });
+
+    const updateArgs = vi.mocked(tndm).mock.calls[0][0];
+    const contentIndex = updateArgs.indexOf("--content");
+    const content = updateArgs[contentIndex + 1];
+
+    expect(content).toContain("## Context");
+    expect(content).toContain("## Verification Results");
+    expect(content).toContain("New results.");
+    expect(content).not.toContain("Old results here.");
+    expect(content).toContain("# Appendix");
+    expect(content).toContain("More stuff.");
+  });
+
+  it("preserves trailing content under h3 headings when replacing verification results", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({
+      id: "TNDM-TEST",
+      content:
+        "## Context\n\nWork.\n\n## Verification Results\n\nOld results.\n\n### Notes\n\nSome notes.",
+    });
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+    vi.mocked(gitAddCommit).mockResolvedValue({ commitHash: "" });
+
+    await flowTools.executeFlowClose({
+      ticket_id: "TNDM-TEST",
+      verification_results: "New results.",
+    });
+
+    const updateArgs = vi.mocked(tndm).mock.calls[0][0];
+    const contentIndex = updateArgs.indexOf("--content");
+    const content = updateArgs[contentIndex + 1];
+
+    expect(content).toContain("### Notes");
+    expect(content).toContain("Some notes.");
   });
 
   it("commits after close", async () => {

@@ -254,7 +254,7 @@ export async function executeFlowClose(params: FlowCloseParams) {
     const sectionStart = content.indexOf("## Verification Results");
     if (sectionStart !== -1) {
       const afterHeading = content.slice(sectionStart);
-      const nextHeadingPos = afterHeading.search(/\n## /);
+      const nextHeadingPos = afterHeading.search(/\n#{1,6} /);
       const sectionEnd = nextHeadingPos !== -1 ? sectionStart + nextHeadingPos : content.length;
       content =
         content.slice(0, sectionStart) +

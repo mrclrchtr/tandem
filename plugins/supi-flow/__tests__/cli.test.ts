@@ -128,11 +128,18 @@ describe("tndmJson", () => {
 });
 
 describe("gitAddCommit", () => {
-  it("runs git add and git commit, extracts hash", async () => {
+  it("runs git add, checks diff, and commits when changes exist", async () => {
     const mock = vi.mocked(execFile);
     mock
       .mockImplementationOnce((_file, _args, _opts, cb) => {
         if (typeof cb === "function") cb(null, "", "");
+        return {} as never;
+      })
+      // git diff --cached --quiet exits 1 when changes exist
+      .mockImplementationOnce((_file, _args, _opts, cb) => {
+        const err = new Error("diff found") as Error & { code: number };
+        err.code = 1;
+        if (typeof cb === "function") cb(err, "", "");
         return {} as never;
       })
       .mockImplementationOnce((_file, _args, _opts, cb) => {
@@ -153,27 +160,61 @@ describe("gitAddCommit", () => {
     expect(mock).toHaveBeenNthCalledWith(
       2,
       "git",
+      ["diff", "--cached", "--quiet"],
+      expect.objectContaining({}),
+      expect.any(Function),
+    );
+    expect(mock).toHaveBeenNthCalledWith(
+      3,
+      "git",
       ["commit", "-m", "close TNDM-A1B2C3"],
       expect.objectContaining({}),
       expect.any(Function),
     );
   });
 
-  it("handles nothing-to-commit gracefully", async () => {
+  it("skips commit when diff --quiet succeeds (no staged changes)", async () => {
     const mock = vi.mocked(execFile);
     mock
       .mockImplementationOnce((_file, _args, _opts, cb) => {
         if (typeof cb === "function") cb(null, "", "");
         return {} as never;
       })
+      // git diff --cached --quiet exits 0 when no changes
       .mockImplementationOnce((_file, _args, _opts, cb) => {
-        const err = new Error("nothing to commit") as Error & { code: number };
-        err.code = 1;
-        if (typeof cb === "function") cb(err, "", "");
+        if (typeof cb === "function") cb(null, "", "");
         return {} as never;
       });
 
     const result = await gitAddCommit("close TNDM-A1B2C3");
     expect(result.commitHash).toBe("");
+    // Should NOT have called commit
+    expect(mock).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws real git errors from commit", async () => {
+    const mock = vi.mocked(execFile);
+    mock
+      .mockImplementationOnce((_file, _args, _opts, cb) => {
+        if (typeof cb === "function") cb(null, "", "");
+        return {} as never;
+      })
+      // diff exits non-zero (changes exist), so we proceed to commit
+      .mockImplementationOnce((_file, _args, _opts, cb) => {
+        const err = new Error("diff found") as Error & { code: number };
+        err.code = 1;
+        if (typeof cb === "function") cb(err, "", "");
+        return {} as never;
+      })
+      .mockImplementationOnce((_file, _args, _opts, cb) => {
+        const err = new Error("real error") as Error & { code: number };
+        err.code = 128;
+        if (typeof cb === "function") cb(err, "", "fatal: not a git repository");
+        return {} as never;
+      });
+
+    await expect(gitAddCommit("close TNDM-A1B2C3")).rejects.toThrow(
+      "not a git repository",
+    );
   });
 });
