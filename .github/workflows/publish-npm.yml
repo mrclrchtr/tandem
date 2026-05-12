@@ -1,7 +1,9 @@
 name: Publish NPM
 
 on:
-  workflow_call:
+  push:
+    tags:
+      - "v*"
 
 permissions:
   id-token: write # Required for OIDC / Trusted Publisher
@@ -13,10 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      # Node 24 ships npm 11.x which handles OIDC trusted publishing correctly;
-      # Node 22's bundled npm 10.9.x silently falls back to token auth and 404s.
-      # registry-url is required for OIDC trusted publishing per npm docs:
-      # https://docs.npmjs.com/github-actions-trusted-publishers
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '24'
@@ -25,5 +23,3 @@ jobs:
       - name: Publish to NPM
         run: npm publish --provenance --access public
         working-directory: plugins/supi-flow
-        env:
-          NODE_AUTH_TOKEN: ""
