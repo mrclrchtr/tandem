@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/mrclrchtr/tandem/compare/v0.8.0...v0.8.1) (2026-05-12)
+
+
+### Bug Fixes
+
+* **ci:** restore registry-url for OIDC trusted publishing ([6356f22](https://github.com/mrclrchtr/tandem/commit/6356f22465c7d8c041f952d08e5914dd54eb5c48))
+
 ## [0.8.0](https://github.com/mrclrchtr/tandem/compare/v0.7.2...v0.8.0) (2026-05-12)
 
 
