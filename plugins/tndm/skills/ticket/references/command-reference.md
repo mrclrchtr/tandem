@@ -21,7 +21,7 @@ Options:
       --content-file <PATH>      Load ticket body from a markdown file.
       --json                     Output the created ticket as JSON.
 
-Content can also be piped via stdin (heredoc recommended for agents).
+Content can also be piped via stdin.
 --content, --content-file, and stdin are mutually exclusive.
 ```
 
@@ -40,20 +40,6 @@ tndm ticket create "Fix login timeout" \
 
 # With explicit ID
 tndm ticket create "Fix login redirect" --id TNDM-FIX001
-
-# With content via heredoc (preferred for agents — no temp files needed)
-tndm ticket create "Implement OAuth flow" --type feature <<'EOF'
-## Context
-
-Users need to sign in with Google.
-
-## Goal
-
-Support OAuth 2.0 authorization code flow.
-EOF
-
-# With content from file (when content already exists on disk)
-tndm ticket create "Implement OAuth flow" --content-file /tmp/ticket-body.md
 ```
 
 ## tndm ticket update
@@ -78,7 +64,7 @@ Options:
       --content-file <PATH>     Replace ticket body with content from a markdown file.
       --json                    Output the updated ticket as JSON.
 
-Content can also be piped via stdin (heredoc recommended for agents).
+Content can also be piped via stdin.
 --content, --content-file, and stdin are mutually exclusive.
 ```
 
@@ -88,10 +74,11 @@ Examples:
 # Mark in-progress immediately after creating
 tndm ticket update TNDM-A1B2C3 -s in_progress
 
-# Block with reason via heredoc (preferred for agents — no temp files needed)
-tndm ticket update TNDM-A1B2C3 -s blocked <<'EOF'
-Blocked: waiting for PR #42 review
-EOF
+# Block with reason (use document registry — no large CLI strings):
+tndm ticket doc create TNDM-A1B2C3 block-reason
+# Edit docs/block-reason.md with your edit tool, then:
+tndm ticket sync TNDM-A1B2C3
+tndm ticket update TNDM-A1B2C3 -s blocked
 
 # Set priority and type
 tndm ticket update TNDM-A1B2C3 -p p1 -T bug
@@ -113,6 +100,61 @@ tndm ticket update TNDM-A1B2C3 -s done
 
 # Replace content from file (when content already exists on disk)
 tndm ticket update TNDM-A1B2C3 --content-file /tmp/blocker.md
+```
+
+## tndm ticket doc create
+
+Create and register a new document file for a ticket. Returns the file path.
+
+```sh
+tndm ticket doc create <ID> <NAME> [OPTIONS]
+
+Options:
+      --json    Output as JSON with document metadata.
+```
+
+The document file is created at `docs/<name>.md` inside the ticket directory.
+Once created, agents should:
+1. Edit the returned path with their edit tool.
+2. Run `tndm ticket sync <ID>` to refresh fingerprints.
+
+Examples:
+
+```sh
+# Create a plan document
+.tndm/tickets/TNDM-A1B2C3/docs/plan.md
+
+# With JSON output
+tndm ticket doc create TNDM-A1B2C3 archive --json
+```
+
+If the document is already registered, returns the existing path without
+overwriting content.
+
+## tndm ticket sync
+
+Recompute document fingerprints after file edits, update `revision` and
+`updated_at`.
+
+```sh
+tndm ticket sync <ID> [OPTIONS]
+
+Options:
+      --json    Output the updated ticket as JSON.
+```
+
+Run this after editing any registered ticket document file. Agents should
+_not_ pass large content through `--content` on `ticket update` — use the
+document registry + edit + sync workflow instead.
+
+Examples:
+
+```sh
+# Sync fingerprints after editing docs/plan.md
+TNDM-A1B2C3
+
+# With JSON output
+tndm ticket sync TNDM-A1B2C3 --json
 ```
 
 ## tndm ticket show
@@ -267,7 +309,8 @@ tndm fmt
 tndm fmt --check
 ```
 
-The CLI writes canonical TOML automatically. Use `tndm fmt` to normalise files after hand-editing.
+Also checks registered document fingerprints. `tndm fmt --check` fails when document
+files have been edited without running `tndm ticket sync <ID>`.
 
 ## Field Enum Reference
 
@@ -314,14 +357,22 @@ Effort is optional. Omit to leave unset; omitting on update leaves the existing 
 
 ## Ticket File Structure
 
-Each ticket is stored as a directory:
+Each ticket is stored as a directory with registered documents:
 
 ```
 .tndm/tickets/TNDM-XXXXXX/
-├── meta.toml     # stable metadata: id, title, type, priority, effort (optional), tags, depends_on
-├── state.toml    # volatile state: status, revision, updated_at
-└── content.md    # freeform markdown body (optional — set via heredoc, --content, or --content-file)
+├── meta.toml              # stable metadata: id, title, type, priority, effort, tags, depends_on, [[documents]]
+├── state.toml             # volatile state: status, revision, updated_at, [document_fingerprints]
+├── content.md             # default registered document (always present)
+└── docs/
+    ├── plan.md            # additional registered documents (created via `tndm ticket doc create`)
+    └── archive.md
 ```
+
+- `meta.toml` includes a `[[documents]]` table listing each registered file by name and path.
+- `state.toml` includes `[document_fingerprints]` with SHA-256 hashes for each document.
+- After editing a registered document file with an edit tool, run `tndm ticket sync <ID>`
+  to refresh fingerprints. `tndm fmt --check` will fail on stale fingerprints.
 
 ## Repository Configuration
 

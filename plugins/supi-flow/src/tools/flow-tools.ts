@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { gitAddCommit, tndm, tndmJson } from "../cli.js";
@@ -73,29 +74,32 @@ export const supiFlowPlanParams = Type.Object({
 export type FlowPlanParams = Static<typeof supiFlowPlanParams>;
 
 export async function executeFlowPlan(params: FlowPlanParams) {
+  // Create a "plan" document and get its path
+  const docResult = await tndm(["ticket", "doc", "create", params.ticket_id, "plan"]);
+  const docPath = docResult.stdout.trim();
+
   let content = params.plan_content;
 
   if (params.append) {
     try {
-      const existing = await tndmJson<{ id: string; content?: string }>([
-        "ticket",
-        "show",
-        params.ticket_id,
-      ]);
-      if (existing.content) {
-        content = existing.content + "\n\n" + content;
+      const existingContent = readFileSync(docPath, "utf-8");
+      if (existingContent) {
+        content = existingContent + "\n\n" + content;
       }
     } catch {
       // If reading fails, just use the new content
     }
   }
 
+  // Write the plan content to the document file
+  writeFileSync(docPath, content, "utf-8");
+
+  // Sync fingerprints and update tags
+  await tndm(["ticket", "sync", params.ticket_id]);
   await tndm([
     "ticket",
     "update",
     params.ticket_id,
-    "--content",
-    content,
     "--add-tags",
     "flow:planned",
     "--remove-tags",
@@ -106,10 +110,10 @@ export async function executeFlowPlan(params: FlowPlanParams) {
     content: [
       {
         type: "text" as const,
-        text: `Plan stored in ${params.ticket_id}. Tags updated to flow:planned.`,
+        text: `Plan stored in ${params.ticket_id} (${docPath}). Tags updated to flow:planned.`,
       },
     ],
-    details: { action: "flow_plan", ticketId: params.ticket_id, tags: "flow:planned" },
+    details: { action: "flow_plan", ticketId: params.ticket_id, tags: "flow:planned", path: docPath },
   };
 }
 
@@ -157,29 +161,46 @@ function checkTask(content: string, taskNumber: number): CheckTaskResult {
 }
 
 export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
-  const existing = await tndmJson<{ id: string; content: string }>([
+  const showResult = await tndmJson<{ id: string; content_path?: string }>([
     "ticket",
     "show",
     params.ticket_id,
   ]);
 
-  if (!existing.content) {
+  const contentPath = showResult.content_path;
+  if (!contentPath) {
     return {
       content: [
         {
           type: "text" as const,
-          text: `No content found in ticket ${params.ticket_id}. No tasks to complete.`,
+          text: `No content path found in ticket ${params.ticket_id}.`,
         },
       ],
-      details: { action: "flow_complete_task", ticketId: params.ticket_id, error: "No content" },
+      details: { action: "flow_complete_task", ticketId: params.ticket_id, error: "No content path" },
     };
   }
 
-  const result = checkTask(existing.content, params.task_number);
+  let content: string;
+  try {
+    content = readFileSync(contentPath, "utf-8");
+  } catch {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `No content file found at ${contentPath}. No tasks to complete.`,
+        },
+      ],
+      details: { action: "flow_complete_task", ticketId: params.ticket_id, error: "No content file" },
+    };
+  }
+
+  const result = checkTask(content, params.task_number);
 
   switch (result.kind) {
     case "unchecked":
-      await tndm(["ticket", "update", params.ticket_id, "--content", result.updatedContent]);
+      writeFileSync(contentPath, result.updatedContent, "utf-8");
+      await tndm(["ticket", "sync", params.ticket_id]);
       return {
         content: [
           {
@@ -236,14 +257,21 @@ export type FlowCloseParams = Static<typeof supiFlowCloseParams>;
 
 export async function executeFlowClose(params: FlowCloseParams) {
   let content = "";
+  let contentPath = "";
+
   try {
-    const existing = await tndmJson<{ id: string; content: string }>([
+    const showResult = await tndmJson<{ id: string; content_path?: string }>([
       "ticket",
       "show",
       params.ticket_id,
     ]);
-    if (existing.content) {
-      content = existing.content;
+    if (showResult.content_path) {
+      contentPath = showResult.content_path;
+      try {
+        content = readFileSync(contentPath, "utf-8");
+      } catch {
+        // File doesn't exist yet
+      }
     }
   } catch {
     // Continue even if read fails
@@ -263,9 +291,15 @@ export async function executeFlowClose(params: FlowCloseParams) {
     } else {
       content += `\n\n## Verification Results\n\n${params.verification_results}`;
     }
+
+    // Write the updated content to the file
+    if (contentPath) {
+      writeFileSync(contentPath, content, "utf-8");
+      await tndm(["ticket", "sync", params.ticket_id]);
+    }
   }
 
-  const updateArgs: string[] = [
+  await tndm([
     "ticket",
     "update",
     params.ticket_id,
@@ -275,12 +309,7 @@ export async function executeFlowClose(params: FlowCloseParams) {
     "flow:done",
     "--remove-tags",
     "flow:applying",
-  ];
-  if (content) {
-    updateArgs.push("--content", content);
-  }
-
-  await tndm(updateArgs);
+  ]);
 
   let commitHash = "";
   try {

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -260,6 +261,12 @@ impl serde::Serialize for TicketEffort {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TicketDocument {
+    pub name: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TicketMeta {
     pub id: TicketId,
     pub title: String,
@@ -269,6 +276,7 @@ pub struct TicketMeta {
     pub effort: Option<TicketEffort>,
     pub depends_on: Vec<TicketId>,
     pub tags: Vec<String>,
+    pub documents: Vec<TicketDocument>,
 }
 
 impl TicketMeta {
@@ -286,6 +294,10 @@ impl TicketMeta {
             effort: None,
             depends_on: Vec::new(),
             tags: Vec::new(),
+            documents: vec![TicketDocument {
+                name: "content".to_string(),
+                path: "content.md".to_string(),
+            }],
         })
     }
 
@@ -318,6 +330,20 @@ impl TicketMeta {
         output.push_str("tags = ");
         output.push_str(&toml_string_array(self.tags.iter().map(String::as_str)));
         output.push('\n');
+
+        // Documents registry, sorted by name
+        let mut sorted_docs = self.documents.clone();
+        sorted_docs.sort_by(|a, b| a.name.cmp(&b.name));
+        for doc in &sorted_docs {
+            output.push_str("[[documents]]\n");
+            output.push_str("name = ");
+            output.push_str(&toml_basic_string(&doc.name));
+            output.push('\n');
+            output.push_str("path = ");
+            output.push_str(&toml_basic_string(&doc.path));
+            output.push('\n');
+        }
+
         output
     }
 }
@@ -327,6 +353,7 @@ pub struct TicketState {
     pub status: TicketStatus,
     pub updated_at: String,
     pub revision: u64,
+    pub document_fingerprints: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -365,6 +392,7 @@ impl TicketState {
             status: TicketStatus::default(),
             updated_at,
             revision,
+            document_fingerprints: BTreeMap::new(),
         })
     }
 
@@ -380,6 +408,17 @@ impl TicketState {
         output.push_str("revision = ");
         output.push_str(&self.revision.to_string());
         output.push('\n');
+
+        if !self.document_fingerprints.is_empty() {
+            output.push_str("\n[document_fingerprints]\n");
+            for (name, fingerprint) in &self.document_fingerprints {
+                output.push_str(name);
+                output.push_str(" = ");
+                output.push_str(&toml_basic_string(fingerprint));
+                output.push('\n');
+            }
+        }
+
         output
     }
 }
@@ -418,7 +457,8 @@ fn toml_string_array<'a>(values: impl IntoIterator<Item = &'a str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus, TicketType,
+        TicketDocument, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState,
+        TicketStatus, TicketType,
     };
 
     #[test]
@@ -591,6 +631,9 @@ mod tests {
                 "\n",
                 "depends_on = []\n",
                 "tags = []\n",
+                "[[documents]]\n",
+                "name = \"content\"\n",
+                "path = \"content.md\"\n",
             )
         );
     }
@@ -816,6 +859,9 @@ mod tests {
                 "\n",
                 "depends_on = []\n",
                 "tags = []\n",
+                "[[documents]]\n",
+                "name = \"content\"\n",
+                "path = \"content.md\"\n",
             )
         );
     }
@@ -839,6 +885,9 @@ mod tests {
                 "\n",
                 "depends_on = []\n",
                 "tags = []\n",
+                "[[documents]]\n",
+                "name = \"content\"\n",
+                "path = \"content.md\"\n",
             )
         );
     }
@@ -858,5 +907,114 @@ mod tests {
         meta.effort = Some(TicketEffort::M);
         let json: serde_json::Value = serde_json::to_value(&meta).unwrap();
         assert_eq!(json["effort"], "m");
+    }
+
+    // ─── Document registry tests ─────────────────────────────────
+
+    #[test]
+    fn meta_new_registers_default_content_document() {
+        let id = TicketId::parse("TNDM-DOC01").expect("id should parse");
+        let meta = TicketMeta::new(id, "Docs test").expect("meta should be valid");
+
+        assert_eq!(meta.documents.len(), 1);
+        assert_eq!(meta.documents[0].name, "content");
+        assert_eq!(meta.documents[0].path, "content.md");
+    }
+
+    #[test]
+    fn meta_canonical_toml_includes_documents() {
+        let id = TicketId::parse("TNDM-DOC02").expect("id should parse");
+        let mut meta = TicketMeta::new(id, "Docs toml").expect("meta should be valid");
+        // Add a second document to verify sorting
+        meta.documents.push(TicketDocument {
+            name: "plan".to_string(),
+            path: "docs/plan.md".to_string(),
+        });
+
+        let toml = meta.to_canonical_toml();
+        assert!(
+            toml.contains("[[documents]]"),
+            "toml should contain [[documents]]: {toml}"
+        );
+        assert!(
+            toml.contains(r#"name = "content""#),
+            "toml should contain content doc: {toml}"
+        );
+        assert!(
+            toml.contains(r#"name = "plan""#),
+            "toml should contain plan doc: {toml}"
+        );
+        // Documents should be sorted alphabetically
+        let content_pos = toml.find(r#"name = "content""#).unwrap();
+        let plan_pos = toml.find(r#"name = "plan""#).unwrap();
+        assert!(
+            content_pos < plan_pos,
+            "content doc should come before plan doc: {toml}"
+        );
+    }
+
+    #[test]
+    fn state_canonical_toml_includes_document_fingerprints() {
+        let mut state = TicketState::new("2026-03-03T10:00:00Z", 1).expect("state should be valid");
+        state
+            .document_fingerprints
+            .insert("content".to_string(), "sha256:abc123".to_string());
+        state
+            .document_fingerprints
+            .insert("plan".to_string(), "sha256:def456".to_string());
+
+        let toml = state.to_canonical_toml();
+        assert!(
+            toml.contains("[document_fingerprints]"),
+            "toml should contain [document_fingerprints]: {toml}"
+        );
+        assert!(
+            toml.contains(r#"content = "sha256:abc123""#),
+            "toml should contain content fingerprint: {toml}"
+        );
+        assert!(
+            toml.contains(r#"plan = "sha256:def456""#),
+            "toml should contain plan fingerprint: {toml}"
+        );
+    }
+
+    #[test]
+    fn state_canonical_toml_omits_fingerprints_when_empty() {
+        let state = TicketState::new("2026-03-03T10:00:00Z", 1).expect("state should be valid");
+
+        let toml = state.to_canonical_toml();
+        assert!(
+            !toml.contains("[document_fingerprints]"),
+            "toml should NOT contain [document_fingerprints] when empty: {toml}"
+        );
+    }
+
+    #[test]
+    fn documents_are_sorted_by_name_in_meta() {
+        let id = TicketId::parse("TNDM-DOC03").expect("id should parse");
+        let mut meta = TicketMeta::new(id, "Sorted docs").expect("meta should be valid");
+        // The default "content" doc is already there
+        meta.documents.push(TicketDocument {
+            name: "alpha".to_string(),
+            path: "alpha.md".to_string(),
+        });
+        meta.documents.push(TicketDocument {
+            name: "zeta".to_string(),
+            path: "zeta.md".to_string(),
+        });
+        meta.documents.push(TicketDocument {
+            name: "beta".to_string(),
+            path: "beta.md".to_string(),
+        });
+
+        // Canonical output should have documents sorted by name
+        let toml = meta.to_canonical_toml();
+        let alpha_pos = toml.find(r#"name = "alpha""#).unwrap();
+        let beta_pos = toml.find(r#"name = "beta""#).unwrap();
+        let content_pos = toml.find(r#"name = "content""#).unwrap();
+        let zeta_pos = toml.find(r#"name = "zeta""#).unwrap();
+        assert!(alpha_pos < beta_pos, "alpha should come before beta");
+        assert!(beta_pos < content_pos, "beta should come before content");
+        assert!(content_pos < zeta_pos, "content should come before zeta");
     }
 }

@@ -15,7 +15,9 @@ who is working on what, and how work has diverged across branches — without
 leaving Git.
 
 - **Repo-local state** — tickets live in `.tndm/` and travel with your code.
-- **Git-aware awareness** — compare ticket state across branches and worktrees.
+- **Document registry** — ticket-owned markdown files registered in metadata; agents edit at the file path, not through CLI strings.
+- **Fingerprint verification** — SHA-256 fingerprints in `state.toml` ensure `tndm fmt --check` catches stale content after file edits.
+- **Git-aware awareness** — compare ticket state across branches and worktrees, including document fingerprint diffs.
 - **Deterministic format** — canonical TOML + `tndm fmt --check` for clean diffs.
 - **Agent-first, human-friendly** — built for autonomous agents; humans review via CLI.
 - **Zero infrastructure** — no database, no cloud service, no LLM required.
@@ -43,6 +45,12 @@ tndm ticket create "Refactor auth module"
 
 # Update status
 tndm ticket update TNDM-A1B2C3 --status in_progress
+
+# Register a document for detailed content (preferred over large CLI strings)
+tndm ticket doc create TNDM-A1B2C3 plan
+# → .tndm/tickets/TNDM-A1B2C3/docs/plan.md
+# (edit that file with your editor, then sync fingerprints)
+tndm ticket sync TNDM-A1B2C3
 
 # View a ticket with its rich, formatted output
 tndm ticket show TNDM-A1B2C3

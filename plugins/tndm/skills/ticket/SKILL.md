@@ -42,10 +42,12 @@ tndm ticket update <ID> --status in_progress
 ### 2. Keep status current as work progresses
 
 ```sh
-# When blocked — document the reason via heredoc (do not create temporary files):
-tndm ticket update <ID> --status blocked <<'EOF'
-Blocked: waiting for PR #42 review
-EOF
+# When blocked — document the reason via document registry (edit registered file, then sync):
+tndm ticket doc create TNDM-XXXXXX block-reason
+# 1. Edit the returned path with your edit tool
+# 2. Sync fingerprints:
+tndm ticket sync TNDM-XXXXXX
+tndm ticket update TNDM-XXXXXX --status blocked
 
 # When unblocked and resuming:
 tndm ticket update <ID> --status in_progress
@@ -100,35 +102,29 @@ tndm ticket create "Urgent hotfix" \
   --status in_progress --priority p0 --type bug
 ```
 
-With optional content body (use a heredoc — do **not** create temporary files).
-
-Always tag fenced code blocks with a language so `tndm ticket show` can syntax-highlight them:
+With optional content via document registry (preferred — no large content strings):
 
 ```sh
-tndm ticket create "Implement OAuth flow" <<'EOF'
-## Context
+# 1. Create/register a document for this ticket
+tndm ticket doc create TNDM-XXXXXX plan
+# → .tndm/tickets/TNDM-XXXXXX/docs/plan.md
 
-Users need to sign in with Google.
+# 2. Read and edit that file with your edit tool
+# (Do not pass large content through CLI args)
 
-The login endpoint validates tokens:
-
-```rust
-pub fn validate(token: &str) -> bool {
-    !token.is_empty() && token.len() > 10
-}
+# 3. Sync fingerprints after editing
+tndm ticket sync TNDM-XXXXXX
 ```
 
-## Goal
+Legacy content update (backward-compatible, not recommended for agents):
 
-Support OAuth 2.0 authorization code flow.
+```sh
+tndm ticket update TNDM-XXXXXX <<'EOF'
+## Open Questions
 
-## Acceptance
-
-- Users can sign in with Google
+- [ ] Should we support multiple OAuth providers in V1?
 EOF
 ```
-
-Unrecognised or bare fences fall back to termimad's native code styling.
 
 ### Update
 
@@ -150,12 +146,15 @@ tndm ticket update TNDM-XXXXXX --tags ""
 # Set dependencies
 tndm ticket update TNDM-XXXXXX --depends-on TNDM-AAAAAA,TNDM-BBBBBB
 
-# Replace content body (use a heredoc — do not create temporary files)
-tndm ticket update TNDM-XXXXXX <<'EOF'
-## Open Questions
+# Store content via document registry (preferred — no large CLI strings)
+# Create/register a document, edit the file with your edit tool, then sync:
+tndm ticket doc create TNDM-XXXXXX plan
+# → Edit the returned path (e.g. .tndm/tickets/TNDM-XXXXXX/docs/plan.md)
+#   using your edit tool, then:
+tndm ticket sync TNDM-XXXXXX
 
-- [ ] Should we support multiple OAuth providers in V1?
-EOF
+# Legacy inline content update (backward-compatible, not recommended):
+tndm ticket update TNDM-XXXXXX --content "# New content body"
 
 # Combine multiple fields
 tndm ticket update TNDM-XXXXXX --status done --priority p1

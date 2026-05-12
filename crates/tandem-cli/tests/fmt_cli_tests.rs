@@ -119,6 +119,9 @@ fn fmt_rewrites_non_canonical_structured_files() {
             "\n",
             "depends_on = []\n",
             "tags = []\n",
+            "[[documents]]\n",
+            "name = \"content\"\n",
+            "path = \"content.md\"\n",
         )
     );
     assert_eq!(

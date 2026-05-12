@@ -9,13 +9,14 @@ use std::{
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::Serialize;
+use sha2::Digest;
 use tabled::{builder::Builder, settings::Style};
 use tandem_core::{
     awareness::compare_snapshots,
     ports::TicketStore,
     ticket::{
-        NewTicket, Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus,
-        TicketType,
+        NewTicket, Ticket, TicketDocument, TicketEffort, TicketId, TicketMeta, TicketPriority,
+        TicketStatus, TicketType,
     },
 };
 use tandem_repo::GitAwarenessProvider;
@@ -233,6 +234,34 @@ enum TicketCommand {
         #[command(flatten)]
         output: OutputArgs,
     },
+    /// Manage registered ticket documents.
+    Doc {
+        #[command(subcommand)]
+        command: DocCommand,
+    },
+    /// Synchronize document fingerprints after file edits.
+    Sync {
+        /// Ticket ID to synchronize.
+        id: String,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum DocCommand {
+    /// Create and register a new document file for a ticket.
+    Create {
+        /// Ticket ID.
+        id: String,
+
+        /// Document name (e.g. plan, archive).
+        name: String,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
 }
 
 const DEFAULT_CONTENT_TEMPLATE: &str = concat!(
@@ -322,6 +351,10 @@ fn main() -> anyhow::Result<()> {
                 content,
                 output.json,
             ),
+            TicketCommand::Doc { command } => match command {
+                DocCommand::Create { id, name, output } => handle_doc_create(id, name, output.json),
+            },
+            TicketCommand::Sync { id, output } => handle_ticket_sync(id, output.json),
         },
         Command::Awareness(args) => handle_awareness(args),
     }
@@ -336,6 +369,7 @@ fn handle_fmt(check: bool) -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     let mut changed_files = Vec::new();
+    let mut drift_found = false;
 
     for id in ids {
         let ticket = store
@@ -356,13 +390,34 @@ fn handle_fmt(check: bool) -> anyhow::Result<()> {
                 }
             }
         }
+
+        // Check document fingerprint drift
+        let drift = store
+            .document_drift(&id)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        if !drift.is_empty() {
+            drift_found = true;
+            for (name, _) in &drift {
+                println!(
+                    "stale fingerprint for document `{name}` in ticket {} (run `tndm ticket sync {id}` to refresh)",
+                    id.as_str()
+                );
+            }
+        }
     }
 
-    if check && !changed_files.is_empty() {
+    if check && (!changed_files.is_empty() || drift_found) {
         for path in &changed_files {
             println!("{}", path.display());
         }
-        anyhow::bail!("tndm fmt --check found non-canonical tandem files");
+        let reasons = if !changed_files.is_empty() && drift_found {
+            "non-canonical tandem files and stale fingerprints"
+        } else if !changed_files.is_empty() {
+            "non-canonical tandem files"
+        } else {
+            "stale document fingerprints"
+        };
+        anyhow::bail!("tndm fmt --check found {reasons}");
     }
 
     for path in &changed_files {
@@ -862,6 +917,134 @@ fn handle_ticket_update(
 
     let updated = store
         .update_ticket(&ticket)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    if json {
+        let envelope = TicketJson {
+            schema_version: 1,
+            ticket: TicketJsonEntry {
+                meta: &updated.meta,
+                state: &updated.state,
+                content_path: ticket_content_path(&updated.meta.id),
+            },
+        };
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        println!("{ticket_id}");
+    }
+    Ok(())
+}
+
+fn handle_doc_create(id: String, name: String, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root.clone());
+    let ticket_id = TicketId::parse(id)?;
+
+    let mut ticket = store
+        .load_ticket(&ticket_id)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    // Check if document with this name already exists
+    if ticket.meta.documents.iter().any(|d| d.name == name) {
+        // Already registered — return the existing path
+        let existing = ticket
+            .meta
+            .documents
+            .iter()
+            .find(|d| d.name == name)
+            .unwrap();
+        let doc_path = ticket_dir(&repo_root, &ticket_id).join(&existing.path);
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "ticket_id": ticket_id.as_str(),
+                    "name": name,
+                    "path": doc_path.to_string_lossy(),
+                    "existing": true,
+                })
+            );
+        } else {
+            println!("{}", doc_path.display());
+        }
+        return Ok(());
+    }
+
+    // Derive the path from name: docs/<name>.md
+    let rel_path = format!("docs/{name}.md");
+    let abs_path = ticket_dir(&repo_root, &ticket_id).join(&rel_path);
+
+    // Create the docs subdirectory if it doesn't exist
+    if let Some(parent) = abs_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| anyhow::anyhow!("failed to create {}: {error}", parent.display()))?;
+    }
+
+    // Write an empty template
+    fs::write(&abs_path, format!("# {name}\n\n"))
+        .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", abs_path.display()))?;
+
+    // Register the document
+    ticket.meta.documents.push(TicketDocument {
+        name: name.clone(),
+        path: rel_path.clone(),
+    });
+
+    // Recompute fingerprints
+    let mut fingerprints = std::collections::BTreeMap::new();
+    for doc in &ticket.meta.documents {
+        let doc_path = ticket_dir(&repo_root, &ticket_id).join(&doc.path);
+        if doc_path.is_file() {
+            let contents = fs::read(&doc_path).map_err(|error| {
+                anyhow::anyhow!("failed to read {}: {error}", doc_path.display())
+            })?;
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(&contents);
+            let hash = format!("sha256:{:x}", hasher.finalize());
+            fingerprints.insert(doc.name.clone(), hash);
+        }
+    }
+    ticket.state.document_fingerprints = fingerprints;
+
+    // Bump revision and update timestamp
+    ticket.state.revision += 1;
+    ticket.state.updated_at = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .map_err(|error| anyhow::anyhow!("failed to format timestamp: {error}"))?;
+
+    // Write canonical meta and state
+    let meta_path = ticket_dir(&repo_root, &ticket_id).join("meta.toml");
+    let state_path = ticket_dir(&repo_root, &ticket_id).join("state.toml");
+    fs::write(&meta_path, ticket.meta.to_canonical_toml())
+        .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", meta_path.display()))?;
+    fs::write(&state_path, ticket.state.to_canonical_toml())
+        .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", state_path.display()))?;
+
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ticket_id": ticket_id.as_str(),
+                "name": name,
+                "path": abs_path.to_string_lossy(),
+                "existing": false,
+            })
+        );
+    } else {
+        println!("{}", abs_path.display());
+    }
+    Ok(())
+}
+
+fn handle_ticket_sync(id: String, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = TicketId::parse(id)?;
+
+    let updated = store
+        .sync_ticket_documents(&ticket_id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     if json {

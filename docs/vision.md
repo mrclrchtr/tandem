@@ -21,13 +21,15 @@ are not the primary ticket creators or consumers — agents are.
 ## Core workflow
 
 1. **Agent A** picks up work and creates a ticket: `tndm ticket create "Refactor auth module"`. It gets `TNDM-A1B2C3`.
-2. Agent A works on `branch-a`, updating the ticket's status to `in_progress`.
+2. Agent A works on `branch-a`, updating the ticket's status to `in_progress` and registering documents for detailed content:
+   `tndm ticket doc create TNDM-A1B2C3 plan` → edits the returned path → `tndm ticket sync TNDM-A1B2C3`.
 3. **Agent B** is working on `branch-b` on a related area. Before starting, it runs:
    `tndm awareness --against branch-a`
 4. The awareness report (JSON) tells Agent B that `TNDM-A1B2C3` was added on `branch-a` with status `in_progress` and
-   touches the auth module.
+   touches the auth module. It also reports document fingerprint diffs.
 5. Agent B adjusts its plan to avoid conflicting changes.
-6. Later, both branches merge. The deterministic TOML format and `tndm fmt --check` catch any formatting drift in CI.
+6. Later, both branches merge. The deterministic TOML format, registered document paths, and
+   `tndm fmt --check` (which also validates document fingerprints) catch any formatting or freshness drift in CI.
 
 ## V1 success criteria
 

@@ -10,9 +10,12 @@ This repository is a Rust workspace designed around strict separation of concern
 
 - `crates/tandem-core`
   - Domain types, validation, and interfaces ("ports") that the rest of the system implements.
+  - Key types: `Ticket`, `TicketMeta`, `TicketState`, `TicketDocument`, `NewTicket`.
   - Policy: no filesystem/process spawning/printing side effects.
 - `crates/tandem-storage`
   - Filesystem-backed ticket storage and deterministic parsing/formatting (adapter).
+  - Handles SHA-256 document fingerprinting via `sync_ticket_documents()` and drift detection via `document_drift()`.
+  - Provides `create_ticket_document()` for the document registry.
 - `crates/tandem-repo`
   - Git/worktree awareness and ref-based change detection (adapter).
 - `crates/tandem-cli`

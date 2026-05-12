@@ -7,3 +7,6 @@ priority = "p1"
 
 depends_on = []
 tags = ["flow:planned"]
+[[documents]]
+name = "content"
+path = "content.md"

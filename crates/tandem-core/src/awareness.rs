@@ -85,6 +85,8 @@ pub struct AwarenessFieldDiffs {
     pub depends_on: Option<AwarenessVecDiff>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<AwarenessVecDiff>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documents: Option<AwarenessVecDiff>,
 }
 
 impl AwarenessFieldDiffs {
@@ -118,6 +120,35 @@ impl AwarenessFieldDiffs {
             against: against_tags,
         });
 
+        // Compare document fingerprint changes
+        let current_doc_fps: Vec<String> = current
+            .state
+            .document_fingerprints
+            .keys()
+            .cloned()
+            .collect();
+        let against_doc_fps: Vec<String> = against
+            .state
+            .document_fingerprints
+            .keys()
+            .cloned()
+            .collect();
+        let changed_docs: Vec<String> = current_doc_fps
+            .iter()
+            .chain(against_doc_fps.iter())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|name| {
+                current.state.document_fingerprints.get(*name)
+                    != against.state.document_fingerprints.get(*name)
+            })
+            .cloned()
+            .collect();
+        let documents = (!changed_docs.is_empty()).then_some(AwarenessVecDiff {
+            current: current_doc_fps,
+            against: against_doc_fps,
+        });
+
         let diffs = Self {
             status,
             priority,
@@ -126,6 +157,7 @@ impl AwarenessFieldDiffs {
             ticket_type,
             depends_on,
             tags,
+            documents,
         };
 
         (!diffs.is_empty()).then_some(diffs)
@@ -139,6 +171,7 @@ impl AwarenessFieldDiffs {
             && self.ticket_type.is_none()
             && self.depends_on.is_none()
             && self.tags.is_none()
+            && self.documents.is_none()
     }
 }
 
@@ -667,5 +700,45 @@ mod tests {
             state,
             content: format!("{title}\n"),
         }
+    }
+
+    #[test]
+    fn compare_snapshots_detects_document_fingerprint_diff() {
+        let mut current_ticket = ticket(
+            "TNDM-DOCAW",
+            "Doc awareness",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket
+            .state
+            .document_fingerprints
+            .insert("content".to_string(), "sha256:abc".to_string());
+
+        let mut against_ticket = ticket(
+            "TNDM-DOCAW",
+            "Doc awareness",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket
+            .state
+            .document_fingerprints
+            .insert("content".to_string(), "sha256:def".to_string());
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        let fields = &report.tickets[0].fields;
+        assert!(
+            fields.documents.is_some(),
+            "should report document diff: {fields:?}"
+        );
     }
 }

@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-BPD63S"
+title = "Document registry + agent file-edit protocol"
+
+type = "task"
+priority = "p1"
+
+depends_on = []
+tags = ["cli", "docs", "flow:planned", "phase1", "plugins", "supi-flow"]
+[[documents]]
+name = "content"
+path = "content.md"

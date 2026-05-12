@@ -5,6 +5,7 @@ use std::{
 };
 
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use tandem_core::{
@@ -24,6 +25,83 @@ pub struct FileTicketStore {
 impl FileTicketStore {
     pub fn new(repo_root: PathBuf) -> Self {
         Self { repo_root }
+    }
+
+    /// Compute the SHA-256 fingerprint for a file path.
+    /// Returns `sha256:<hex>` string.
+    #[allow(clippy::disallowed_methods)]
+    fn fingerprint_file(path: &Path) -> Result<String, StorageError> {
+        let contents = fs::read(path).map_err(|error| {
+            StorageError::new(format!(
+                "failed to read {} for fingerprint: {error}",
+                path.display()
+            ))
+        })?;
+        let mut hasher = Sha256::new();
+        hasher.update(&contents);
+        let hash = format!("sha256:{:x}", hasher.finalize());
+        Ok(hash)
+    }
+
+    /// Recompute fingerprints for all registered documents and update the ticket.
+    /// Returns the updated ticket with fresh fingerprints and bumped revision.
+    #[allow(clippy::disallowed_methods)]
+    pub fn sync_ticket_documents(&self, id: &TicketId) -> Result<Ticket, StorageError> {
+        let mut ticket = self.load_ticket(id)?;
+
+        let ticket_path = ticket_dir(&self.repo_root, id);
+        for doc in &ticket.meta.documents {
+            let doc_path = ticket_path.join(&doc.path);
+            if doc_path.is_file() {
+                let fp = Self::fingerprint_file(&doc_path)?;
+                ticket
+                    .state
+                    .document_fingerprints
+                    .insert(doc.name.clone(), fp);
+            }
+        }
+
+        ticket.state.revision += 1;
+        ticket.state.updated_at = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .map_err(|error| format!("failed to format timestamp: {error}"))
+            .map_err(StorageError::new)?;
+
+        // Persist the updated state
+        let state_path = ticket_path.join("state.toml");
+        fs::write(&state_path, ticket.state.to_canonical_toml()).map_err(|error| {
+            StorageError::new(format!(
+                "failed to write {} during sync: {error}",
+                state_path.display()
+            ))
+        })?;
+
+        Ok(ticket)
+    }
+
+    /// Check which registered documents have stale fingerprints (content edited without sync).
+    /// Returns a list of (document_name, actual_fingerprint) pairs that differ from stored ones.
+    #[allow(clippy::disallowed_methods)]
+    pub fn document_drift(&self, id: &TicketId) -> Result<Vec<(String, String)>, StorageError> {
+        let ticket = self.load_ticket(id)?;
+        let ticket_path = ticket_dir(&self.repo_root, id);
+        let mut drift = Vec::new();
+
+        for doc in &ticket.meta.documents {
+            let doc_path = ticket_path.join(&doc.path);
+            if !doc_path.is_file() {
+                drift.push((doc.name.clone(), "MISSING".to_string()));
+                continue;
+            }
+            let actual_fp = Self::fingerprint_file(&doc_path)?;
+            let stored_fp = ticket.state.document_fingerprints.get(&doc.name);
+            match stored_fp {
+                Some(fp) if fp == &actual_fp => {}
+                _ => drift.push((doc.name.clone(), actual_fp)),
+            }
+        }
+
+        Ok(drift)
     }
 }
 
@@ -108,6 +186,13 @@ struct RawTicketMeta {
     effort: Option<String>,
     depends_on: Option<Vec<String>>,
     tags: Option<Vec<String>>,
+    documents: Option<Vec<RawTicketDocument>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawTicketDocument {
+    name: String,
+    path: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +201,7 @@ struct RawTicketState {
     status: String,
     updated_at: String,
     revision: u64,
+    document_fingerprints: Option<BTreeMap<String, String>>,
 }
 
 pub fn tandem_dir(repo_root: &Path) -> PathBuf {
@@ -231,9 +317,24 @@ impl TicketStore for FileTicketStore {
             .map_err(|error| {
                 StorageError::new(format!("failed to format ticket timestamp: {error}"))
             })?;
-        let state = TicketState::initial(updated_at).map_err(|error| {
+        let mut state = TicketState::initial(updated_at).map_err(|error| {
             StorageError::new(format!("failed to build initial ticket state: {error}"))
         })?;
+
+        // Compute fingerprints for all registered documents
+        let mut fingerprints = BTreeMap::new();
+        for doc in &ticket.meta.documents {
+            // For content.md, fingerprint will be computed after writing
+            // but we store the template for now
+            if doc.name == "content" {
+                let mut hasher = Sha256::new();
+                hasher.update(ticket.content.as_bytes());
+                let hash = format!("sha256:{:x}", hasher.finalize());
+                fingerprints.insert(doc.name.clone(), hash);
+            }
+            // Future documents fingerprint after creation
+        }
+        state.document_fingerprints = fingerprints;
 
         let tickets_path = tickets_dir(&self.repo_root);
         fs::create_dir_all(&tickets_path).map_err(|error| {
@@ -413,6 +514,22 @@ impl TicketStore for FileTicketStore {
         meta.depends_on = depends_on;
         meta.tags = tags;
 
+        // Legacy ticket migration: if [[documents]] was not present, inject default
+        if raw_meta.documents.is_none() {
+            meta.documents = vec![tandem_core::ticket::TicketDocument {
+                name: "content".to_string(),
+                path: "content.md".to_string(),
+            }];
+        } else if let Some(raw_docs) = raw_meta.documents {
+            meta.documents = raw_docs
+                .into_iter()
+                .map(|d| tandem_core::ticket::TicketDocument {
+                    name: d.name,
+                    path: d.path,
+                })
+                .collect();
+        }
+
         let mut state =
             TicketState::new(raw_state.updated_at, raw_state.revision).map_err(|error| {
                 StorageError::new(format!(
@@ -426,6 +543,7 @@ impl TicketStore for FileTicketStore {
                 state_path.display()
             ))
         })?;
+        state.document_fingerprints = raw_state.document_fingerprints.unwrap_or_default();
 
         Ok(Ticket {
             meta,
@@ -555,6 +673,32 @@ impl TicketStore for FileTicketStore {
                     content_path.display()
                 ))
             })?;
+
+            // Copy all registered extra documents from the existing ticket directory
+            for doc in &ticket.meta.documents {
+                if doc.name == "content" {
+                    continue;
+                }
+                let src = ticket_path.join(&doc.path);
+                let dst = staging_path.join(&doc.path);
+                if let Some(parent) = dst.parent() {
+                    fs::create_dir_all(parent).map_err(|error| {
+                        StorageError::new(format!(
+                            "failed to create directory for {}: {error}",
+                            dst.display()
+                        ))
+                    })?;
+                }
+                if src.is_file() {
+                    fs::copy(&src, &dst).map_err(|error| {
+                        StorageError::new(format!(
+                            "failed to copy {} to {}: {error}",
+                            src.display(),
+                            dst.display()
+                        ))
+                    })?;
+                }
+            }
 
             // Atomic swap: existing → old, staging → final
             fs::rename(&ticket_path, &old_path).map_err(|error| {
