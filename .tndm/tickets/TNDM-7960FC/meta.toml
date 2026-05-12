@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-7960FC"
+title = "Improve tndm-not-found UX in supi-flow: postinstall check + helpful runtime error"
+
+type = "task"
+priority = "p3"
+
+depends_on = []
+tags = ["flow:applying"]
+[[documents]]
+name = "content"
+path = "content.md"
+[[documents]]
+name = "plan"
+path = "plan.md"
