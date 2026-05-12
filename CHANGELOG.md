@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/mrclrchtr/tandem/compare/v0.8.1...v0.8.2) (2026-05-12)
+
+
+### Bug Fixes
+
+* **ci:** unset NODE_AUTH_TOKEN before npm publish for OIDC ([593f36b](https://github.com/mrclrchtr/tandem/commit/593f36b335248bc9b13cf654f6bad215a290a079))
+
 ## [0.8.1](https://github.com/mrclrchtr/tandem/compare/v0.8.0...v0.8.1) (2026-05-12)
 
 
