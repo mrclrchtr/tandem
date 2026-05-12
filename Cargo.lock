@@ -1042,7 +1042,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-cli"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1063,7 +1063,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-core"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-repo"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "tandem-core",
  "tandem-storage",
@@ -1081,7 +1081,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-storage"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "serde",
  "sha2",
@@ -1477,7 +1477,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "cargo_metadata",
  "serde_json",
