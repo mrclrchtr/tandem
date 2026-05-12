@@ -1,0 +1,18 @@
+schema_version = 1
+id = "TNDM-TQA5G4"
+title = "Remove Claude Code and Codex plugin support"
+
+type = "chore"
+priority = "p2"
+
+depends_on = []
+tags = ["flow:done"]
+[[documents]]
+name = "archive"
+path = "archive.md"
+[[documents]]
+name = "content"
+path = "content.md"
+[[documents]]
+name = "plan"
+path = "plan.md"
