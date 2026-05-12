@@ -80,7 +80,7 @@ Do not assume documentation is correct just because it sounds right.
 ## Step 6: Close out
 
 - Call `supi_flow_close { ticket_id: "<ID>", verification_results: "..." }` with the full verification evidence.
-  This will set status=done, tags=flow:done, store verification results in content.md, and auto-commit .tndm/ changes.
+  This will set status=done, tags=flow:done, store verification results in archive.md, and auto-commit .tndm/ changes.
 - There is no ticket-less closeout.
 
 ## Step 7: Verify commit

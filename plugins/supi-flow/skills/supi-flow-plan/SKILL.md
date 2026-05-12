@@ -7,7 +7,7 @@ description: Create an implementation plan for an approved design with exact fil
 
 ## Step 1: Find the design
 
-- If a TNDM-ID was given as argument: `supi_tndm_cli { action: "show", id: "<ID>" }` — read the design from content.md.
+- If a TNDM-ID was given as argument: `supi_tndm_cli { action: "show", id: "<ID>" }` — read the design from brainstorm.md.
 - If no TNDM-ID was given and no active ticket exists: ask the user to run `/skill:supi-flow-brainstorm` first, or provide an existing ticket ID.
 - If no design is available: ask which change to plan.
 

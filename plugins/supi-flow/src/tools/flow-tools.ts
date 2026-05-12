@@ -1,3 +1,4 @@
+import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
@@ -39,10 +40,17 @@ export async function executeFlowStart(params: FlowStartParams) {
 
   if (params.priority) args.push("--priority", params.priority);
   if (params.type) args.push("--type", params.type);
-  if (params.context) args.push("--content", params.context);
 
   const result = await tndm(args);
   const ticketId = result.stdout.trim();
+
+  if (params.context) {
+    // Write context to brainstorm.md via document registry
+    const docResult = await tndm(["ticket", "doc", "create", ticketId, "brainstorm"]);
+    const docPath = docResult.stdout.trim();
+    writeFileSync(docPath, params.context, "utf-8");
+    await tndm(["ticket", "sync", ticketId]);
+  }
 
   return {
     content: [
@@ -180,18 +188,21 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
     };
   }
 
+  // Read from plan.md (flat next to content.md in ticket dir)
+  const planPath = join(dirname(contentPath), "plan.md");
+
   let content: string;
   try {
-    content = readFileSync(contentPath, "utf-8");
+    content = readFileSync(planPath, "utf-8");
   } catch {
     return {
       content: [
         {
           type: "text" as const,
-          text: `No content file found at ${contentPath}. No tasks to complete.`,
+          text: `No plan file found at ${planPath}. No tasks to complete.`,
         },
       ],
-      details: { action: "flow_complete_task", ticketId: params.ticket_id, error: "No content file" },
+      details: { action: "flow_complete_task", ticketId: params.ticket_id, error: "No plan file" },
     };
   }
 
@@ -199,7 +210,7 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
 
   switch (result.kind) {
     case "unchecked":
-      writeFileSync(contentPath, result.updatedContent, "utf-8");
+      writeFileSync(planPath, result.updatedContent, "utf-8");
       await tndm(["ticket", "sync", params.ticket_id]);
       return {
         content: [
@@ -256,46 +267,17 @@ export const supiFlowCloseParams = Type.Object({
 export type FlowCloseParams = Static<typeof supiFlowCloseParams>;
 
 export async function executeFlowClose(params: FlowCloseParams) {
-  let content = "";
-  let contentPath = "";
-
-  try {
-    const showResult = await tndmJson<{ id: string; content_path?: string }>([
-      "ticket",
-      "show",
-      params.ticket_id,
-    ]);
-    if (showResult.content_path) {
-      contentPath = showResult.content_path;
-      try {
-        content = readFileSync(contentPath, "utf-8");
-      } catch {
-        // File doesn't exist yet
-      }
-    }
-  } catch {
-    // Continue even if read fails
-  }
+  let archivePath = "";
 
   if (params.verification_results) {
-    // Update existing ## Verification Results section or append new one
-    const sectionStart = content.indexOf("## Verification Results");
-    if (sectionStart !== -1) {
-      const afterHeading = content.slice(sectionStart);
-      const nextHeadingPos = afterHeading.search(/\n#{1,6} /);
-      const sectionEnd = nextHeadingPos !== -1 ? sectionStart + nextHeadingPos : content.length;
-      content =
-        content.slice(0, sectionStart) +
-        `## Verification Results\n\n${params.verification_results}` +
-        content.slice(sectionEnd);
-    } else {
-      content += `\n\n## Verification Results\n\n${params.verification_results}`;
-    }
-
-    // Write the updated content to the file
-    if (contentPath) {
-      writeFileSync(contentPath, content, "utf-8");
+    // Create/register archive.md via document registry, then write results
+    try {
+      const docResult = await tndm(["ticket", "doc", "create", params.ticket_id, "archive"]);
+      archivePath = docResult.stdout.trim();
+      writeFileSync(archivePath, `# Archive\n\n${params.verification_results}\n`, "utf-8");
       await tndm(["ticket", "sync", params.ticket_id]);
+    } catch {
+      // Non-fatal if doc create fails
     }
   }
 

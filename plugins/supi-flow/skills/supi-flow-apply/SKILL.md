@@ -16,7 +16,7 @@ If you haven't run the verification command for this task, you cannot check it o
 ## Step 1: Find the plan
 
 - A TNDM-ID was set during plan phase. Read the plan from the ticket:
-  `supi_tndm_cli { action: "show", id: "<ID>" }` — read the Plan section from content.md.
+  `supi_tndm_cli { action: "show", id: "<ID>" }` — read the Plan section from plan.md.
   Then mark the ticket as in progress and set the applying tag:
   `supi_tndm_cli { action: "update", id: "<ID>", status: "in_progress", tags: "flow:applying" }`
 - If no plan is available: ask which change to implement.

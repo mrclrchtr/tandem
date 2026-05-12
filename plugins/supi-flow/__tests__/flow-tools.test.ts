@@ -50,8 +50,13 @@ describe("executeFlowStart", () => {
     });
   });
 
-  it("passes optional priority, type, and context", async () => {
-    vi.mocked(tndm).mockResolvedValue({ stdout: "TNDM-OPT\n", stderr: "" });
+  it("passes optional priority, type, and context to doc registry", async () => {
+    vi.mocked(tndm).mockImplementation(async (args: string[]) => {
+      if (args[0] === "ticket" && args[1] === "doc" && args[2] === "create") {
+        return { stdout: "/tmp/brainstorm.md\n", stderr: "" };
+      }
+      return { stdout: "TNDM-OPT\n", stderr: "" };
+    });
 
     const result = await flowTools.executeFlowStart({
       title: "Optimized change",
@@ -60,7 +65,8 @@ describe("executeFlowStart", () => {
       context: "Design summary for the change",
     });
 
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+    // First call: ticket create without --content
+    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(1, [
       "ticket",
       "create",
       "Optimized change",
@@ -72,8 +78,20 @@ describe("executeFlowStart", () => {
       "p1",
       "--type",
       "feature",
-      "--content",
-      "Design summary for the change",
+    ]);
+    // Second call: doc create for brainstorm
+    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "doc",
+      "create",
+      "TNDM-OPT",
+      "brainstorm",
+    ]);
+    // Third call: sync
+    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(3, [
+      "ticket",
+      "sync",
+      "TNDM-OPT",
     ]);
     expect(result.details.ticketId).toBe("TNDM-OPT");
   });
@@ -155,12 +173,12 @@ describe("executeFlowPlan", () => {
 describe("executeFlowCompleteTask", () => {
   function setupContent(initialContent: string): string {
     const tmpDir = mkdtempSync(join(tmpdir(), "tndm-complete-"));
-    const docPath = join(tmpDir, "content.md");
+    const docPath = join(tmpDir, "plan.md");
     writeFileSync(docPath, initialContent, "utf-8");
 
     vi.mocked(tndmJson).mockResolvedValue({
       id: "TNDM-TEST",
-      content_path: docPath,
+      content_path: join(tmpDir, "content.md"), // used only to derive dir
     });
     vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
@@ -222,7 +240,7 @@ describe("executeFlowCompleteTask", () => {
     expect(result.details.error).toContain("content path");
   });
 
-  it("soft-fails when content file does not exist", async () => {
+  it("soft-fails when plan file does not exist", async () => {
     vi.mocked(tndmJson).mockResolvedValue({
       id: "TNDM-TEST",
       content_path: "/nonexistent/path/content.md",
@@ -233,30 +251,30 @@ describe("executeFlowCompleteTask", () => {
       task_number: 1,
     });
 
-    expect(result.details.error).toContain("content file");
+    expect(result.details.error).toContain("plan file");
   });
 });
 
 // ─── executeFlowClose ──────────────────────────────────────────
 
 describe("executeFlowClose", () => {
-  function setupWithContent(initialContent: string): string {
+  function setup(): string {
     const tmpDir = mkdtempSync(join(tmpdir(), "tndm-close-"));
-    const docPath = join(tmpDir, "content.md");
-    writeFileSync(docPath, initialContent, "utf-8");
+    const archivePath = join(tmpDir, "archive.md");
 
-    vi.mocked(tndmJson).mockImplementation(async () => ({
-      id: "TNDM-TEST",
-      content_path: docPath,
-    }));
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+    vi.mocked(tndm).mockImplementation(async (args: string[]) => {
+      if (args[0] === "ticket" && args[1] === "doc" && args[2] === "create") {
+        return { stdout: archivePath + "\n", stderr: "" };
+      }
+      return { stdout: "", stderr: "" };
+    });
     vi.mocked(gitAddCommit).mockResolvedValue({ commitHash: "" });
 
-    return docPath;
+    return archivePath;
   }
 
-  it("updates status and tags without passing content through CLI", async () => {
-    setupWithContent("Done stuff");
+  it("updates status and tags", async () => {
+    setup();
 
     await flowTools.executeFlowClose({
       ticket_id: "TNDM-TEST",
@@ -265,62 +283,39 @@ describe("executeFlowClose", () => {
     const statusCalls = vi.mocked(tndm).mock.calls.filter(
       (call) => call[0][0] === "ticket" && call[0][1] === "update",
     );
-    for (const call of statusCalls) {
-      expect(call[0]).not.toContain("--content");
-    }
     const latestUpdate = statusCalls[statusCalls.length - 1][0];
     expect(latestUpdate).toContain("flow:done");
     expect(latestUpdate).toContain("flow:applying");
   });
 
-  it("appends verification results to the content file and syncs", async () => {
-    const docPath = setupWithContent("## Context\n\nThe work.");
+  it("writes verification results to archive.md and syncs", async () => {
+    const archivePath = setup();
 
     await flowTools.executeFlowClose({
       ticket_id: "TNDM-TEST",
       verification_results: "All tests pass.",
     });
 
-    // Should have written verification results to the file
-    const content = readFileSync(docPath, "utf-8");
-    expect(content).toContain("## Verification Results");
+    // Should have called doc create for archive
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+      "ticket",
+      "doc",
+      "create",
+      "TNDM-TEST",
+      "archive",
+    ]);
+
+    // Should have written verification results to the archive file
+    const content = readFileSync(archivePath, "utf-8");
+    expect(content).toContain("# Archive");
     expect(content).toContain("All tests pass.");
 
     // Should have synced
     expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"]);
   });
 
-  it("updates existing verification results section without duplication", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-close-replace-"));
-    const docPath = join(tmpDir, "content.md");
-    writeFileSync(
-      docPath,
-      "## Context\n\nWork.\n\n## Verification Results\n\nOld results here.\n\n## Other\n\nMore.",
-      "utf-8",
-    );
-
-    vi.mocked(tndmJson).mockResolvedValue({
-      id: "TNDM-TEST",
-      content_path: docPath,
-    });
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
-
-    await flowTools.executeFlowClose({
-      ticket_id: "TNDM-TEST",
-      verification_results: "New results.",
-    });
-
-    // Should have only one Verification Results section
-    const content = readFileSync(docPath, "utf-8");
-    expect(content.match(/## Verification Results/g)).toHaveLength(1);
-    expect(content).toContain("New results.");
-    expect(content).not.toContain("Old results here.");
-    expect(content).toContain("## Context");
-    expect(content).toContain("## Other");
-  });
-
   it("commits after close", async () => {
-    setupWithContent("Done.");
+    setup();
 
     const result = await flowTools.executeFlowClose({
       ticket_id: "TNDM-TEST",

@@ -68,7 +68,7 @@ export default function (pi: ExtensionAPI) {
     name: "supi_flow_plan",
     label: "Flow Plan",
     description:
-      "Store an implementation plan in a ticket's content.md. " +
+      "Store an implementation plan in a ticket's plan.md. " +
       "Updates tags from flow:brainstorm to flow:planned. " +
       "Tasks must be numbered as '**Task {N}**' in the plan.",
     promptSnippet: "Store a plan in a TNDM ticket",
@@ -87,7 +87,7 @@ export default function (pi: ExtensionAPI) {
     name: "supi_flow_complete_task",
     label: "Flow Complete Task",
     description:
-      "Mark a task as done in a ticket's content.md by task number (1-based). " +
+      "Mark a task as done in a ticket's plan.md by task number (1-based). " +
       "Finds '- [ ] **Task N:**' and changes to '- [x] **Task N:**'.",
     promptSnippet: "Check off a completed plan task in a TNDM ticket",
     promptGuidelines: [
@@ -106,7 +106,7 @@ export default function (pi: ExtensionAPI) {
     label: "Flow Close",
     description:
       "Close a ticket and finalize the flow. " +
-      "Appends verification results to content, sets status=done, tags=flow:done, " +
+      "Writes verification results to archive.md, sets status=done, tags=flow:done, " +
       "and auto-commits .tndm/ changes.",
     promptSnippet: "Close a TNDM ticket after implementation and verification",
     promptGuidelines: [

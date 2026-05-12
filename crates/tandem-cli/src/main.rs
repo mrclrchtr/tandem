@@ -971,15 +971,9 @@ fn handle_doc_create(id: String, name: String, json: bool) -> anyhow::Result<()>
         return Ok(());
     }
 
-    // Derive the path from name: docs/<name>.md
-    let rel_path = format!("docs/{name}.md");
+    // Derive the path from name: <name>.md at ticket root
+    let rel_path = format!("{name}.md");
     let abs_path = ticket_dir(&repo_root, &ticket_id).join(&rel_path);
-
-    // Create the docs subdirectory if it doesn't exist
-    if let Some(parent) = abs_path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| anyhow::anyhow!("failed to create {}: {error}", parent.display()))?;
-    }
 
     // Write an empty template
     fs::write(&abs_path, format!("# {name}\n\n"))
