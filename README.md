@@ -5,7 +5,21 @@
 Store ticket state in your repository. Work across branches and git worktrees.
 No central service. No background process. Just `tndm`.
 
+[![CI](https://github.com/mrclrchtr/tandem/actions/workflows/ci.yml/badge.svg)](https://github.com/mrclrchtr/tandem/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/tandem-cli)](https://crates.io/crates/tandem-cli)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 ---
+
+- [Why tandem?](#why-tandem)
+- [Project status](#project-status)
+- [Quick install](#quick-install)
+- [30-second tour](#30-second-tour)
+- [Agent plugin](#agent-plugin)
+- [Documentation](#documentation)
+- [Getting help](#getting-help)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Why tandem?
 
@@ -17,10 +31,16 @@ leaving Git.
 - **Repo-local state** — tickets live in `.tndm/` and travel with your code.
 - **Document registry** — ticket-owned markdown files registered in metadata; agents edit at the file path, not through CLI strings.
 - **Fingerprint verification** — SHA-256 fingerprints in `state.toml` ensure `tndm fmt --check` catches stale content after file edits.
-- **Git-aware awareness** — compare ticket state across branches and worktrees, including document fingerprint diffs.
+- **Git-aware awareness** — `tndm awareness --against <ref>` compares ticket states across branches and worktrees, including document fingerprint diffs.
 - **Deterministic format** — canonical TOML + `tndm fmt --check` for clean diffs.
-- **Agent-first, human-friendly** — built for autonomous agents; humans review via CLI.
+- **Agent-first, human-friendly** — built for autonomous agents; humans review via `tndm ticket show` with colored output.
 - **Zero infrastructure** — no database, no cloud service, no LLM required.
+
+## Project status
+
+`tandem` is **pre-1.0, active development**. The core CLI and awareness features
+work today. The API and on-disk format are stabilizing but may evolve before 1.0.
+See [`docs/vision.md`](docs/vision.md) for scope and roadmap.
 
 ## Quick install
 
@@ -43,8 +63,12 @@ cargo install --path crates/tandem-cli
 tndm ticket create "Refactor auth module"
 # → TNDM-A1B2C3
 
-# Update status
-tndm ticket update TNDM-A1B2C3 --status in_progress
+# Set status and priority during creation
+tndm ticket create "Fix login bug" --type bug --priority p1 --status in_progress
+# → TNDM-6F2E1A
+
+# Update status, add tags
+tndm ticket update TNDM-A1B2C3 --status in_progress --tags auth,security
 
 # Register a document for detailed content (preferred over large CLI strings)
 tndm ticket doc create TNDM-A1B2C3 plan
@@ -52,7 +76,7 @@ tndm ticket doc create TNDM-A1B2C3 plan
 # (edit that file with your editor, then sync fingerprints)
 tndm ticket sync TNDM-A1B2C3
 
-# View a ticket with its rich, formatted output
+# View a formatted ticket
 tndm ticket show TNDM-A1B2C3
 # →
 #   TNDM-A1B2C3 · Refactor auth module
@@ -70,11 +94,24 @@ tndm ticket show TNDM-A1B2C3
 #   ## Context
 #   ...
 
-# Check what another branch is doing
-tndm awareness --against branch-a
-# → JSON report of added, removed, and diverged tickets
+# List all active tickets
+tndm ticket list
+# → ID              STATUS        PRIORITY  TITLE
+#   TNDM-A1B2C3     in_progress   p2        Refactor auth module
+#   TNDM-6F2E1A     in_progress   p1        Fix login bug
 
-# Keep formatting consistent
+# Show all tickets including done
+tndm ticket list --all
+
+# Output as JSON for agent consumption
+tndm ticket show TNDM-A1B2C3 --json
+# → {"meta":{...},"state":{...},"content":"..."}
+
+# Check what another branch is working on
+tndm awareness --against branch-a
+# → JSON report with added, removed, and diverged tickets
+
+# Keep formatting consistent in CI
 tndm fmt --check
 ```
 
@@ -83,6 +120,10 @@ tndm fmt --check
 aligned fields, and rendered Markdown content — headings, bold, italic,
 code blocks, lists, and blockquotes are all styled in the terminal.
 Colors disable automatically when output is piped.
+
+**Agent-friendly JSON.** Append `--json` to any command for deterministic structured
+output — no parsing human-readable text required.
+
 
 ## Agent plugin
 
@@ -124,6 +165,13 @@ pi install npm:@mrclrchtr/supi-flow
 | [`docs/architecture.md`](docs/architecture.md) | Crate structure, dependency rules, enforcement |
 | [`docs/decisions.md`](docs/decisions.md) | Design rationale and trade-offs |
 | [`docs/references.md`](docs/references.md) | Competitive analysis and related projects |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
+
+## Getting help
+
+- **Bug reports / feature requests** — open a [GitHub issue](https://github.com/mrclrchtr/tandem/issues)
+- **Questions / discussion** — start a [GitHub discussion](https://github.com/mrclrchtr/tandem/discussions)
+- **CLI help** — `tndm --help` for full command reference
 
 ## Contributing
 
@@ -139,4 +187,4 @@ See [`CLAUDE.md`](CLAUDE.md) for development conventions and [`docs/releasing.md
 
 ## License
 
-Apache-2.0
+`tandem` is licensed under [Apache 2.0](LICENSE).
