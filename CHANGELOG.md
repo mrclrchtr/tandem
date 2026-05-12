@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/mrclrchtr/tandem/compare/v0.7.0...v0.7.1) (2026-05-12)
+
+
+### Bug Fixes
+
+* **ci:** remove registry-url from setup-node for OIDC trusted publisher ([8bc0cbb](https://github.com/mrclrchtr/tandem/commit/8bc0cbba33fbece9fd4f3b16182bf67d90472387))
+
 ## [0.7.0](https://github.com/mrclrchtr/tandem/compare/v0.6.1...v0.7.0) (2026-05-12)
 
 
