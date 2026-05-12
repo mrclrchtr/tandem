@@ -26,13 +26,16 @@ beforeEach(() => {
 
 describe("executeFlowStart", () => {
   it("creates a ticket with title, status todo, and flow:brainstorm tag", async () => {
-    vi.mocked(tndm).mockResolvedValue({ stdout: "TNDM-TEST\n", stderr: "" });
+    vi.mocked(tndmJson).mockResolvedValue({
+      id: "TNDM-TEST",
+      content_path: "/tmp/.tndm/tickets/TNDM-TEST/content.md",
+    });
 
     const result = await flowTools.executeFlowStart({
       title: "My change",
     });
 
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
       "ticket",
       "create",
       "My change",
@@ -41,17 +44,25 @@ describe("executeFlowStart", () => {
       "--tags",
       "flow:brainstorm",
     ]);
+    // No context, so tndm should not be called
+    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
     expect(result.content[0].text).toContain("Created ticket TNDM-TEST");
+    expect(result.content[0].text).toContain("at /tmp/.tndm/tickets/TNDM-TEST");
     expect(result.details).toEqual({
       action: "flow_start",
       ticketId: "TNDM-TEST",
+      ticketPath: "/tmp/.tndm/tickets/TNDM-TEST",
       status: "todo",
       tags: "flow:brainstorm",
     });
   });
 
   it("writes optional context to the canonical ticket content", async () => {
-    vi.mocked(tndm).mockResolvedValue({ stdout: "TNDM-OPT\n", stderr: "" });
+    vi.mocked(tndmJson).mockResolvedValue({
+      id: "TNDM-OPT",
+      content_path: "/tmp/.tndm/tickets/TNDM-OPT/content.md",
+    });
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
     const result = await flowTools.executeFlowStart({
       title: "Optimized change",
@@ -60,7 +71,7 @@ describe("executeFlowStart", () => {
       context: "Design summary for the change",
     });
 
-    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(1, [
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
       "ticket",
       "create",
       "Optimized change",
@@ -73,15 +84,17 @@ describe("executeFlowStart", () => {
       "--type",
       "feature",
     ]);
-    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(2, [
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
       "ticket",
       "update",
       "TNDM-OPT",
       "--content",
       "Design summary for the change",
     ]);
-    expect(vi.mocked(tndm)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(tndm)).toHaveBeenCalledTimes(1);
     expect(result.details.ticketId).toBe("TNDM-OPT");
+    expect(result.content[0].text).toContain("at /tmp/.tndm/tickets/TNDM-OPT");
+    expect(result.details.ticketPath).toBe("/tmp/.tndm/tickets/TNDM-OPT");
   });
 });
 

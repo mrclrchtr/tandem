@@ -41,8 +41,12 @@ export async function executeFlowStart(params: FlowStartParams) {
   if (params.priority) args.push("--priority", params.priority);
   if (params.type) args.push("--type", params.type);
 
-  const result = await tndm(args);
-  const ticketId = result.stdout.trim();
+  // Use --json on create to get id + content_path in one call
+  const createResult = await tndmJson<{ id: string; content_path?: string }>(args);
+  const ticketId = createResult.id;
+  const contentPath = createResult.content_path ?? "";
+  const ticketDir = contentPath ? dirname(contentPath) : "";
+  const pathInfo = ticketDir ? ` at ${ticketDir}` : "";
 
   if (params.context) {
     await tndm(["ticket", "update", ticketId, "--content", params.context]);
@@ -52,10 +56,16 @@ export async function executeFlowStart(params: FlowStartParams) {
     content: [
       {
         type: "text" as const,
-        text: `Created ticket ${ticketId} with status=todo and flow:brainstorm tag.`,
+        text: `Created ticket ${ticketId}${pathInfo} with status=todo and flow:brainstorm tag.`,
       },
     ],
-    details: { action: "flow_start", ticketId, status: "todo", tags: "flow:brainstorm" },
+    details: {
+      action: "flow_start",
+      ticketId,
+      ticketPath: ticketDir,
+      status: "todo",
+      tags: "flow:brainstorm",
+    },
   };
 }
 
