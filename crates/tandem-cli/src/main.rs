@@ -1017,7 +1017,14 @@ fn handle_doc_create(id: String, name: String, json: bool) -> anyhow::Result<()>
             })?;
             let mut hasher = sha2::Sha256::new();
             hasher.update(&contents);
-            let hash = format!("sha256:{:x}", hasher.finalize());
+            let hash = format!(
+                "sha256:{}",
+                hasher
+                    .finalize()
+                    .iter()
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<String>()
+            );
             fingerprints.insert(doc.name.clone(), hash);
         }
     }

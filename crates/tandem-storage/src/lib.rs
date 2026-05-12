@@ -39,7 +39,14 @@ impl FileTicketStore {
         })?;
         let mut hasher = Sha256::new();
         hasher.update(&contents);
-        let hash = format!("sha256:{:x}", hasher.finalize());
+        let hash = format!(
+            "sha256:{}",
+            hasher
+                .finalize()
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>()
+        );
         Ok(hash)
     }
 
@@ -329,7 +336,14 @@ impl TicketStore for FileTicketStore {
             if doc.name == "content" {
                 let mut hasher = Sha256::new();
                 hasher.update(ticket.content.as_bytes());
-                let hash = format!("sha256:{:x}", hasher.finalize());
+                let hash = format!(
+                    "sha256:{}",
+                    hasher
+                        .finalize()
+                        .iter()
+                        .map(|b| format!("{:02x}", b))
+                        .collect::<String>()
+                );
                 fingerprints.insert(doc.name.clone(), hash);
             }
             // Future documents fingerprint after creation
