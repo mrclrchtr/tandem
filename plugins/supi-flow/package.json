@@ -2,7 +2,8 @@
   "name": "@mrclrchtr/supi-flow",
   "version": "0.7.1",
   "private": false,
-  "description": "SuPi flow extension — spec-driven workflow coupled to TNDM ticket coordination",
+  "description": "PI extension for spec-driven workflow (brainstorm \u2192 plan \u2192 apply \u2192 archive) with TNDM ticket coordination, custom tools, and 6 auto-discovered skills",
+  "keywords": ["pi-package", "pi-extension", "tndm", "workflow", "ticket-coordination"],
   "license": "Apache-2.0",
   "pi": {
     "extensions": [

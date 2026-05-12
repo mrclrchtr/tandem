@@ -148,6 +148,14 @@ Flow phases map to TNDM statuses and tags:
 - **tndm CLI**: required (all ticket operations shell out to `tndm`)
 - **pi**: discovers bundled skills and prompt templates automatically from the package
 
+## PI package
+
+This extension is published as a [`pi-package`](https://pi.dev/packages) — listed in the PI package gallery. Install directly:
+
+```bash
+pi install npm:@mrclrchtr/supi-flow
+```
+
 ## Installation
 
 The extension is auto-discovered when the plugin directory is in pi's extension search path:

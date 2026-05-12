@@ -108,6 +108,14 @@ claude --plugin-dir ./plugins/tndm
 
 See [`plugins/tndm/README.md`](plugins/tndm/README.md) for marketplace setup instructions.
 
+### PI (coding agent)
+
+[`plugins/supi-flow/`](plugins/supi-flow/) is a **PI extension** that adds a spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. It ships with 6 auto-discovered skills and 5 custom tools (`supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`, `supi_tndm_cli`).
+
+```bash
+pi install npm:@mrclrchtr/supi-flow
+```
+
 ## Documentation
 
 | Doc | What you'll find |
