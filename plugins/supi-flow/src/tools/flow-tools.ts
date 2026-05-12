@@ -251,12 +251,15 @@ export async function executeFlowClose(params: FlowCloseParams) {
 
   if (params.verification_results) {
     // Update existing ## Verification Results section or append new one
-    const sectionRegex = /## Verification Results[\s\S]*?(?=\n## |\n*$)/;
-    if (sectionRegex.test(content)) {
-      content = content.replace(
-        sectionRegex,
-        `## Verification Results\n\n${params.verification_results}`,
-      );
+    const sectionStart = content.indexOf("## Verification Results");
+    if (sectionStart !== -1) {
+      const afterHeading = content.slice(sectionStart);
+      const nextHeadingPos = afterHeading.search(/\n## /);
+      const sectionEnd = nextHeadingPos !== -1 ? sectionStart + nextHeadingPos : content.length;
+      content =
+        content.slice(0, sectionStart) +
+        `## Verification Results\n\n${params.verification_results}` +
+        content.slice(sectionEnd);
     } else {
       content += `\n\n## Verification Results\n\n${params.verification_results}`;
     }

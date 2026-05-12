@@ -1563,3 +1563,149 @@ fn ticket_update_with_effort_flag() {
     let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
     assert!(show_stdout.contains("xl"), "show output was: {show_stdout}");
 }
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_add_tags_preserves_existing_and_sorts() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-ADTG";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "create",
+            "Add tags test",
+            "--id",
+            ticket_id,
+            "--tags",
+            "beta,alpha",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--add-tags", "gamma,alpha"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update --add-tags");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("alpha, beta, gamma"),
+        "tags should be deduped and sorted; show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_remove_tags_filters_existing() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-RMTG";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "create",
+            "Remove tags test",
+            "--id",
+            ticket_id,
+            "--tags",
+            "a,b,c",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", ticket_id, "--remove-tags", "b,d"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update --remove-tags");
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket show");
+
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("a, c"),
+        "tags should have b removed; show output was: {show_stdout}"
+    );
+    assert!(
+        !show_stdout.contains("b,"),
+        "removed tag b should not appear; show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_update_add_tags_conflicts_with_tags_flag() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let ticket_id = "TNDM-CFTG";
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Conflict test", "--id", ticket_id])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket")
+        .status
+        .success()
+        .then_some(())
+        .expect("create should succeed");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "update",
+            ticket_id,
+            "--tags",
+            "x",
+            "--add-tags",
+            "y",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("run tndm ticket update with conflicting flags");
+
+    assert!(
+        !output.status.success(),
+        "--tags and --add-tags together should fail"
+    );
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(
+        stderr.contains("cannot be used with") || stderr.contains("error"),
+        "stderr was: {stderr}"
+    );
+}
