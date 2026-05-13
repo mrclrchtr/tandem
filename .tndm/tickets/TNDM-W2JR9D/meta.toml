@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-W2JR9D"
+title = "Structured Task Management in TNDM: replace plan.md with state.toml tasks"
+
+type = "feature"
+priority = "p2"
+
+depends_on = []
+tags = ["flow:brainstorm"]
+[[documents]]
+name = "content"
+path = "content.md"
