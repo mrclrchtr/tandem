@@ -113,7 +113,8 @@ Starting in 0.6.0, tickets use a **document registry** in metadata.
 - Awareness output distinguishes:
     - **added_current:** ticket exists in the working tree but not at the compared ref
     - **added_against:** ticket exists at the compared ref but not in the working tree
-    - **diverged:** ticket exists in both but fields differ (with field-level diffs for status, priority, title, type, depends_on, tags)
+    - **diverged:** ticket exists in both but fields differ (with field-level diffs for status, priority, effort, title, type, depends_on, tags, and documents)
+    - Document diffs use a dedicated `AwarenessDocEntry` format: only changed entries are reported, each showing the document name and its fingerprint (`sha256:...`) in both `current` and `against` snapshots. This differs from set-like fields (`depends_on`, `tags`) which show full sorted lists.
 - Awareness may surface local, uncommitted ticket changes as early hints, but distinguishes them from changes observed
   on Git refs (since uncommitted state is machine-local and non-reproducible).
 

@@ -96,6 +96,15 @@ pub(crate) fn format_awareness_text(report: &tandem_core::awareness::AwarenessRe
                 tags.current, tags.against
             ));
         }
+        if let Some(ref documents) = ticket.fields.documents {
+            output.push_str("  documents:\n");
+            for doc in documents {
+                output.push_str(&format!(
+                    "    {}: {} -> {}\n",
+                    doc.name, doc.current, doc.against
+                ));
+            }
+        }
     }
 
     output

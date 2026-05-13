@@ -6,7 +6,13 @@ type = "task"
 priority = "p3"
 
 depends_on = []
-tags = ["api-design", "awareness", "refactoring", "rust", "tandem-core"]
+tags = ["api-design", "awareness", "flow:done", "refactoring", "rust", "tandem-core"]
+[[documents]]
+name = "archive"
+path = "archive.md"
 [[documents]]
 name = "content"
 path = "content.md"
+[[documents]]
+name = "plan"
+path = "plan.md"

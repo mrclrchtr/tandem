@@ -86,7 +86,7 @@ pub struct AwarenessFieldDiffs {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<AwarenessVecDiff>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub documents: Option<AwarenessVecDiff>,
+    pub documents: Option<Vec<AwarenessDocEntry>>,
 }
 
 impl AwarenessFieldDiffs {
@@ -120,34 +120,32 @@ impl AwarenessFieldDiffs {
             against: against_tags,
         });
 
-        // Compare document fingerprint changes
-        let current_doc_fps: Vec<String> = current
+        // Compare document fingerprint changes — report only changed entries
+        let all_names: BTreeSet<&String> = current
             .state
             .document_fingerprints
             .keys()
-            .cloned()
+            .chain(against.state.document_fingerprints.keys())
             .collect();
-        let against_doc_fps: Vec<String> = against
-            .state
-            .document_fingerprints
-            .keys()
-            .cloned()
-            .collect();
-        let changed_docs: Vec<String> = current_doc_fps
-            .iter()
-            .chain(against_doc_fps.iter())
-            .collect::<BTreeSet<_>>()
+
+        let changed_entries: Vec<AwarenessDocEntry> = all_names
             .into_iter()
-            .filter(|name| {
-                current.state.document_fingerprints.get(*name)
-                    != against.state.document_fingerprints.get(*name)
+            .filter_map(|name| {
+                let current_fp = current.state.document_fingerprints.get(name);
+                let against_fp = against.state.document_fingerprints.get(name);
+                if current_fp != against_fp {
+                    Some(AwarenessDocEntry {
+                        name: name.clone(),
+                        current: current_fp.cloned().unwrap_or_default(),
+                        against: against_fp.cloned().unwrap_or_default(),
+                    })
+                } else {
+                    None
+                }
             })
-            .cloned()
             .collect();
-        let documents = (!changed_docs.is_empty()).then_some(AwarenessVecDiff {
-            current: current_doc_fps,
-            against: against_doc_fps,
-        });
+
+        let documents = (!changed_entries.is_empty()).then_some(changed_entries);
 
         let diffs = Self {
             status,
@@ -185,6 +183,13 @@ pub struct AwarenessFieldDiff {
 pub struct AwarenessVecDiff {
     pub current: Vec<String>,
     pub against: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AwarenessDocEntry {
+    pub name: String,
+    pub current: String,
+    pub against: String,
 }
 
 pub fn compare_snapshots(
@@ -735,10 +740,183 @@ mod tests {
 
         assert_eq!(report.tickets.len(), 1);
         assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
-        let fields = &report.tickets[0].fields;
-        assert!(
-            fields.documents.is_some(),
-            "should report document diff: {fields:?}"
+        let docs = &report.tickets[0]
+            .fields
+            .documents
+            .as_ref()
+            .expect("should have document diff");
+        assert_eq!(docs.len(), 1);
+        assert_eq!(docs[0].name, "content");
+        assert_eq!(docs[0].current, "sha256:abc");
+        assert_eq!(docs[0].against, "sha256:def");
+    }
+
+    #[test]
+    fn compare_snapshots_reports_only_changed_documents() {
+        let mut current_ticket = ticket(
+            "TNDM-DOC2",
+            "Doc partial change",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
         );
+        current_ticket
+            .state
+            .document_fingerprints
+            .insert("content".to_string(), "sha256:abc".to_string());
+        current_ticket
+            .state
+            .document_fingerprints
+            .insert("design".to_string(), "sha256:fff".to_string());
+
+        let mut against_ticket = ticket(
+            "TNDM-DOC2",
+            "Doc partial change",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket
+            .state
+            .document_fingerprints
+            .insert("content".to_string(), "sha256:def".to_string());
+        against_ticket
+            .state
+            .document_fingerprints
+            .insert("design".to_string(), "sha256:fff".to_string());
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        let docs = &report.tickets[0]
+            .fields
+            .documents
+            .as_ref()
+            .expect("should have document diff");
+        assert_eq!(docs.len(), 1, "only the changed doc should appear");
+        assert_eq!(docs[0].name, "content");
+        assert_eq!(docs[0].current, "sha256:abc");
+        assert_eq!(docs[0].against, "sha256:def");
+    }
+
+    #[test]
+    fn compare_snapshots_reports_added_document() {
+        let mut current_ticket = ticket(
+            "TNDM-DOCADD",
+            "Doc added",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket
+            .state
+            .document_fingerprints
+            .insert("new_doc".to_string(), "sha256:abc".to_string());
+
+        let against_ticket = ticket(
+            "TNDM-DOCADD",
+            "Doc added",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        let docs = &report.tickets[0]
+            .fields
+            .documents
+            .as_ref()
+            .expect("should have document diff");
+        assert_eq!(docs.len(), 1);
+        assert_eq!(docs[0].name, "new_doc");
+        assert_eq!(docs[0].current, "sha256:abc");
+        assert_eq!(
+            docs[0].against, "",
+            "added doc has no fingerprint in against"
+        );
+    }
+
+    #[test]
+    fn compare_snapshots_reports_removed_document() {
+        let current_ticket = ticket(
+            "TNDM-DOCRM",
+            "Doc removed",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+
+        let mut against_ticket = ticket(
+            "TNDM-DOCRM",
+            "Doc removed",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket
+            .state
+            .document_fingerprints
+            .insert("removed_doc".to_string(), "sha256:def".to_string());
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert_eq!(report.tickets.len(), 1);
+        let docs = &report.tickets[0]
+            .fields
+            .documents
+            .as_ref()
+            .expect("should have document diff");
+        assert_eq!(docs.len(), 1);
+        assert_eq!(docs[0].name, "removed_doc");
+        assert_eq!(
+            docs[0].current, "",
+            "removed doc has no fingerprint in current"
+        );
+        assert_eq!(docs[0].against, "sha256:def");
+    }
+
+    #[test]
+    fn compare_snapshots_omits_documents_when_fingerprints_unchanged() {
+        let mut current_ticket = ticket(
+            "TNDM-DOCID",
+            "Doc identical",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket
+            .state
+            .document_fingerprints
+            .insert("content".to_string(), "sha256:abc".to_string());
+
+        let mut against_ticket = ticket(
+            "TNDM-DOCID",
+            "Doc identical",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket
+            .state
+            .document_fingerprints
+            .insert("content".to_string(), "sha256:abc".to_string());
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+
+        assert!(report.tickets.is_empty(), "no diff when fingerprints match");
     }
 }
