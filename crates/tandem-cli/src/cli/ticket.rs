@@ -1,8 +1,4 @@
-use std::{
-    env, fs,
-    io::{self, IsTerminal, Read},
-    path::PathBuf,
-};
+use std::{env, fs, path::PathBuf};
 
 use clap::{Subcommand, ValueEnum};
 use tabled::{builder::Builder, settings::Style};
@@ -19,7 +15,7 @@ use super::OutputArgs;
 use super::render::{TicketJson, TicketJsonEntry};
 use super::util::{
     DEFINITION_TAG_QUESTIONS, DEFINITION_TAG_READY, generate_ticket_id, load_ticket_content,
-    ticket_content_path,
+    read_stdin_if_no_flags, ticket_content_path,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -212,15 +208,7 @@ pub(crate) fn handle_ticket_create(
         && tags.is_none()
         && depends_on.is_none()
         && effort.is_none();
-    let stdin_content = if no_explicit_create && !io::stdin().is_terminal() {
-        let mut buf = String::new();
-        io::stdin()
-            .read_to_string(&mut buf)
-            .map_err(|error| anyhow::anyhow!("{error}"))?;
-        if buf.is_empty() { None } else { Some(buf) }
-    } else {
-        None
-    };
+    let stdin_content = read_stdin_if_no_flags(no_explicit_create)?;
 
     let ticket_id = match id {
         Some(value) => TicketId::parse(value)?,
@@ -444,15 +432,7 @@ pub(crate) fn handle_ticket_update(
         && remove_tags.is_none()
         && depends_on.is_none()
         && effort.is_none();
-    let stdin_content = if no_explicit_update && !io::stdin().is_terminal() {
-        let mut buf = String::new();
-        io::stdin()
-            .read_to_string(&mut buf)
-            .map_err(|error| anyhow::anyhow!("{error}"))?;
-        if buf.is_empty() { None } else { Some(buf) }
-    } else {
-        None
-    };
+    let stdin_content = read_stdin_if_no_flags(no_explicit_update)?;
 
     if status.is_none()
         && priority.is_none()

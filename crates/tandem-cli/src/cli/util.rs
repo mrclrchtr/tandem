@@ -1,3 +1,4 @@
+use std::io::{IsTerminal, Read};
 use std::{fs, path::PathBuf};
 
 use rand::RngExt;
@@ -64,6 +65,22 @@ pub(crate) fn generate_ticket_id(
         if !exists {
             return Ok(candidate);
         }
+    }
+}
+
+pub(crate) fn read_stdin_if_no_flags(no_explicit: bool) -> anyhow::Result<Option<String>> {
+    if no_explicit && !std::io::stdin().is_terminal() {
+        let mut buf = String::new();
+        std::io::stdin()
+            .read_to_string(&mut buf)
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        if buf.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(buf))
+        }
+    } else {
+        Ok(None)
     }
 }
 
