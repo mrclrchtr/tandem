@@ -1,0 +1,19 @@
+schema_version = 1
+id = "TNDM-C7E0T6"
+title = "Fix supi_flow_plan tag overwrite: preserve flow-state correctly"
+type = "bug"
+priority = "p2"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"
+
+[[documents]]
+name = "plan"
+path = "plan.md"

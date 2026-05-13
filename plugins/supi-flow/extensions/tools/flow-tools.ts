@@ -118,14 +118,23 @@ export async function executeFlowPlan(params: FlowPlanParams) {
 
   // Sync fingerprints and update tags
   await tndm(["ticket", "sync", params.ticket_id]);
+
+  // Replace any flow-state tag with flow:planned — remove all possible flow-state tags
+  // first, then add flow:planned, to work correctly regardless of the ticket's current
+  // flow state (brainstorm, planned, applying, or done).
+  await tndm([
+    "ticket",
+    "update",
+    params.ticket_id,
+    "--remove-tags",
+    "flow:brainstorm,flow:planned,flow:applying,flow:done",
+  ]);
   await tndm([
     "ticket",
     "update",
     params.ticket_id,
     "--add-tags",
     "flow:planned",
-    "--remove-tags",
-    "flow:brainstorm",
   ]);
 
   return {
@@ -317,6 +326,16 @@ export async function executeFlowClose(params: FlowCloseParams) {
     await tndm(["ticket", "sync", params.ticket_id]);
   }
 
+  // Replace any flow-state tag with flow:done — remove all possible flow-state tags
+  // first, then set status and add flow:done, to work correctly regardless of the
+  // ticket's current flow state.
+  await tndm([
+    "ticket",
+    "update",
+    params.ticket_id,
+    "--remove-tags",
+    "flow:brainstorm,flow:planned,flow:applying,flow:done",
+  ]);
   await tndm([
     "ticket",
     "update",
@@ -325,8 +344,6 @@ export async function executeFlowClose(params: FlowCloseParams) {
     "done",
     "--add-tags",
     "flow:done",
-    "--remove-tags",
-    "flow:applying,flow:planned",
   ]);
 
   return {

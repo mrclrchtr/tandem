@@ -126,15 +126,20 @@ describe("executeFlowPlan", () => {
     // Should have called sync
     expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"]);
 
-    // Should have updated tags
+    // Should have updated tags: remove all flow-state tags first, then add flow:planned
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+      "ticket",
+      "update",
+      "TNDM-TEST",
+      "--remove-tags",
+      "flow:brainstorm,flow:planned,flow:applying,flow:done",
+    ]);
     expect(vi.mocked(tndm)).toHaveBeenCalledWith([
       "ticket",
       "update",
       "TNDM-TEST",
       "--add-tags",
       "flow:planned",
-      "--remove-tags",
-      "flow:brainstorm",
     ]);
   });
 
@@ -281,12 +286,24 @@ describe("executeFlowClose", () => {
       ticket_id: "TNDM-TEST",
     });
 
-    const statusCalls = vi.mocked(tndm).mock.calls.filter(
-      (call) => call[0][0] === "ticket" && call[0][1] === "update",
-    );
-    const latestUpdate = statusCalls[statusCalls.length - 1][0];
-    expect(latestUpdate).toContain("flow:done");
-    expect(latestUpdate).toContain("flow:applying,flow:planned");
+    // Should first remove all flow-state tags
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+      "ticket",
+      "update",
+      "TNDM-TEST",
+      "--remove-tags",
+      "flow:brainstorm,flow:planned,flow:applying,flow:done",
+    ]);
+    // Then set status and add flow:done
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+      "ticket",
+      "update",
+      "TNDM-TEST",
+      "--status",
+      "done",
+      "--add-tags",
+      "flow:done",
+    ]);
   });
 
   it("writes verification results to archive.md and syncs", async () => {
