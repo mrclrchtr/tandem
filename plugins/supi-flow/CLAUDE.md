@@ -19,7 +19,8 @@ It registers 5 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_p
 
 - **tandem** (Rust) provides the `tndm` CLI that this plugin shells out to via `child_process.execFile`.
 - This plugin is consumed by pi (not Claude Code), so its `package.json` uses PI's conventional directory structure instead of a Claude Code `plugin.json` manifest.
-- The sibling `plugins/tndm/` is a separate Claude Code plugin that teaches agents to use `tndm` directly. This plugin wraps those same operations in structured PI tools.
+- This plugin wraps `tndm` CLI operations in structured PI tools — never shell out to `tndm` directly. Always use the registered PI tools.
+- The `plugins/` directory also contains `plugins/supi-flow/`; there is no other plugin to keep in sync.
 
 ## File structure
 
