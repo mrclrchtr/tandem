@@ -9,7 +9,6 @@ use std::{
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::Serialize;
-use sha2::Digest;
 use tabled::{builder::Builder, settings::Style};
 use tandem_core::{
     awareness::compare_snapshots,
@@ -21,8 +20,8 @@ use tandem_core::{
 };
 use tandem_repo::GitAwarenessProvider;
 use tandem_storage::{
-    FileTicketStore, TandemConfig, discover_repo_root, load_config, load_ticket_snapshot,
-    ticket_dir,
+    FileTicketStore, TandemConfig, discover_repo_root, fingerprint_file, load_config,
+    load_ticket_snapshot, ticket_dir,
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
@@ -1012,19 +1011,7 @@ fn handle_doc_create(id: String, name: String, json: bool) -> anyhow::Result<()>
     for doc in &ticket.meta.documents {
         let doc_path = ticket_dir(&repo_root, &ticket_id).join(&doc.path);
         if doc_path.is_file() {
-            let contents = fs::read(&doc_path).map_err(|error| {
-                anyhow::anyhow!("failed to read {}: {error}", doc_path.display())
-            })?;
-            let mut hasher = sha2::Sha256::new();
-            hasher.update(&contents);
-            let hash = format!(
-                "sha256:{}",
-                hasher
-                    .finalize()
-                    .iter()
-                    .map(|b| format!("{:02x}", b))
-                    .collect::<String>()
-            );
+            let hash = fingerprint_file(&doc_path).map_err(|e| anyhow::anyhow!("{e}"))?;
             fingerprints.insert(doc.name.clone(), hash);
         }
     }

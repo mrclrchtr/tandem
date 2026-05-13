@@ -22,32 +22,37 @@ pub struct FileTicketStore {
     repo_root: PathBuf,
 }
 
+/// Compute the SHA-256 fingerprint of a byte slice.
+/// Returns `sha256:<hex>` string.
+pub fn fingerprint_bytes(data: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    format!(
+        "sha256:{}",
+        hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>()
+    )
+}
+
+/// Compute the SHA-256 fingerprint of a file's contents.
+/// Returns `sha256:<hex>` string.
+#[allow(clippy::disallowed_methods)]
+pub fn fingerprint_file(path: &Path) -> Result<String, StorageError> {
+    let contents = fs::read(path).map_err(|error| {
+        StorageError::new(format!(
+            "failed to read {} for fingerprint: {error}",
+            path.display()
+        ))
+    })?;
+    Ok(fingerprint_bytes(&contents))
+}
+
 impl FileTicketStore {
     pub fn new(repo_root: PathBuf) -> Self {
         Self { repo_root }
-    }
-
-    /// Compute the SHA-256 fingerprint for a file path.
-    /// Returns `sha256:<hex>` string.
-    #[allow(clippy::disallowed_methods)]
-    fn fingerprint_file(path: &Path) -> Result<String, StorageError> {
-        let contents = fs::read(path).map_err(|error| {
-            StorageError::new(format!(
-                "failed to read {} for fingerprint: {error}",
-                path.display()
-            ))
-        })?;
-        let mut hasher = Sha256::new();
-        hasher.update(&contents);
-        let hash = format!(
-            "sha256:{}",
-            hasher
-                .finalize()
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect::<String>()
-        );
-        Ok(hash)
     }
 
     /// Recompute fingerprints for all registered documents and update the ticket.
@@ -60,7 +65,7 @@ impl FileTicketStore {
         for doc in &ticket.meta.documents {
             let doc_path = ticket_path.join(&doc.path);
             if doc_path.is_file() {
-                let fp = Self::fingerprint_file(&doc_path)?;
+                let fp = fingerprint_file(&doc_path)?;
                 ticket
                     .state
                     .document_fingerprints
@@ -100,7 +105,7 @@ impl FileTicketStore {
                 drift.push((doc.name.clone(), "MISSING".to_string()));
                 continue;
             }
-            let actual_fp = Self::fingerprint_file(&doc_path)?;
+            let actual_fp = fingerprint_file(&doc_path)?;
             let stored_fp = ticket.state.document_fingerprints.get(&doc.name);
             match stored_fp {
                 Some(fp) if fp == &actual_fp => {}
@@ -334,17 +339,10 @@ impl TicketStore for FileTicketStore {
             // For content.md, fingerprint will be computed after writing
             // but we store the template for now
             if doc.name == "content" {
-                let mut hasher = Sha256::new();
-                hasher.update(ticket.content.as_bytes());
-                let hash = format!(
-                    "sha256:{}",
-                    hasher
-                        .finalize()
-                        .iter()
-                        .map(|b| format!("{:02x}", b))
-                        .collect::<String>()
+                fingerprints.insert(
+                    doc.name.clone(),
+                    fingerprint_bytes(ticket.content.as_bytes()),
                 );
-                fingerprints.insert(doc.name.clone(), hash);
             }
             // Future documents fingerprint after creation
         }

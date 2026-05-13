@@ -1050,7 +1050,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "sha2",
  "syntect",
  "tabled",
  "tandem-core",
