@@ -103,20 +103,15 @@ describe("executeFlowPlan", () => {
     // Mock doc create returning a temp path
     const tmpDir = mkdtempSync(join(tmpdir(), "tndm-plan-test-"));
     const docPath = join(tmpDir, "plan.md");
-    vi.mocked(tndm).mockImplementation(async (args: string[]) => {
-      if (args[0] === "ticket" && args[1] === "doc" && args[2] === "create") {
-        return { stdout: docPath + "\n", stderr: "" };
-      }
-      return { stdout: "", stderr: "" };
-    });
+    vi.mocked(tndmJson).mockResolvedValue({ path: docPath });
 
     await flowTools.executeFlowPlan({
       ticket_id: "TNDM-TEST",
       plan_content: "- [ ] **Task 1**: Do thing",
     });
 
-    // Should have called doc create first
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+    // Should have called doc create first via tndmJson
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
       "ticket",
       "doc",
       "create",
@@ -148,12 +143,7 @@ describe("executeFlowPlan", () => {
     const docPath = join(tmpDir, "plan.md");
     writeFileSync(docPath, "Existing content\n", "utf-8");
 
-    vi.mocked(tndm).mockImplementation(async (args: string[]) => {
-      if (args[0] === "ticket" && args[1] === "doc" && args[2] === "create") {
-        return { stdout: docPath + "\n", stderr: "" };
-      }
-      return { stdout: "", stderr: "" };
-    });
+    vi.mocked(tndmJson).mockResolvedValue({ path: docPath });
 
     await flowTools.executeFlowPlan({
       ticket_id: "TNDM-TEST",
@@ -280,12 +270,7 @@ describe("executeFlowClose", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "tndm-close-"));
     const archivePath = join(tmpDir, "archive.md");
 
-    vi.mocked(tndm).mockImplementation(async (args: string[]) => {
-      if (args[0] === "ticket" && args[1] === "doc" && args[2] === "create") {
-        return { stdout: archivePath + "\n", stderr: "" };
-      }
-      return { stdout: "", stderr: "" };
-    });
+    vi.mocked(tndmJson).mockResolvedValue({ path: archivePath });
     return archivePath;
   }
 
@@ -301,7 +286,7 @@ describe("executeFlowClose", () => {
     );
     const latestUpdate = statusCalls[statusCalls.length - 1][0];
     expect(latestUpdate).toContain("flow:done");
-    expect(latestUpdate).toContain("flow:applying");
+    expect(latestUpdate).toContain("flow:applying,flow:planned");
   });
 
   it("writes verification results to archive.md and syncs", async () => {
@@ -312,8 +297,8 @@ describe("executeFlowClose", () => {
       verification_results: "All tests pass.",
     });
 
-    // Should have called doc create for archive
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+    // Should have called doc create for archive via tndmJson
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
       "ticket",
       "doc",
       "create",

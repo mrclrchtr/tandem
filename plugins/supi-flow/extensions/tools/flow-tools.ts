@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
-import { gitAddCommit, tndm, tndmJson } from "../cli.js";
+import { tndm, tndmJson } from "../cli.js";
 
 // ─── supi_flow_start ───────────────────────────────────────────
 
@@ -10,12 +10,14 @@ export const supiFlowStartParams = Type.Object({
   title: Type.String({ description: "Ticket title describing the change" }),
   priority: Type.Optional(
     StringEnum(["p0", "p1", "p2", "p3", "p4"] as const, {
-      description: "Priority (default: p2)",
+      description: "Priority",
+      default: "p2",
     }),
   ),
   type: Type.Optional(
     StringEnum(["task", "bug", "feature", "chore", "epic"] as const, {
-      description: "Ticket type (default: task)",
+      description: "Ticket type",
+      default: "task",
     }),
   ),
   context: Type.Optional(
@@ -89,8 +91,14 @@ export type FlowPlanParams = Static<typeof supiFlowPlanParams>;
 
 export async function executeFlowPlan(params: FlowPlanParams) {
   // Create a "plan" document and get its path
-  const docResult = await tndm(["ticket", "doc", "create", params.ticket_id, "plan"]);
-  const docPath = docResult.stdout.trim();
+  const docResult = await tndmJson<{ path: string }>([
+    "ticket",
+    "doc",
+    "create",
+    params.ticket_id,
+    "plan",
+  ]);
+  const docPath = docResult.path;
 
   let content = params.plan_content;
 
@@ -297,14 +305,16 @@ export async function executeFlowClose(params: FlowCloseParams) {
 
   if (params.verification_results) {
     // Create/register archive.md via document registry, then write results
-    try {
-      const docResult = await tndm(["ticket", "doc", "create", params.ticket_id, "archive"]);
-      archivePath = docResult.stdout.trim();
-      writeFileSync(archivePath, `# Archive\n\n${params.verification_results}\n`, "utf-8");
-      await tndm(["ticket", "sync", params.ticket_id]);
-    } catch {
-      // Non-fatal if doc create fails
-    }
+    const docResult = await tndmJson<{ path: string }>([
+      "ticket",
+      "doc",
+      "create",
+      params.ticket_id,
+      "archive",
+    ]);
+    archivePath = docResult.path;
+    writeFileSync(archivePath, `# Archive\n\n${params.verification_results}\n`, "utf-8");
+    await tndm(["ticket", "sync", params.ticket_id]);
   }
 
   await tndm([
@@ -316,7 +326,7 @@ export async function executeFlowClose(params: FlowCloseParams) {
     "--add-tags",
     "flow:done",
     "--remove-tags",
-    "flow:applying",
+    "flow:applying,flow:planned",
   ]);
 
   return {

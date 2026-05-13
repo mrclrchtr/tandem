@@ -89,28 +89,3 @@ export async function tndmJson<T = Record<string, unknown>>(
     );
   }
 }
-
-/**
- * Run `git add .tndm/` and `git commit -m <message>`.
- * Uses `git diff --cached --quiet` to check for staged changes via exit code,
- * avoiding locale-dependent string parsing.
- * Throws on non-zero exit from `git commit`.
- */
-export async function gitAddCommit(message: string): Promise<{ commitHash: string }> {
-  await run("git", ["add", ".tndm/"]);
-
-  // Check exit code instead of parsing locale-dependent output strings.
-  // git diff --cached --quiet exits 0 (no staged changes), non-zero (changes exist or error).
-  try {
-    await run("git", ["diff", "--cached", "--quiet"]);
-    // Exit 0: no changes staged — nothing to commit
-    return { commitHash: "" };
-  } catch {
-    // Exit non-zero: changes exist, or a real git error.
-    // Proceed to commit; real errors will surface there.
-  }
-
-  const { stdout } = await run("git", ["commit", "-m", message]);
-  const match = stdout.match(/\[[^\]]+ ([a-f0-9]+)\]/);
-  return { commitHash: match ? match[1] : "" };
-}
