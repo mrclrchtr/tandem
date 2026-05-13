@@ -1,0 +1,1 @@
+User wants to change the supi-flow-archive skill so that the .tndm/ close-out commit lands inside the final change commit rather than being a separate commit. Need to understand current flow and redesign Step 5/6 accordingly.

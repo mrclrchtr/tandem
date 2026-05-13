@@ -1,0 +1,18 @@
+schema_version = 1
+id = "TNDM-K28RQV"
+title = "Archive commit should be part of final change commit, not separate"
+
+type = "task"
+priority = "p2"
+
+depends_on = []
+tags = ["flow:done", "flow:planned"]
+[[documents]]
+name = "archive"
+path = "archive.md"
+[[documents]]
+name = "content"
+path = "content.md"
+[[documents]]
+name = "plan"
+path = "plan.md"
