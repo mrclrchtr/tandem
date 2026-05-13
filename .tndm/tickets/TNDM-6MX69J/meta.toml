@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-6MX69J"
+title = "Deduplicate stdin-reading logic in tandem-cli"
+
+type = "task"
+priority = "p3"
+
+depends_on = []
+tags = ["cli", "deduplication", "refactoring", "rust", "tandem-cli"]
+[[documents]]
+name = "content"
+path = "content.md"

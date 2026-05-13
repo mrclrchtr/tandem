@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-YAG308"
+title = "Move integration test helpers to shared test-support crate"
+
+type = "task"
+priority = "p4"
+
+depends_on = []
+tags = ["architecture", "refactoring", "rust", "testing"]
+[[documents]]
+name = "content"
+path = "content.md"

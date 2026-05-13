@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-AC5MQH"
+title = "Extract ticket.rs into a module tree in tandem-core"
+
+type = "task"
+priority = "p3"
+
+depends_on = []
+tags = ["modules", "refactoring", "rust", "tandem-core"]
+[[documents]]
+name = "content"
+path = "content.md"

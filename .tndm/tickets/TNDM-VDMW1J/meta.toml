@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-VDMW1J"
+title = "Eliminate duplicated default content template"
+
+type = "task"
+priority = "p3"
+
+depends_on = []
+tags = ["config", "deduplication", "refactoring", "rust", "tandem-cli", "tandem-storage"]
+[[documents]]
+name = "content"
+path = "content.md"

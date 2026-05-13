@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-RF958A"
+title = "Clarify document diff semantics in awareness"
+
+type = "task"
+priority = "p3"
+
+depends_on = []
+tags = ["api-design", "awareness", "refactoring", "rust", "tandem-core"]
+[[documents]]
+name = "content"
+path = "content.md"

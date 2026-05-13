@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-A79509"
+title = "Replace manual Serialize for enums with serialize_with helper"
+
+type = "task"
+priority = "p4"
+
+depends_on = []
+tags = ["refactoring", "rust", "serde", "tandem-core"]
+[[documents]]
+name = "content"
+path = "content.md"

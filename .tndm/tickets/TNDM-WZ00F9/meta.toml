@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-WZ00F9"
+title = "Macro-ify boilerplate enums in tandem-core"
+
+type = "task"
+priority = "p2"
+
+depends_on = []
+tags = ["macro", "refactoring", "rust", "tandem-core"]
+[[documents]]
+name = "content"
+path = "content.md"

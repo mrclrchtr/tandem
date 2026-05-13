@@ -1,0 +1,12 @@
+schema_version = 1
+id = "TNDM-KKV1WT"
+title = "Unify error construction patterns across crates"
+
+type = "task"
+priority = "p3"
+
+depends_on = []
+tags = ["architecture", "error-handling", "refactoring", "rust", "tandem-core"]
+[[documents]]
+name = "content"
+path = "content.md"
