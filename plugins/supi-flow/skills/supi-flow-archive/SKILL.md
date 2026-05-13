@@ -66,15 +66,24 @@ Do not assume documentation is correct just because it sounds right.
 ## Step 5: Close out
 
 - Call `supi_flow_close { ticket_id: "<ID>", verification_results: "..." }` with the full verification evidence.
-  This will set status=done, tags=flow:done, store verification results in archive.md, and auto-commit .tndm/ changes.
+  This will set status=done, tags=flow:done, and store verification results in archive.md.
 - There is no ticket-less closeout.
 
-## Step 6: Verify commit
-
-Check that the `.tndm/` changes were committed. If `supi_flow_close` did not commit (e.g. no changes to commit), commit any remaining doc changes manually:
-
-```sh
-git commit -m "docs: archive TNDM-XXXXXX"
+## Step 6: Commit or finish
+```instructions
+run("git status")
+if only_changed(".tndm/"):
+  commit(".tndm/", "chore(tndm): close <ticket_id>")
+  say("The ticket is closed. All changes are committed.")
+else:
+  ask_user("Commit all changes now, including .tndm/, or finish and commit manually?")
+  if user_chose_commit_now:
+    if skill_exists_matching("commit"):
+      use_skill_matching("commit")
+    else:
+      git_commit_all()
+  else:
+    say("The ticket is closed. Remember to commit your changes when ready.")
 ```
 
 ## Red flags

@@ -127,8 +127,7 @@ export default function (pi: ExtensionAPI) {
     label: "Flow Close",
     description:
       "Close a ticket and finalize the flow. " +
-      "Writes verification results to archive.md, sets status=done, tags=flow:done, " +
-      "and auto-commits .tndm/ changes.",
+      "Writes verification results to archive.md, sets status=done, and tags=flow:done.",
     promptSnippet: "Close a TNDM ticket after implementation and verification",
     promptGuidelines: [
       "Use supi_flow_close at the end of the archive phase after all verification is complete",

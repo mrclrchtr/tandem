@@ -7,15 +7,13 @@ import { tmpdir } from "node:os";
 vi.mock("../extensions/cli.js", () => {
   const mockTndm = vi.fn();
   const mockTndmJson = vi.fn();
-  const mockGitAddCommit = vi.fn();
   return {
     tndm: mockTndm,
     tndmJson: mockTndmJson,
-    gitAddCommit: mockGitAddCommit,
   };
 });
 
-const { tndm, tndmJson, gitAddCommit } = await import("../extensions/cli.js");
+const { tndm, tndmJson } = await import("../extensions/cli.js");
 const flowTools = await import("../extensions/tools/flow-tools.js");
 
 beforeEach(() => {
@@ -288,8 +286,6 @@ describe("executeFlowClose", () => {
       }
       return { stdout: "", stderr: "" };
     });
-    vi.mocked(gitAddCommit).mockResolvedValue({ commitHash: "" });
-
     return archivePath;
   }
 
@@ -334,15 +330,4 @@ describe("executeFlowClose", () => {
     expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"]);
   });
 
-  it("commits after close", async () => {
-    setup();
-
-    const result = await flowTools.executeFlowClose({
-      ticket_id: "TNDM-TEST",
-    });
-
-    expect(vi.mocked(gitAddCommit)).toHaveBeenCalledWith(
-      "chore(tndm): close TNDM-TEST",
-    );
-  });
 });

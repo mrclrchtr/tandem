@@ -61,7 +61,7 @@ flowchart TD
 
     CLOSE["supi_flow_close
          Sets status=done, flow:done
-         Auto-commits .tndm/"]
+         Writes archive.md"]
 
     classDef phase fill:#e8f5e9,stroke:#4caf50,stroke-width:2
     classDef decision fill:#e3f2fd,stroke:#2196f3
@@ -99,7 +99,7 @@ Five custom tools registered by the extension:
 | `supi_flow_start` | Create a ticket with status=todo, tag=flow:brainstorm, and optional design context in `content.md` |
 | `supi_flow_plan` | Store the executable implementation plan in `plan.md` while leaving `content.md` as the approved design summary |
 | `supi_flow_complete_task` | Check off a numbered task (`**Task N**`) in the registered `plan` document |
-| `supi_flow_close` | Mark done, write verification results to `archive.md`, and auto-commit `.tndm/` |
+| `supi_flow_close` | Mark done and write verification results to `archive.md` |
 
 Tools should be used instead of calling `tndm` via bash. The agent invokes them with structured parameters.
 

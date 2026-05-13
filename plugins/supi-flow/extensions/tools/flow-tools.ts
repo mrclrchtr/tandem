@@ -319,21 +319,11 @@ export async function executeFlowClose(params: FlowCloseParams) {
     "flow:applying",
   ]);
 
-  let commitHash = "";
-  try {
-    const commitResult = await gitAddCommit(`chore(tndm): close ${params.ticket_id}`);
-    commitHash = commitResult.commitHash;
-  } catch {
-    // Non-fatal if commit fails
-  }
-
   return {
     content: [
       {
         type: "text" as const,
-        text: `Ticket ${params.ticket_id} closed (status=done, flow:done).${
-          commitHash ? ` Committed as ${commitHash}.` : ""
-        }`,
+        text: `Ticket ${params.ticket_id} closed (status=done, flow:done).`,
       },
     ],
     details: {
@@ -341,7 +331,6 @@ export async function executeFlowClose(params: FlowCloseParams) {
       ticketId: params.ticket_id,
       status: "done",
       tags: "flow:done",
-      commitHash,
     },
   };
 }
