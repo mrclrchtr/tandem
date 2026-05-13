@@ -142,6 +142,26 @@ pub struct Ticket {
     pub content: String,
 }
 
+/// Default markdown template used for new ticket content.
+/// Overridable via `[templates] content` in `.tndm/config.toml`.
+pub const DEFAULT_CONTENT_TEMPLATE: &str = concat!(
+    "## Context\n\n",
+    "What problem are we solving? What area of the repo or behavior is affected?\n\n",
+    "## Goal\n\n",
+    "What outcome should exist when this ticket is done?\n\n",
+    "## Open Questions\n\n",
+    "- [ ] Question or ambiguity 1\n",
+    "- [ ] Question or ambiguity 2\n\n",
+    "## Acceptance\n\n",
+    "- [ ] Observable outcome 1\n",
+    "- [ ] Observable outcome 2\n\n",
+    "## Ready When\n\n",
+    "- [ ] Scope is clear\n",
+    "- [ ] Dependencies are known\n",
+    "- [ ] Open questions are resolved or explicitly deferred\n",
+    "- [ ] Acceptance is specific enough for implementation\n"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

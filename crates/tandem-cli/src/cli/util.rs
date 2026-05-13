@@ -8,24 +8,6 @@ use tandem_storage::{FileTicketStore, TandemConfig};
 
 pub(crate) const CROCKFORD_BASE32: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-pub(crate) const DEFAULT_CONTENT_TEMPLATE: &str = concat!(
-    "## Context\n\n",
-    "What problem are we solving? What area of the repo or behavior is affected?\n\n",
-    "## Goal\n\n",
-    "What outcome should exist when this ticket is done?\n\n",
-    "## Open Questions\n\n",
-    "- [ ] Question or ambiguity 1\n",
-    "- [ ] Question or ambiguity 2\n\n",
-    "## Acceptance\n\n",
-    "- [ ] Observable outcome 1\n",
-    "- [ ] Observable outcome 2\n\n",
-    "## Ready When\n\n",
-    "- [ ] Scope is clear\n",
-    "- [ ] Dependencies are known\n",
-    "- [ ] Open questions are resolved or explicitly deferred\n",
-    "- [ ] Acceptance is specific enough for implementation\n"
-);
-
 pub(crate) const DEFINITION_TAG_READY: &str = "definition:ready";
 pub(crate) const DEFINITION_TAG_QUESTIONS: &str = "definition:questions";
 
@@ -106,5 +88,5 @@ pub(crate) fn load_ticket_content(
         return Ok(config.content_template.clone());
     }
 
-    Ok(DEFAULT_CONTENT_TEMPLATE.to_string())
+    Ok(tandem_core::ticket::DEFAULT_CONTENT_TEMPLATE.to_string())
 }

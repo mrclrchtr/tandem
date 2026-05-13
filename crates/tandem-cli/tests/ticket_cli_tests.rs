@@ -5,24 +5,6 @@ use std::{fs, process::Command};
 use regex::Regex;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-const DEFAULT_CONTENT_TEMPLATE: &str = concat!(
-    "## Context\n\n",
-    "What problem are we solving? What area of the repo or behavior is affected?\n\n",
-    "## Goal\n\n",
-    "What outcome should exist when this ticket is done?\n\n",
-    "## Open Questions\n\n",
-    "- [ ] Question or ambiguity 1\n",
-    "- [ ] Question or ambiguity 2\n\n",
-    "## Acceptance\n\n",
-    "- [ ] Observable outcome 1\n",
-    "- [ ] Observable outcome 2\n\n",
-    "## Ready When\n\n",
-    "- [ ] Scope is clear\n",
-    "- [ ] Dependencies are known\n",
-    "- [ ] Open questions are resolved or explicitly deferred\n",
-    "- [ ] Acceptance is specific enough for implementation\n"
-);
-
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_create_prints_generated_id_and_writes_ticket_files() {
@@ -1211,7 +1193,7 @@ fn ticket_create_uses_definition_friendly_default_template() {
     )
     .expect("read content.md");
 
-    assert_eq!(content, DEFAULT_CONTENT_TEMPLATE);
+    assert_eq!(content, tandem_core::ticket::DEFAULT_CONTENT_TEMPLATE);
 }
 
 #[test]
