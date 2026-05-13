@@ -6,7 +6,10 @@ type = "task"
 priority = "p1"
 
 depends_on = []
-tags = ["cli", "docs", "flow:planned", "phase1", "plugins", "supi-flow"]
+tags = ["cli", "docs", "flow:done", "phase1", "plugins", "supi-flow"]
+[[documents]]
+name = "archive"
+path = "archive.md"
 [[documents]]
 name = "content"
 path = "content.md"
