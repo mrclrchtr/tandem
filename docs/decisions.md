@@ -148,6 +148,13 @@ Starting in 0.6.0, tickets use a **document registry** in metadata.
 - Optional direction: a plugin that summarizes structured changes for the requesting agent.
 - The deterministic ticket/change model must exist independently of any LLM component.
 
+## Testing infrastructure
+
+- Shared test utilities use feature-gated exports (`#[cfg(feature = "test-support")]`)
+  from the owning crate (typically `tandem-core`), not a separate workspace
+  `-test-support` crate. This keeps the dependency graph flat and follows
+  standard Rust idiom.
+
 ## Things intentionally not over-fixed yet
 
 - Final status state machine (transitions between statuses)
