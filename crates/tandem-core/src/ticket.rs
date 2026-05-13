@@ -33,6 +33,8 @@ macro_rules! string_enum {
         error = $err:expr
     ) => {
         $(#[$attr])*
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "snake_case")]
         $vis enum $name {
             $(
                 $(#[$var_attr])*
@@ -68,11 +70,7 @@ macro_rules! string_enum {
             }
         }
 
-        impl serde::Serialize for $name {
-            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                serializer.serialize_str(self.as_str())
-            }
-        }
+
     };
 }
 
