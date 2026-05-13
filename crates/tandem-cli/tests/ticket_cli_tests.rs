@@ -5,6 +5,7 @@ use std::{fs, process::Command};
 use regex::Regex;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+#[allow(clippy::disallowed_methods)]
 fn write_prefix_config(repo_root: &std::path::Path, prefix: &str) {
     fs::create_dir_all(repo_root.join(".tndm")).expect("create .tndm dir");
     fs::write(
