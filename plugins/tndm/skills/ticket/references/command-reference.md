@@ -82,7 +82,7 @@ tndm ticket update TNDM-A1B2C3 -s in_progress
 
 # Block with reason (use document registry — no large CLI strings):
 tndm ticket doc create TNDM-A1B2C3 block-reason
-# Edit docs/block-reason.md with your edit tool, then:
+# Edit block-reason.md with your edit tool, then:
 tndm ticket sync TNDM-A1B2C3
 tndm ticket update TNDM-A1B2C3 -s blocked
 
@@ -119,7 +119,7 @@ Options:
       --json    Output as JSON with document metadata.
 ```
 
-The document file is created at `docs/<name>.md` inside the ticket directory.
+The document file is created at `<name>.md` inside the ticket directory.
 Once created, agents should:
 1. Edit the returned path with their edit tool.
 2. Run `tndm ticket sync <ID>` to refresh fingerprints.
@@ -128,7 +128,7 @@ Examples:
 
 ```sh
 # Create a plan document
-.tndm/tickets/TNDM-A1B2C3/docs/plan.md
+.tndm/tickets/TNDM-A1B2C3/plan.md
 
 # With JSON output
 tndm ticket doc create TNDM-A1B2C3 archive --json
@@ -156,7 +156,7 @@ document registry + edit + sync workflow instead.
 Examples:
 
 ```sh
-# Sync fingerprints after editing docs/plan.md
+# Sync fingerprints after editing plan.md
 TNDM-A1B2C3
 
 # With JSON output
@@ -370,9 +370,8 @@ Each ticket is stored as a directory with registered documents:
 ├── meta.toml              # stable metadata: id, title, type, priority, effort, tags, depends_on, [[documents]]
 ├── state.toml             # volatile state: status, revision, updated_at, [document_fingerprints]
 ├── content.md             # default registered document (always present)
-└── docs/
-    ├── plan.md            # additional registered documents (created via `tndm ticket doc create`)
-    └── archive.md
+├── plan.md               # additional registered documents (created via `tndm ticket doc create`)
+└── archive.md
 ```
 
 - `meta.toml` includes a `[[documents]]` table listing each registered file by name and path.

@@ -88,7 +88,7 @@ Six skills ship under `skills/`:
 
 | Skill | Trigger | Purpose |
 |---|---|---|
-| `supi-flow-brainstorm` | `/supi-flow-brainstorm` | Explore intent + design, classify trivial vs non-trivial, create ticket if needed |
+| `supi-flow-brainstorm` | `/supi-flow-brainstorm` | Explore intent and design, classify trivial vs non-trivial, create ticket if needed |
 | `supi-flow-plan` | `/supi-flow-plan [ID]` | Create bite-sized implementation plan |
 | `supi-flow-apply` | `/supi-flow-apply` | Execute plan task by task |
 | `supi-flow-archive` | `/supi-flow-archive` | Verify, update docs, close out |
@@ -102,19 +102,29 @@ Five custom tools registered by the extension:
 | Tool | Purpose |
 |---|---|
 | `supi_tndm_cli` | Thin wrapper around the `tndm` CLI with action enum (create/update/show/list/awareness) |
-| `supi_flow_start` | Create a ticket with status=todo and tag=flow:brainstorm |
-| `supi_flow_plan` | Store the implementation plan in the ticket's content.md |
-| `supi_flow_complete_task` | Check off a numbered task (`**Task N**`) in the plan |
-| `supi_flow_close` | Mark done, append verification results, auto-commit `.tndm/` |
+| `supi_flow_start` | Create a ticket with status=todo, tag=flow:brainstorm, and optional design context in `content.md` |
+| `supi_flow_plan` | Store the executable implementation plan in `plan.md` while leaving `content.md` as the approved design summary |
+| `supi_flow_complete_task` | Check off a numbered task (`**Task N**`) in the registered `plan` document |
+| `supi_flow_close` | Mark done, write verification results to `archive.md`, and auto-commit `.tndm/` |
 
 Tools should be used instead of calling `tndm` via bash. The agent invokes them with structured parameters.
+
+## Ticket documents
+
+`supi-flow` uses TNDM's registered document model with one canonical ticket body and two phase-specific attachments:
+
+- `content.md`: approved design summary and durable handoff context
+- `plan.md`: executable checklist used during `/supi-flow-apply`
+- `archive.md`: final verification evidence written during `/supi-flow-archive`
+
+Older tickets may still contain a legacy brainstorm sidecar document, but new flow work should not create or depend on it.
 
 ## Commands
 
 | Command | Description |
 |---|---|
 | `/supi-flow` | List available flow commands |
-| `/supi-flow-status` | Show active tndm tickets in session history |
+| `/supi-flow-status` | Query TNDM for active flow tickets and show the next recommended step |
 
 ## Prompt templates
 
@@ -124,7 +134,7 @@ Tools should be used instead of calling `tndm` via bash. The agent invokes them 
 
 ## Ticket flow phase tracking
 
-Flow phases map to TNDM statuses + tags:
+Flow phases map to TNDM statuses and tags:
 
 | Flow phase | Status | Tags |
 |---|---|---|
@@ -135,7 +145,7 @@ Flow phases map to TNDM statuses + tags:
 
 ## Dependencies
 
-- **tndm CLI**: required — all ticket operations shell out to `tndm`
+- **tndm CLI**: required (all ticket operations shell out to `tndm`)
 - **pi**: discovers bundled skills and prompt templates automatically from the package
 
 ## Installation

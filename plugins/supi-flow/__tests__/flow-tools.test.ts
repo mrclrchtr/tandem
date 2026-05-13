@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -50,13 +50,8 @@ describe("executeFlowStart", () => {
     });
   });
 
-  it("passes optional priority, type, and context to doc registry", async () => {
-    vi.mocked(tndm).mockImplementation(async (args: string[]) => {
-      if (args[0] === "ticket" && args[1] === "doc" && args[2] === "create") {
-        return { stdout: "/tmp/brainstorm.md\n", stderr: "" };
-      }
-      return { stdout: "TNDM-OPT\n", stderr: "" };
-    });
+  it("writes optional context to the canonical ticket content", async () => {
+    vi.mocked(tndm).mockResolvedValue({ stdout: "TNDM-OPT\n", stderr: "" });
 
     const result = await flowTools.executeFlowStart({
       title: "Optimized change",
@@ -65,7 +60,6 @@ describe("executeFlowStart", () => {
       context: "Design summary for the change",
     });
 
-    // First call: ticket create without --content
     expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(1, [
       "ticket",
       "create",
@@ -79,20 +73,14 @@ describe("executeFlowStart", () => {
       "--type",
       "feature",
     ]);
-    // Second call: doc create for brainstorm
     expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(2, [
       "ticket",
-      "doc",
-      "create",
+      "update",
       "TNDM-OPT",
-      "brainstorm",
+      "--content",
+      "Design summary for the change",
     ]);
-    // Third call: sync
-    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(3, [
-      "ticket",
-      "sync",
-      "TNDM-OPT",
-    ]);
+    expect(vi.mocked(tndm)).toHaveBeenCalledTimes(2);
     expect(result.details.ticketId).toBe("TNDM-OPT");
   });
 });
@@ -178,15 +166,33 @@ describe("executeFlowCompleteTask", () => {
 
     vi.mocked(tndmJson).mockResolvedValue({
       id: "TNDM-TEST",
-      content_path: join(tmpDir, "content.md"), // used only to derive dir
+      content_path: join(tmpDir, "content.md"),
+      documents: [
+        { name: "content", path: "content.md" },
+        { name: "plan", path: "plan.md" },
+      ],
     });
     vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
     return docPath;
   }
 
-  it("checks off an unchecked task via file edit and sync", async () => {
-    const docPath = setupContent("- [ ] **Task 1**: Do the thing\n- [ ] **Task 2**: Do another");
+  it("checks off an unchecked task via the registered plan document path and sync", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-complete-docs-"));
+    const planDir = join(tmpDir, "nested");
+    mkdirSync(planDir, { recursive: true });
+    const docPath = join(planDir, "plan.md");
+    writeFileSync(docPath, "- [ ] **Task 1**: Do the thing\n- [ ] **Task 2**: Do another", "utf-8");
+
+    vi.mocked(tndmJson).mockResolvedValue({
+      id: "TNDM-TEST",
+      content_path: join(tmpDir, "content.md"),
+      documents: [
+        { name: "content", path: "content.md" },
+        { name: "plan", path: "nested/plan.md" },
+      ],
+    });
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
     const result = await flowTools.executeFlowCompleteTask({
       ticket_id: "TNDM-TEST",
@@ -240,10 +246,11 @@ describe("executeFlowCompleteTask", () => {
     expect(result.details.error).toContain("content path");
   });
 
-  it("soft-fails when plan file does not exist", async () => {
+  it("soft-fails when no plan document is registered", async () => {
     vi.mocked(tndmJson).mockResolvedValue({
       id: "TNDM-TEST",
       content_path: "/nonexistent/path/content.md",
+      documents: [{ name: "content", path: "content.md" }],
     });
 
     const result = await flowTools.executeFlowCompleteTask({

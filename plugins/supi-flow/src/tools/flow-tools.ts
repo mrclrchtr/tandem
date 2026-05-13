@@ -45,11 +45,7 @@ export async function executeFlowStart(params: FlowStartParams) {
   const ticketId = result.stdout.trim();
 
   if (params.context) {
-    // Write context to brainstorm.md via document registry
-    const docResult = await tndm(["ticket", "doc", "create", ticketId, "brainstorm"]);
-    const docPath = docResult.stdout.trim();
-    writeFileSync(docPath, params.context, "utf-8");
-    await tndm(["ticket", "sync", ticketId]);
+    await tndm(["ticket", "update", ticketId, "--content", params.context]);
   }
 
   return {
@@ -169,7 +165,11 @@ function checkTask(content: string, taskNumber: number): CheckTaskResult {
 }
 
 export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
-  const showResult = await tndmJson<{ id: string; content_path?: string }>([
+  const showResult = await tndmJson<{
+    id: string;
+    content_path?: string;
+    documents?: Array<{ name: string; path: string }>;
+  }>([
     "ticket",
     "show",
     params.ticket_id,
@@ -188,8 +188,24 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
     };
   }
 
-  // Read from plan.md (flat next to content.md in ticket dir)
-  const planPath = join(dirname(contentPath), "plan.md");
+  const planDocument = showResult.documents?.find((document) => document.name === "plan");
+  if (!planDocument) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `No plan file is registered in ticket ${params.ticket_id}.`,
+        },
+      ],
+      details: {
+        action: "flow_complete_task",
+        ticketId: params.ticket_id,
+        error: "No plan file",
+      },
+    };
+  }
+
+  const planPath = join(dirname(contentPath), planDocument.path);
 
   let content: string;
   try {

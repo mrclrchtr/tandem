@@ -15,10 +15,10 @@ If you haven't run the verification command for this task, you cannot check it o
 
 ## Step 1: Find the plan
 
-- A TNDM-ID was set during plan phase. Read the plan from the ticket:
-  `supi_tndm_cli { action: "show", id: "<ID>" }` — read the Plan section from plan.md.
-  Then mark the ticket as in progress and set the applying tag:
-  `supi_tndm_cli { action: "update", id: "<ID>", status: "in_progress", tags: "flow:applying" }`
+- A TNDM-ID was set during plan phase. Read the ticket metadata first:
+  `supi_tndm_cli { action: "show", id: "<ID>" }` — find the registered `plan` document path, then read `plan.md` from that path.
+  Then mark the ticket as in progress and move the flow tag:
+  `supi_tndm_cli { action: "update", id: "<ID>", status: "in_progress", add_tags: "flow:applying", remove_tags: "flow:planned" }`
 - If no plan is available: ask which change to implement.
 
 ## Step 2: Review the plan critically
@@ -115,5 +115,5 @@ Do not guess. Do not force through blockers.
 
 ## When all tasks are done
 
-- If a ticket exists: update the verification results in the ticket content. Do not mark it done yet — `/supi-flow-archive` handles closeout.
+- If a ticket exists: summarize what passed in conversation, but do not mark it done yet — `/supi-flow-archive` handles durable verification evidence in `archive.md` and final closeout.
 - Announce: `Implementation complete. Run /supi-flow-archive TNDM-XXXXXX to verify, update docs, and close out.`

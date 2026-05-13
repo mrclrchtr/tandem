@@ -98,7 +98,7 @@ Starting in 0.6.0, tickets use a **document registry** in metadata.
 - `meta.toml` contains a `[[documents]]` table listing registered document files by name and path.
 - `state.toml` contains `[document_fingerprints]` with SHA-256 hashes for freshness verification.
 - `content.md` is the default registered document (implicitly present on creation).
-- Additional documents (e.g. `docs/plan.md`) are created via `tndm ticket doc create <ID> <name>`.
+- Additional documents (e.g. `plan.md`) are created via `tndm ticket doc create <ID> <name>`.
 - Files inside `.tndm/tickets/<ID>/` are owned by TNDM — agents should not create files there directly.
 - After editing a registered document file, run `tndm ticket sync <ID>` to update fingerprints.
 - `tndm fmt --check` fails if registered documents have stale fingerprints.

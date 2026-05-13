@@ -7,7 +7,7 @@ description: Create an implementation plan for an approved design with exact fil
 
 ## Step 1: Find the design
 
-- If a TNDM-ID was given as argument: `supi_tndm_cli { action: "show", id: "<ID>" }` — read the design from brainstorm.md.
+- If a TNDM-ID was given as argument: `supi_tndm_cli { action: "show", id: "<ID>" }` — inspect `content_path`, then read the approved design from `content.md`.
 - If no TNDM-ID was given and no active ticket exists: ask the user to run `/skill:supi-flow-brainstorm` first, or provide an existing ticket ID.
 - If no design is available: ask which change to plan.
 
@@ -112,6 +112,6 @@ Fix issues inline before handing off.
 
 Write the plan in the lightest form that will still survive execution:
 
-- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to store the plan in the ticket.
+- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to store the executable checklist in `plan.md` while leaving `content.md` as the approved design summary.
 - **If no ticket exists:** default to conversation-first. Offer saving to a ticket or file if the work is larger or likely multi-session.
 - Close with: `Plan ready. Review it and approve before we start. Then run /supi-flow-apply TNDM-XXXXXX.`

@@ -1,8 +1,8 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
 
+import { tndmJson } from "./cli.js";
 import { supi_tndm_cli_params, executeTndmCli } from "./tools/tndm-cli.js";
 import {
   supiFlowStartParams,
@@ -51,7 +51,7 @@ export default function (pi: ExtensionAPI) {
     label: "Flow Start",
     description:
       "Start a new flow: creates a TNDM ticket with status=todo and tag=flow:brainstorm. " +
-      "This is the first step in every flow. Returns the ticket ID.",
+      "Stores known design context in content.md and returns the ticket ID.",
     promptSnippet: "Begin a new flow by creating a TNDM ticket",
     promptGuidelines: [
       "Use supi_flow_start at the beginning of every brainstorm to create the required ticket",
@@ -68,9 +68,8 @@ export default function (pi: ExtensionAPI) {
     name: "supi_flow_plan",
     label: "Flow Plan",
     description:
-      "Store an implementation plan in a ticket's plan.md. " +
-      "Updates tags from flow:brainstorm to flow:planned. " +
-      "Tasks must be numbered as '**Task {N}**' in the plan.",
+      "Store an implementation plan in a ticket's plan.md while keeping content.md as the canonical design summary. " +
+      "Updates tags from flow:brainstorm to flow:planned. Tasks must be numbered as '**Task {N}**' in the plan.",
     promptSnippet: "Store a plan in a TNDM ticket",
     promptGuidelines: [
       "Use supi_flow_plan after creating a plan to persist it in the ticket",
@@ -123,15 +122,32 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("supi-flow-status", {
     description: "Show current flow workflow state",
     handler: async (_args, ctx) => {
-      const ids = collectTicketIds(ctx.sessionManager.getBranch());
-      if (ids.length === 0) {
-        ctx.ui.notify("No active flow. Start with /skill:supi-flow-brainstorm.", "info");
+      const tickets = await tndmJson<Array<{ id: string; status: string; tags?: string[] }>>([
+        "ticket",
+        "list",
+      ]);
+      const activeTickets = tickets.filter((ticket) => {
+        if (ticket.status === "done") return false;
+        const tags = ticket.tags ?? [];
+        return tags.includes("flow:brainstorm") || tags.includes("flow:planned") || tags.includes("flow:applying");
+      });
+
+      if (activeTickets.length === 0) {
+        ctx.ui.notify("No active flow tickets. Start with /skill:supi-flow-brainstorm.", "info");
         return;
       }
-      ctx.ui.notify(
-        `Active tickets: ${ids.join(", ")}. Use /skill:supi-flow-plan <ID> to continue.`,
-        "info",
-      );
+
+      const lines = activeTickets.map((ticket) => {
+        const tags = ticket.tags ?? [];
+        const nextStep = tags.includes("flow:applying")
+          ? `/skill:supi-flow-archive ${ticket.id}`
+          : tags.includes("flow:planned")
+            ? `/skill:supi-flow-apply ${ticket.id}`
+            : `/skill:supi-flow-plan ${ticket.id}`;
+        return `${ticket.id} (${ticket.status}) -> ${nextStep}`;
+      });
+
+      ctx.ui.notify(`Active flow tickets:\n${lines.join("\n")}`, "info");
     },
   });
 
@@ -148,18 +164,4 @@ export default function (pi: ExtensionAPI) {
       );
     },
   });
-}
-
-function collectTicketIds(
-  entries: Array<{ type: string; message?: { role?: string; content?: unknown } }>,
-): string[] {
-  const ids = new Set<string>();
-  for (const entry of entries) {
-    if (entry.type !== "message") continue;
-    if (entry.message?.role !== "user") continue;
-    const content = entry.message?.content;
-    if (typeof content !== "string") continue;
-    for (const m of content.matchAll(/TNDM-\w{6}/g)) ids.add(m[0]);
-  }
-  return Array.from(ids);
 }

@@ -107,7 +107,7 @@ With optional content via document registry (preferred — no large content stri
 ```sh
 # 1. Create/register a document for this ticket
 tndm ticket doc create TNDM-XXXXXX plan
-# → .tndm/tickets/TNDM-XXXXXX/docs/plan.md
+# → .tndm/tickets/TNDM-XXXXXX/plan.md
 
 # 2. Read and edit that file with your edit tool
 # (Do not pass large content through CLI args)
@@ -149,7 +149,7 @@ tndm ticket update TNDM-XXXXXX --depends-on TNDM-AAAAAA,TNDM-BBBBBB
 # Store content via document registry (preferred — no large CLI strings)
 # Create/register a document, edit the file with your edit tool, then sync:
 tndm ticket doc create TNDM-XXXXXX plan
-# → Edit the returned path (e.g. .tndm/tickets/TNDM-XXXXXX/docs/plan.md)
+# → Edit the returned path (e.g. .tndm/tickets/TNDM-XXXXXX/plan.md)
 #   using your edit tool, then:
 tndm ticket sync TNDM-XXXXXX
 

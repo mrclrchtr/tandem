@@ -17,8 +17,8 @@ Before claiming the change is done, the docs are accurate, or the ticket can be 
 
 ## Step 1: Find the change
 
-- A TNDM-ID was set during plan phase. Read the plan from the ticket:
-  `supi_tndm_cli { action: "show", id: "<ID>" }` — read the Plan and Verification sections.
+- A TNDM-ID was set during plan phase. Read the ticket metadata first:
+  `supi_tndm_cli { action: "show", id: "<ID>" }` — inspect `content_path` and the registered documents, then read `content.md` for the approved design and `plan.md` for the executed checklist.
 - Archive runs only when a ticket exists. Trivial flows that skipped the ticket close out directly in conversation — do not run archive.
 - If nothing is clear: ask which change to archive.
 
