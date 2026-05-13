@@ -116,6 +116,7 @@ GitHub Actions runs the same `mise` tasks (`fmt`, `compile`, `arch`, `clippy`, `
 ## Commit guidelines
 
 - Commit messages follow Conventional Commits: `type(scope): summary`.
+- Body lines must not exceed 100 characters (enforced by commitlint via hk).
 - Run `mise run test` before committing.
 
 ## Adding a new optional field to TicketMeta
