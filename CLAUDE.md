@@ -99,6 +99,7 @@ The plugin tools wrap the `tndm` CLI directly — update the CLI help text when 
 - Use Rust’s built-in test harness (`#[test]`).
 - Prefer unit tests colocated with the code (`mod tests { ... }`); add integration tests under `tests/` when needed.
 - Keep tests deterministic: no network access and stable temp paths.
+- `#[serde(flatten)]` on two structs sharing a field name (e.g., `TicketMeta` + `TicketState` both flattened in `TicketJsonEntry`) causes duplicate-key errors. Use `#[serde(skip)]` or extract a shared parent field.
 - Naming: modules/functions `snake_case`, types `CamelCase`, constants `SCREAMING_SNAKE_CASE`.
 
 ## CI notes
@@ -113,7 +114,7 @@ GitHub Actions runs the same `mise` tasks (`fmt`, `compile`, `arch`, `clippy`, `
 ## Adding a new optional field to TicketMeta
 
 Touch all five sites in order:
-1. `crates/tandem-core/src/ticket.rs` — add field to struct, `new()`, and `to_canonical_toml()` (hand-written; not auto-serialized). Follow `TicketPriority` as the canonical enum pattern.
+1. `crates/tandem-core/src/ticket.rs` — add field to struct with appropriate serde attributes (`rename`, `skip`, etc.), update `new()`. `to_canonical_toml()` auto-serializes via `toml::to_string()`.
 2. `crates/tandem-core/src/awareness.rs` — add field to `AwarenessFieldDiffs`, compute diff in `between()`, add to `is_empty()`.
 3. `crates/tandem-storage/src/lib.rs` — add `Option<String>` to `RawTicketMeta`, parse after loading.
 4. `crates/tandem-cli/src/cli/ticket.rs` — add clap flag to update args; in `handle_ticket_update`, add `&& field.is_none()` at **both** sites of the `no_explicit_update` guard.
