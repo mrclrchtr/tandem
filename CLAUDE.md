@@ -100,7 +100,7 @@ The plugin tools wrap the `tndm` CLI directly — update the CLI help text when 
 - Prefer unit tests colocated with the code (`mod tests { ... }`); add integration tests under `tests/` when needed.
 - Keep tests deterministic: no network access and stable temp paths.
 - `#[serde(flatten)]` on two structs sharing a field name (e.g., `TicketMeta` + `TicketState` both flattened in `TicketJsonEntry`) causes duplicate-key errors. Use `#[serde(skip)]` or extract a shared parent field.
-- `string_enum!` macro in `crates/tandem-core/src/ticket.rs` — use for new string-backed enums; generates `parse()`, `as_str()`, `FromStr`, `Display`, `Serialize` from variant→str mapping (e.g., `InProgress => "in_progress"`)
+- `string_enum!` macro in `crates/tandem-core/src/ticket/mod.rs` — use for new string-backed enums; generates `parse()`, `as_str()`, `FromStr`, `Display`, `Serialize` from variant→str mapping (e.g., `InProgress => "in_progress"`)
 - `string_enum!` variants: the variant name's `snake_case` must match its `$str` literal — `Serialize` (derive + `rename_all`) and `Display` (`as_str()`) output will diverge silently otherwise. Tests in `macro_generated_impls` catch mismatches.
 - Naming: modules/functions `snake_case`, types `CamelCase`, constants `SCREAMING_SNAKE_CASE`.
 
@@ -116,7 +116,7 @@ GitHub Actions runs the same `mise` tasks (`fmt`, `compile`, `arch`, `clippy`, `
 ## Adding a new optional field to TicketMeta
 
 Touch all five sites in order:
-1. `crates/tandem-core/src/ticket.rs` — add field to struct with appropriate serde attributes (`rename`, `skip`, etc.), update `new()`. `to_canonical_toml()` auto-serializes via `toml::to_string()`.
+1. `crates/tandem-core/src/ticket/meta.rs` — add field to struct with appropriate serde attributes (`rename`, `skip`, etc.), update `new()`. `to_canonical_toml()` auto-serializes via `toml::to_string()`.
 2. `crates/tandem-core/src/awareness.rs` — add field to `AwarenessFieldDiffs`, compute diff in `between()`, add to `is_empty()`.
 3. `crates/tandem-storage/src/lib.rs` — add `Option<String>` to `RawTicketMeta`, parse after loading.
 4. `crates/tandem-cli/src/cli/ticket.rs` — add clap flag to `TicketCommand::Create` and `TicketCommand::Update` args; add `&& field.is_none()` to both `no_explicit_create` and `no_explicit_update` boolean computations in `handle_ticket_create` and `handle_ticket_update`.
