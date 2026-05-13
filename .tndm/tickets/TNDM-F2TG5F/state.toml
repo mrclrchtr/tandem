@@ -1,0 +1,10 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-11T23:35:04.895251Z"
+revision = 14
+
+[document_fingerprints]
+archive = "sha256:17156c318189b50114ba9d15ccdd3215f60eafbc03c1c214d41925fa8ad8cab2"
+brainstorm = "sha256:2693f744d734eb72115ec6690e501b9e900c70f9b04a98ca3c558bfe2b4f7198"
+content = "sha256:47dfd18bb2557268c790fee7b5382bbc9e31e108e141e235e9eb09a7295ef4eb"
+plan = "sha256:6e6e056e2aa00d23a410ce62fe15424a512b6a45e4c555902affa0a0aefdb38d"

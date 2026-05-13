@@ -1,0 +1,21 @@
+schema_version = 1
+id = "TNDM-F2TG5F"
+title = "Rethink plugins/supi-flow workflow and file model"
+
+type = "feature"
+priority = "p2"
+
+depends_on = []
+tags = ["flow:done"]
+[[documents]]
+name = "archive"
+path = "archive.md"
+[[documents]]
+name = "brainstorm"
+path = "brainstorm.md"
+[[documents]]
+name = "content"
+path = "content.md"
+[[documents]]
+name = "plan"
+path = "plan.md"

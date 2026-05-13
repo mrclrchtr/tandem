@@ -1,0 +1,1 @@
+Brainstorming a redesign review of plugins/supi-flow: assess whether the generated files are useful and aligned with the CLI, whether the current brainstorm→plan→apply→archive flow is sensible, what would make it feel more flowable for agents, and what an agent should inspect or optimize.
