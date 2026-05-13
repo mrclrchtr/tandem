@@ -1,0 +1,1 @@
+Remove the two PI commands `/supi-flow` and `/supi-flow-status` from `plugins/supi-flow/extensions/index.ts`. These commands are not referenced by any skill or workflow step; the flow is driven entirely by `/skill:supi-flow-*` and the five tools. This is a surgical cleanup with no behavioral change to the core skills/tools.
