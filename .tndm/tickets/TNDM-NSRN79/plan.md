@@ -1,0 +1,30 @@
+- [x] **Task 1**: Remove `/supi-flow` and `/supi-flow-status` commands from `extensions/index.ts`
+  - File: `plugins/supi-flow/extensions/index.ts`
+  - Delete `pi.registerCommand("supi-flow-status", …)` and `pi.registerCommand("supi-flow", …)` blocks
+  - Delete `tndmJson` import if now unused
+  - Verification: `cd plugins/supi-flow && pnpm exec tsc --noEmit`
+- [x] **Task 2**: Remove command tests and version-check tests from `__tests__/index.test.ts`
+  - File: `plugins/supi-flow/__tests__/index.test.ts`
+  - Delete all `describe("supi-flow commands", …)` tests
+  - Delete all `describe("checkTndmVersion", …)` tests
+  - Delete `beforeAll` import of `checkTndmVersion` and `FLOW_VERSION`
+  - Verification: `cd plugins/supi-flow && pnpm exec vitest run __tests__/index.test.ts`
+- [x] **Task 3**: Remove `checkTndmVersion` function and `session_start` handler from `extensions/index.ts`
+  - File: `plugins/supi-flow/extensions/index.ts`
+  - Delete `checkTndmVersion` function and `pi.on("session_start", …)` block
+  - Delete `tndmVersion` import from `./cli.js` if now unused
+  - Delete `readFileSync`, `dirname`, `join`, `fileURLToPath` imports if now unused
+  - Delete `baseDir`, `pkg`, `FLOW_VERSION` if now unused
+  - Verification: `cd plugins/supi-flow && pnpm exec tsc --noEmit`
+- [x] **Task 4**: Delete `prompts/supi-coding-retro.md` and remove `prompts/` from package files
+  - File: `plugins/supi-flow/prompts/supi-coding-retro.md` — delete
+  - File: `plugins/supi-flow/package.json` — remove `"prompts/"` from `files` array
+  - Verification: `cd plugins/supi-flow && pnpm exec tsc --noEmit`
+- [x] **Task 5**: Update `README.md` to remove obsolete sections
+  - File: `plugins/supi-flow/README.md`
+  - Remove Commands table
+  - Remove Prompt templates table
+  - Verification: `cat plugins/supi-flow/README.md | grep -c "Command"` → 0 (or manual review)
+- [x] **Task 6**: Run full test suite and verify clean
+  - Verification: `cd plugins/supi-flow && pnpm exec vitest run`
+  - All tests should pass
