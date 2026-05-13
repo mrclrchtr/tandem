@@ -1,11 +1,15 @@
 # Archive
 
-## Verification Results
+## Final Verification
 
-- Task 1: Removed `gitAddCommit` call from `executeFlowClose` in `flow-tools.ts`. Verified with `pnpm exec tsc --noEmit`.
-- Task 2: Updated tool registration description in `extensions/index.ts`. Verified with `pnpm exec tsc --noEmit`.
-- Task 3: Updated tests in `flow-tools.test.ts` — removed `gitAddCommit` mock and "commits after close" test. Verified with `pnpm exec vitest run -- flow-tools.test.ts` (11 pass, 0 fail).
-- Task 4: Rewrote archive skill Steps 5–6 in `SKILL.md` to remove auto-commit expectation and add user choice.
-- Task 5: Updated `README.md` tool description and mermaid diagram. Verified with `rg "auto-commit" README.md` (0 matches).
-- Task 6: Full test suite passes (`pnpm exec vitest run`: 33 pass, 0 fail).
-- Doc accuracy: `SKILL.md` now correctly describes the new behavior where `supi_flow_close` does not auto-commit.
+- All 6 plan tasks completed and checked off.
+- Type-check passes: `pnpm exec tsc --noEmit`
+- Full test suite passes: `pnpm exec vitest run` (33 pass, 0 fail)
+- Implementation committed: `f18017c refactor(supi-flow): remove auto-commit from supi_flow_close`
+- `.tndm/` archive committed: `d251cd9 chore(tndm): close TNDM-K28RQV`
+- Files changed:
+  - `extensions/tools/flow-tools.ts` — removed `gitAddCommit` call
+  - `extensions/index.ts` — updated tool description
+  - `__tests__/flow-tools.test.ts` — removed gitAddCommit mock and test
+  - `skills/supi-flow-archive/SKILL.md` — Steps 5–6 rewritten
+  - `README.md` — updated tool description and mermaid label

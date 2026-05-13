@@ -70,6 +70,7 @@ Do not assume documentation is correct just because it sounds right.
 - There is no ticket-less closeout.
 
 ## Step 6: Commit or finish
+
 ```instructions
 run("git status")
 if only_changed(".tndm/"):
@@ -81,7 +82,8 @@ else:
     if skill_exists_matching("commit"):
       use_skill_matching("commit")
     else:
-      git_commit_all()
+      git_add_all()
+      git_commit()
   else:
     say("The ticket is closed. Remember to commit your changes when ready.")
 ```
