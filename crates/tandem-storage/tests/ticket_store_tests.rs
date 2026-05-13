@@ -343,9 +343,9 @@ fn update_ticket_cleans_up_stale_staging_dirs() {
         })
         .expect("create ticket");
 
-    // Create stale staging dirs
+    // Create stale staging dirs (matching the naming used by atomic_write_dir)
     let tickets_path = repo_root.path().join(".tndm").join("tickets");
-    let stale_staging = tickets_path.join(".TNDM-STALE.update.tmp");
+    let stale_staging = tickets_path.join(".TNDM-STALE.tmp");
     let stale_old = tickets_path.join(".TNDM-STALE.old.tmp");
     fs::create_dir_all(&stale_staging).expect("create stale staging dir");
     fs::create_dir_all(&stale_old).expect("create stale old dir");

@@ -32,9 +32,7 @@ fn create_ticket_keeps_existing_directory_unchanged_when_finalize_fails() {
         .expect_err("create should fail when final dir already exists");
 
     assert!(
-        error
-            .to_string()
-            .contains("failed to finalize ticket directory"),
+        error.to_string().contains("failed to finalize"),
         "error was: {}",
         error
     );

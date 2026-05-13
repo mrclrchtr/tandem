@@ -1,0 +1,18 @@
+schema_version = 1
+id = "TNDM-R82SKZ"
+title = "Extract atomic write pattern in tandem-storage"
+
+type = "task"
+priority = "p2"
+
+depends_on = []
+tags = ["atomicity", "flow:done", "fs", "refactoring", "rust", "tandem-storage"]
+[[documents]]
+name = "archive"
+path = "archive.md"
+[[documents]]
+name = "content"
+path = "content.md"
+[[documents]]
+name = "plan"
+path = "plan.md"

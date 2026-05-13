@@ -357,26 +357,10 @@ impl TicketStore for FileTicketStore {
         })?;
 
         let ticket_path = ticket_dir(&self.repo_root, &ticket.meta.id);
-        let staging_path = tickets_path.join(format!(".{}.tmp", ticket.meta.id.as_str()));
-        if staging_path.is_dir() {
-            fs::remove_dir_all(&staging_path).map_err(|error| {
-                StorageError::new(format!(
-                    "failed to remove stale ticket staging directory {}: {error}",
-                    staging_path.display()
-                ))
-            })?;
-        }
-        fs::create_dir(&staging_path).map_err(|error| {
-            StorageError::new(format!(
-                "failed to create ticket staging directory {}: {error}",
-                staging_path.display()
-            ))
-        })?;
-
-        let write_result = (|| {
-            let meta_path = staging_path.join("meta.toml");
-            let state_path = staging_path.join("state.toml");
-            let content_path = staging_path.join("content.md");
+        atomic_write_dir(&ticket_path, false, |staging| {
+            let meta_path = staging.join("meta.toml");
+            let state_path = staging.join("state.toml");
+            let content_path = staging.join("content.md");
 
             fs::write(&meta_path, ticket.meta.to_canonical_toml()).map_err(|error| {
                 StorageError::new(format!("failed to write {}: {error}", meta_path.display()))
@@ -393,18 +377,8 @@ impl TicketStore for FileTicketStore {
                 ))
             })?;
 
-            fs::rename(&staging_path, &ticket_path).map_err(|error| {
-                StorageError::new(format!(
-                    "failed to finalize ticket directory {}: {error}",
-                    ticket_path.display()
-                ))
-            })
-        })();
-
-        if write_result.is_err() {
-            let _ = fs::remove_dir_all(&staging_path);
-        }
-        write_result?;
+            Ok(())
+        })?;
 
         Ok(Ticket {
             meta: ticket.meta,
@@ -636,40 +610,10 @@ impl TicketStore for FileTicketStore {
             )));
         }
 
-        let tickets_path = tickets_dir(&self.repo_root);
-        let id_str = ticket.meta.id.as_str();
-        let staging_path = tickets_path.join(format!(".{id_str}.update.tmp"));
-        let old_path = tickets_path.join(format!(".{id_str}.old.tmp"));
-
-        // Clean up stale temp dirs from previous interrupted updates
-        if staging_path.is_dir() {
-            fs::remove_dir_all(&staging_path).map_err(|error| {
-                StorageError::new(format!(
-                    "failed to remove stale staging directory {}: {error}",
-                    staging_path.display()
-                ))
-            })?;
-        }
-        if old_path.is_dir() {
-            fs::remove_dir_all(&old_path).map_err(|error| {
-                StorageError::new(format!(
-                    "failed to remove stale old directory {}: {error}",
-                    old_path.display()
-                ))
-            })?;
-        }
-
-        fs::create_dir(&staging_path).map_err(|error| {
-            StorageError::new(format!(
-                "failed to create update staging directory {}: {error}",
-                staging_path.display()
-            ))
-        })?;
-
-        let write_result = (|| {
-            let meta_path = staging_path.join("meta.toml");
-            let state_path = staging_path.join("state.toml");
-            let content_path = staging_path.join("content.md");
+        atomic_write_dir(&ticket_path, true, |staging| {
+            let meta_path = staging.join("meta.toml");
+            let state_path = staging.join("state.toml");
+            let content_path = staging.join("content.md");
 
             fs::write(&meta_path, ticket.meta.to_canonical_toml()).map_err(|error| {
                 StorageError::new(format!("failed to write {}: {error}", meta_path.display()))
@@ -692,7 +636,7 @@ impl TicketStore for FileTicketStore {
                     continue;
                 }
                 let src = ticket_path.join(&doc.path);
-                let dst = staging_path.join(&doc.path);
+                let dst = staging.join(&doc.path);
                 if let Some(parent) = dst.parent() {
                     fs::create_dir_all(parent).map_err(|error| {
                         StorageError::new(format!(
@@ -712,31 +656,8 @@ impl TicketStore for FileTicketStore {
                 }
             }
 
-            // Atomic swap: existing → old, staging → final
-            fs::rename(&ticket_path, &old_path).map_err(|error| {
-                StorageError::new(format!(
-                    "failed to move existing ticket directory to {}: {error}",
-                    old_path.display()
-                ))
-            })?;
-
-            fs::rename(&staging_path, &ticket_path).map_err(|error| {
-                // Rollback: move old back to final
-                let _ = fs::rename(&old_path, &ticket_path);
-                StorageError::new(format!(
-                    "failed to finalize updated ticket directory {}: {error}",
-                    ticket_path.display()
-                ))
-            })
-        })();
-
-        if write_result.is_err() {
-            let _ = fs::remove_dir_all(&staging_path);
-        }
-        write_result?;
-
-        // Success: remove old dir
-        let _ = fs::remove_dir_all(&old_path);
+            Ok(())
+        })?;
 
         Ok(ticket.clone())
     }
@@ -744,4 +665,108 @@ impl TicketStore for FileTicketStore {
     fn ticket_exists(&self, id: &TicketId) -> Result<bool, Self::Error> {
         Ok(ticket_dir(&self.repo_root, id).is_dir())
     }
+}
+
+/// Write files into a temporary staging directory, then atomically rename to the final path.
+///
+/// When `allow_overwrite` is false, the rename fails if `final_path` already exists
+/// (e.g. `create_ticket` must not overwrite an existing ticket directory).
+/// When `allow_overwrite` is true, an existing directory is moved aside first,
+/// then the staging directory takes its place. If the second rename fails, the
+/// original is restored (rollback).
+///
+/// On success, `final_path` is replaced atomically (same filesystem).
+/// On failure in the non-overwrite case, `final_path` is untouched.
+/// On failure in the overwrite case, the original is restored.
+fn atomic_write_dir<F>(
+    final_path: &Path,
+    allow_overwrite: bool,
+    write_fn: F,
+) -> Result<(), StorageError>
+where
+    F: FnOnce(&Path) -> Result<(), StorageError>,
+{
+    let parent = final_path.parent().ok_or_else(|| {
+        StorageError::new(format!(
+            "cannot determine parent of {}",
+            final_path.display()
+        ))
+    })?;
+    let dir_name = final_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| StorageError::new(format!("invalid final path {}", final_path.display())))?;
+    let staging_path = parent.join(format!(".{dir_name}.tmp"));
+    let old_path = parent.join(format!(".{dir_name}.old.tmp"));
+
+    // Clean stale staging directory
+    if staging_path.is_dir() {
+        fs::remove_dir_all(&staging_path).map_err(|error| {
+            StorageError::new(format!(
+                "failed to remove stale staging directory {}: {error}",
+                staging_path.display()
+            ))
+        })?;
+    }
+
+    // Clean stale backup directory (from interrupted overwrite)
+    if old_path.is_dir() {
+        fs::remove_dir_all(&old_path).map_err(|error| {
+            StorageError::new(format!(
+                "failed to remove stale backup directory {}: {error}",
+                old_path.display()
+            ))
+        })?;
+    }
+
+    // Create staging directory
+    fs::create_dir(&staging_path).map_err(|error| {
+        StorageError::new(format!(
+            "failed to create staging directory {}: {error}",
+            staging_path.display()
+        ))
+    })?;
+
+    // Execute write closure
+    let result = write_fn(&staging_path);
+
+    if result.is_err() {
+        let _ = fs::remove_dir_all(&staging_path);
+        return result;
+    }
+
+    if allow_overwrite && final_path.exists() {
+        // Two-phase rename: move existing aside, then move staging in
+        fs::rename(final_path, &old_path).map_err(|error| {
+            let _ = fs::remove_dir_all(&staging_path);
+            StorageError::new(format!(
+                "failed to move aside {}: {error}",
+                final_path.display()
+            ))
+        })?;
+
+        fs::rename(&staging_path, final_path).map_err(|error| {
+            // Rollback: restore original
+            let _ = fs::rename(&old_path, final_path);
+            let _ = fs::remove_dir_all(&staging_path);
+            StorageError::new(format!(
+                "failed to finalize {}: {error}",
+                final_path.display()
+            ))
+        })?;
+
+        // Success: remove backup
+        let _ = fs::remove_dir_all(&old_path);
+    } else {
+        // Single rename (fails if destination exists, which is desired for create)
+        fs::rename(&staging_path, final_path).map_err(|error| {
+            let _ = fs::remove_dir_all(&staging_path);
+            StorageError::new(format!(
+                "failed to finalize {}: {error}",
+                final_path.display()
+            ))
+        })?;
+    }
+
+    Ok(())
 }
