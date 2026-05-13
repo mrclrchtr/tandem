@@ -268,6 +268,8 @@ pub struct TicketDocument {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TicketMeta {
+    #[serde(skip)]
+    pub schema_version: u8,
     pub id: TicketId,
     pub title: String,
     #[serde(rename = "type")]
@@ -287,6 +289,7 @@ impl TicketMeta {
         }
 
         Ok(Self {
+            schema_version: 1,
             id,
             title,
             ticket_type: TicketType::default(),
@@ -302,57 +305,21 @@ impl TicketMeta {
     }
 
     pub fn to_canonical_toml(&self) -> String {
-        let mut output = String::new();
-        output.push_str("schema_version = 1\n");
-        output.push_str("id = ");
-        output.push_str(&toml_basic_string(self.id.as_str()));
-        output.push('\n');
-        output.push_str("title = ");
-        output.push_str(&toml_basic_string(&self.title));
-        output.push_str("\n\n");
-        output.push_str("type = ");
-        output.push_str(&toml_basic_string(self.ticket_type.as_str()));
-        output.push('\n');
-        output.push_str("priority = ");
-        output.push_str(&toml_basic_string(self.priority.as_str()));
-        output.push('\n');
-        if let Some(effort) = self.effort {
-            output.push_str("effort = ");
-            output.push_str(&toml_basic_string(effort.as_str()));
-            output.push('\n');
-        }
-        output.push('\n');
-        output.push_str("depends_on = ");
-        output.push_str(&toml_string_array(
-            self.depends_on.iter().map(TicketId::as_str),
-        ));
-        output.push('\n');
-        output.push_str("tags = ");
-        output.push_str(&toml_string_array(self.tags.iter().map(String::as_str)));
-        output.push('\n');
-
-        // Documents registry, sorted by name
-        let mut sorted_docs = self.documents.clone();
-        sorted_docs.sort_by(|a, b| a.name.cmp(&b.name));
-        for doc in &sorted_docs {
-            output.push_str("[[documents]]\n");
-            output.push_str("name = ");
-            output.push_str(&toml_basic_string(&doc.name));
-            output.push('\n');
-            output.push_str("path = ");
-            output.push_str(&toml_basic_string(&doc.path));
-            output.push('\n');
-        }
-
-        output
+        let mut sorted = self.clone();
+        sorted.documents.sort_by(|a, b| a.name.cmp(&b.name));
+        let body = toml::to_string(&sorted).expect("TicketMeta serialization should not fail");
+        format!("schema_version = 1\n{body}")
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TicketState {
+    #[serde(skip)]
+    pub schema_version: u8,
     pub status: TicketStatus,
     pub updated_at: String,
     pub revision: u64,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub document_fingerprints: BTreeMap<String, String>,
 }
 
@@ -389,6 +356,7 @@ impl TicketState {
         }
 
         Ok(Self {
+            schema_version: 1,
             status: TicketStatus::default(),
             updated_at,
             revision,
@@ -397,61 +365,9 @@ impl TicketState {
     }
 
     pub fn to_canonical_toml(&self) -> String {
-        let mut output = String::new();
-        output.push_str("schema_version = 1\n");
-        output.push_str("status = ");
-        output.push_str(&toml_basic_string(self.status.as_str()));
-        output.push('\n');
-        output.push_str("updated_at = ");
-        output.push_str(&toml_basic_string(&self.updated_at));
-        output.push('\n');
-        output.push_str("revision = ");
-        output.push_str(&self.revision.to_string());
-        output.push('\n');
-
-        if !self.document_fingerprints.is_empty() {
-            output.push_str("\n[document_fingerprints]\n");
-            for (name, fingerprint) in &self.document_fingerprints {
-                output.push_str(name);
-                output.push_str(" = ");
-                output.push_str(&toml_basic_string(fingerprint));
-                output.push('\n');
-            }
-        }
-
-        output
+        let body = toml::to_string(&self).expect("TicketState serialization should not fail");
+        format!("schema_version = 1\n{body}")
     }
-}
-
-fn toml_basic_string(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len() + 2);
-    escaped.push('"');
-    for character in value.chars() {
-        match character {
-            '\\' => escaped.push_str("\\\\"),
-            '"' => escaped.push_str("\\\""),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            _ => escaped.push(character),
-        }
-    }
-    escaped.push('"');
-    escaped
-}
-
-fn toml_string_array<'a>(values: impl IntoIterator<Item = &'a str>) -> String {
-    let values: Vec<&str> = values.into_iter().collect();
-    if values.is_empty() {
-        return "[]".to_string();
-    }
-
-    let joined = values
-        .into_iter()
-        .map(toml_basic_string)
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("[{joined}]")
 }
 
 #[cfg(test)]
@@ -625,12 +541,11 @@ mod tests {
                 "schema_version = 1\n",
                 "id = \"TNDM-4K7D9Q\"\n",
                 "title = \"Add foo\"\n",
-                "\n",
                 "type = \"task\"\n",
                 "priority = \"p2\"\n",
-                "\n",
                 "depends_on = []\n",
                 "tags = []\n",
+                "\n",
                 "[[documents]]\n",
                 "name = \"content\"\n",
                 "path = \"content.md\"\n",
@@ -853,12 +768,11 @@ mod tests {
                 "schema_version = 1\n",
                 "id = \"TNDM-4K7D9Q\"\n",
                 "title = \"Add foo\"\n",
-                "\n",
                 "type = \"task\"\n",
                 "priority = \"p2\"\n",
-                "\n",
                 "depends_on = []\n",
                 "tags = []\n",
+                "\n",
                 "[[documents]]\n",
                 "name = \"content\"\n",
                 "path = \"content.md\"\n",
@@ -878,13 +792,12 @@ mod tests {
                 "schema_version = 1\n",
                 "id = \"TNDM-4K7D9Q\"\n",
                 "title = \"Add foo\"\n",
-                "\n",
                 "type = \"task\"\n",
                 "priority = \"p2\"\n",
                 "effort = \"m\"\n",
-                "\n",
                 "depends_on = []\n",
                 "tags = []\n",
+                "\n",
                 "[[documents]]\n",
                 "name = \"content\"\n",
                 "path = \"content.md\"\n",
