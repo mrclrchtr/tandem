@@ -1,0 +1,12 @@
+- [x] **Task 1**: Remove command registrations from extensions/index.ts
+  - File: `plugins/supi-flow/extensions/index.ts`
+  - Remove `pi.registerCommand("supi-flow-status", ...)` and `pi.registerCommand("supi-flow", ...)` blocks
+  - Verification: `pnpm exec tsc --noEmit`
+- [x] **Task 2**: Update index.test.ts — remove command tests, keep version-check tests
+  - File: `plugins/supi-flow/__tests__/index.test.ts`
+  - Verify: `pnpm exec vitest run __tests__/index.test.ts`
+- [x] **Task 3**: Update README.md — remove Commands table
+  - File: `plugins/supi-flow/README.md`
+  - Verification: visually confirm the table is gone and the doc still reads coherently
+- [x] **Task 4**: Run full test suite to confirm no regressions
+  - Verification: `pnpm exec vitest run`

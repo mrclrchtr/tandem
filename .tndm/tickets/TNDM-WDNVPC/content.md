@@ -1,0 +1,1 @@
+Remove the two PI commands from the supi-flow extension. These convenience commands are not referenced by any skill or workflow step. The /supi-flow command is a static help text duplicating the README, and /supi-flow-status filters tickets by flow tags — agents can use supi_tndm_cli { action: "list" } directly. Files: extensions/index.ts, __tests__/index.test.ts, README.md.
