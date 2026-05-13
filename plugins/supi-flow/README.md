@@ -113,13 +113,6 @@ Tools should be used instead of calling `tndm` via bash. The agent invokes them 
 
 Older tickets may still contain a legacy brainstorm sidecar document, but new flow work should not create or depend on it.
 
-## Commands
-
-| Command | Description |
-|---|---|
-| `/supi-flow` | List available flow commands |
-| `/supi-flow-status` | Query TNDM for active flow tickets and show the next recommended step |
-
 ## Prompt templates
 
 | Prompt | Description |

@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import { tndmJson, tndmVersion } from "./cli.js";
+import { tndmVersion } from "./cli.js";
 import { supi_tndm_cli_params, executeTndmCli } from "./tools/tndm-cli.js";
 import {
   supiFlowStartParams,
@@ -140,50 +140,4 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // ── Command: /supi-flow-status ──────────────────────────────
-  pi.registerCommand("supi-flow-status", {
-    description: "Show current flow workflow state",
-    handler: async (_args, ctx) => {
-      const tickets = await tndmJson<Array<{ id: string; status: string; tags?: string[] }>>([
-        "ticket",
-        "list",
-      ]);
-      const activeTickets = tickets.filter((ticket) => {
-        if (ticket.status === "done") return false;
-        const tags = ticket.tags ?? [];
-        return tags.includes("flow:brainstorm") || tags.includes("flow:planned") || tags.includes("flow:applying");
-      });
-
-      if (activeTickets.length === 0) {
-        ctx.ui.notify("No active flow tickets. Start with /skill:supi-flow-brainstorm.", "info");
-        return;
-      }
-
-      const lines = activeTickets.map((ticket) => {
-        const tags = ticket.tags ?? [];
-        const nextStep = tags.includes("flow:applying")
-          ? `/skill:supi-flow-archive ${ticket.id}`
-          : tags.includes("flow:planned")
-            ? `/skill:supi-flow-apply ${ticket.id}`
-            : `/skill:supi-flow-plan ${ticket.id}`;
-        return `${ticket.id} (${ticket.status}) -> ${nextStep}`;
-      });
-
-      ctx.ui.notify(`Active flow tickets:\n${lines.join("\n")}`, "info");
-    },
-  });
-
-  // ── Command: /supi-flow ─────────────────────────────────────
-  pi.registerCommand("supi-flow", {
-    description: "List available flow workflow commands",
-    handler: async (_args, ctx) => {
-      ctx.ui.notify(
-        "Flow: /skill:supi-flow-brainstorm -> /skill:supi-flow-plan -> /skill:supi-flow-apply -> /skill:supi-flow-archive\n" +
-          "  /supi-flow-status -- show current state\n" +
-          "  /supi-flow        -- this help\n" +
-          "Available tools: supi_tndm_cli, supi_flow_start, supi_flow_plan, supi_flow_complete_task, supi_flow_close",
-        "info",
-      );
-    },
-  });
 }
