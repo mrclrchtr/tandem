@@ -65,17 +65,17 @@ cargo build
 ./tndm-dev ticket list
 ./tndm-dev fmt --check  # verify canonical .tndm formatting after serializer/CLI format changes
 
-mise run fmt
-mise run fmt-fix
-mise run compile
-mise run arch
-mise run clippy
-mise run test
-mise run check
-mise run fix
+mise run fmt       # check formatting
+mise run fmt-fix   # apply formatting (cargo fmt)
+mise run compile   # cargo check
+mise run arch      # validate workspace architecture
+mise run clippy    # lint (warnings as errors)
+mise run test      # cargo test --workspace
+mise run check     # all of the above
+mise run fix       # auto-fix formatting + clippy suggestions
 
-hk run check
-hk run fix
+hk run check        # same linters, fix=false
+hk run fix          # same linters, fix=true (fmt + clippy --fix)
 ```
 
 ## supi-flow plugin
