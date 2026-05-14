@@ -2,6 +2,7 @@ use std::io::{IsTerminal, Read};
 use std::{fs, path::PathBuf};
 
 use rand::RngExt;
+use tandem_core::error::ValidationError;
 use tandem_core::ports::TicketStore;
 use tandem_core::ticket::TicketId;
 use tandem_storage::{FileTicketStore, TandemConfig};
@@ -13,6 +14,23 @@ pub(crate) const DEFINITION_TAG_QUESTIONS: &str = "definition:questions";
 
 pub(crate) fn ticket_content_path(id: &TicketId) -> String {
     format!(".tndm/tickets/{}/content.md", id)
+}
+
+pub(crate) fn parse_ticket_id_input(
+    value: &str,
+    prefix: &str,
+) -> Result<TicketId, ValidationError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return TicketId::parse(trimmed);
+    }
+
+    let prefixed = format!("{prefix}-");
+    if trimmed.starts_with(&prefixed) || trimmed.contains('-') {
+        TicketId::parse(trimmed)
+    } else {
+        TicketId::parse(format!("{prefixed}{trimmed}"))
+    }
 }
 
 /// Strip fractional seconds from an RFC 3339 timestamp and replace T with a space.

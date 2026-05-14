@@ -15,7 +15,7 @@ use super::OutputArgs;
 use super::render::{TicketJson, TicketJsonEntry};
 use super::util::{
     DEFINITION_TAG_QUESTIONS, DEFINITION_TAG_READY, generate_ticket_id, load_ticket_content,
-    read_stdin_if_no_flags, ticket_content_path,
+    parse_ticket_id_input, read_stdin_if_no_flags, ticket_content_path,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -240,7 +240,7 @@ pub(crate) fn handle_ticket_create(
         } else {
             value
                 .split(',')
-                .map(|s| TicketId::parse(s.trim()))
+                .map(|s| parse_ticket_id_input(s, &config.id_prefix))
                 .collect::<Result<Vec<_>, _>>()?
         };
         parsed.sort();
@@ -281,8 +281,9 @@ pub(crate) fn handle_ticket_create(
 pub(crate) fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
-    let id = TicketId::parse(id)?;
+    let id = parse_ticket_id_input(&id, &config.id_prefix)?;
     let ticket = store
         .load_ticket(&id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -456,8 +457,9 @@ pub(crate) fn handle_ticket_update(
 
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
-    let ticket_id = TicketId::parse(id)?;
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
     let mut ticket = store
         .load_ticket(&ticket_id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -493,7 +495,7 @@ pub(crate) fn handle_ticket_update(
         } else {
             value
                 .split(',')
-                .map(|s| TicketId::parse(s.trim()))
+                .map(|s| parse_ticket_id_input(s, &config.id_prefix))
                 .collect::<Result<Vec<_>, _>>()?
         };
         parsed.sort();
@@ -553,8 +555,9 @@ pub(crate) fn handle_ticket_update(
 pub(crate) fn handle_ticket_sync(id: String, json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root);
-    let ticket_id = TicketId::parse(id)?;
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
 
     let updated = store
         .sync_ticket_documents(&ticket_id)

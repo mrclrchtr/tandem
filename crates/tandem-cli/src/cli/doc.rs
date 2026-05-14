@@ -2,14 +2,19 @@ use std::{env, fs};
 
 use tandem_core::ports::TicketStore;
 use tandem_core::ticket::TicketDocument;
-use tandem_storage::{FileTicketStore, discover_repo_root, fingerprint_file, ticket_dir};
+use tandem_storage::{
+    FileTicketStore, discover_repo_root, fingerprint_file, load_config, ticket_dir,
+};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
+use super::util::parse_ticket_id_input;
 
 pub(crate) fn handle_doc_create(id: String, name: String, json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
     let store = FileTicketStore::new(repo_root.clone());
-    let ticket_id = tandem_core::ticket::TicketId::parse(id)?;
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
 
     let mut ticket = store
         .load_ticket(&ticket_id)

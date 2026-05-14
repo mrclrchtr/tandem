@@ -5,6 +5,15 @@ use std::{fs, process::Command};
 use regex::Regex;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+fn write_prefix_config(repo_root: &std::path::Path, prefix: &str) {
+    fs::create_dir_all(repo_root.join(".tndm")).expect("create .tndm dir");
+    fs::write(
+        repo_root.join(".tndm").join("config.toml"),
+        format!("schema_version = 1\n\n[id]\nprefix = \"{prefix}\"\n"),
+    )
+    .expect("write config.toml");
+}
+
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_create_prints_generated_id_and_writes_ticket_files() {
@@ -1689,5 +1698,226 @@ fn ticket_update_add_tags_conflicts_with_tags_flag() {
     assert!(
         stderr.contains("cannot be used with") || stderr.contains("error"),
         "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn bare_ticket_show_uses_configured_prefix() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    write_prefix_config(repo_root.path(), "PROJ");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Show bare", "--id", "PROJ-ABC123"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket");
+    assert!(output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", "ABC123"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("show ticket");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    assert!(stdout.contains("PROJ-ABC123"), "stdout was: {stdout}");
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn bare_ticket_update_uses_configured_prefix() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    write_prefix_config(repo_root.path(), "PROJ");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Update bare", "--id", "PROJ-UPD123"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket");
+    assert!(output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", "UPD123", "--status", "done"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("update ticket");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", "PROJ-UPD123"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("show ticket");
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("done"),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn bare_ticket_sync_uses_configured_prefix() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    write_prefix_config(repo_root.path(), "PROJ");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Sync bare", "--id", "PROJ-SYNC01"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket");
+    assert!(output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "sync", "SYNC01"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("sync ticket");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    assert!(stdout.contains("PROJ-SYNC01"), "stdout was: {stdout}");
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn bare_ticket_doc_create_uses_configured_prefix() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    write_prefix_config(repo_root.path(), "PROJ");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "create", "Doc bare", "--id", "PROJ-DOC123"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket");
+    assert!(output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "doc", "create", "DOC123", "plan"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create doc");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        repo_root
+            .path()
+            .join(".tndm")
+            .join("tickets")
+            .join("PROJ-DOC123")
+            .join("plan.md")
+            .is_file(),
+        "plan.md should be created under the prefixed ticket directory"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn bare_ticket_create_depends_on_uses_configured_prefix() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    write_prefix_config(repo_root.path(), "PROJ");
+
+    for id in ["PROJ-A1", "PROJ-A2"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+            .args(["ticket", "create", "prereq", "--id", id])
+            .current_dir(repo_root.path())
+            .output()
+            .expect("create prereq ticket");
+        assert!(output.status.success());
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "create",
+            "Depends bare",
+            "--id",
+            "PROJ-DEP123",
+            "--depends-on",
+            "A1,A2",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create ticket with bare depends_on");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", "PROJ-DEP123"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("show ticket");
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("PROJ-A1, PROJ-A2"),
+        "show output was: {show_stdout}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn bare_ticket_update_depends_on_uses_configured_prefix() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    write_prefix_config(repo_root.path(), "PROJ");
+
+    for id in ["PROJ-U1", "PROJ-U2", "PROJ-UPD456"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+            .args(["ticket", "create", "prereq", "--id", id])
+            .current_dir(repo_root.path())
+            .output()
+            .expect("create ticket");
+        assert!(output.status.success());
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "update", "UPD456", "--depends-on", "U1,U2"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("update ticket with bare depends_on");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "show", "PROJ-UPD456"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("show ticket");
+    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    assert!(
+        show_stdout.contains("PROJ-U1, PROJ-U2"),
+        "show output was: {show_stdout}"
     );
 }
