@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/mrclrchtr/tandem/compare/v0.10.0...v0.10.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* **ci:** remove orphaned custom-upload-plugin job referencing deleted workflow ([c393f0f](https://github.com/mrclrchtr/tandem/commit/c393f0f9d6348d12f5c064c7089669651317482d))
+
 ## [0.10.0](https://github.com/mrclrchtr/tandem/compare/v0.9.0...v0.10.0) (2026-05-14)
 
 
