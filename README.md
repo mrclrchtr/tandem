@@ -96,12 +96,15 @@ tndm ticket show TNDM-A1B2C3
 
 # List all active tickets
 tndm ticket list
-# → ID              STATUS        PRIORITY  TITLE
-#   TNDM-A1B2C3     in_progress   p2        Refactor auth module
-#   TNDM-6F2E1A     in_progress   p1        Fix login bug
+# → ID            STATUS        PRIO  EFFORT  DEPS  TITLE
+#   TNDM-A1B2C3   in_progress   p2    -             Refactor auth module
+#   TNDM-6F2E1A   in_progress   p1    -             Fix login bug
 
 # Show all tickets including done
 tndm ticket list --all
+
+# Filter by definition state (ready, questions, unknown)
+tndm ticket list --definition ready
 
 # Output as JSON for agent consumption
 tndm ticket show TNDM-A1B2C3 --json
@@ -127,7 +130,7 @@ output — no parsing human-readable text required.
 
 ## PI (coding agent)
 
-[`plugins/supi-flow/`](plugins/supi-flow/) is a **PI extension** that adds a spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. It ships with 6 auto-discovered skills and 5 custom tools (`supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`, `supi_tndm_cli`).
+[`plugins/supi-flow/`](plugins/supi-flow/) is a **PI extension** that adds a spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. It ships with 5 auto-discovered skills, 1 prompt template, and 5 custom tools (`supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`, `supi_tndm_cli`).
 
 ```bash
 pi install npm:@mrclrchtr/supi-flow
@@ -141,6 +144,7 @@ pi install npm:@mrclrchtr/supi-flow
 | [`docs/architecture.md`](docs/architecture.md) | Crate structure, dependency rules, enforcement |
 | [`docs/decisions.md`](docs/decisions.md) | Design rationale and trade-offs |
 | [`docs/references.md`](docs/references.md) | Competitive analysis and related projects |
+| [`docs/releasing.md`](docs/releasing.md) | Release process and automation |
 | [`CHANGELOG.md`](CHANGELOG.md) | Release history |
 
 ## Getting help
