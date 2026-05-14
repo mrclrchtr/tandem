@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.0](https://github.com/mrclrchtr/tandem/compare/v0.9.0...v0.10.0) (2026-05-14)
+
+
+### Features
+
+* improve coding retro prompt ([2504417](https://github.com/mrclrchtr/tandem/commit/250441709366371702c51e2e1e07f5896158394a))
+
+
+### Bug Fixes
+
+* **supi-flow:** preserve flow-state tags when re-persisting plans ([778f389](https://github.com/mrclrchtr/tandem/commit/778f389d42956c7400949c09aa9a6b6873bf7efc))
+* **supi-flow:** show ticket file path in supi_flow_start output ([3d89d6d](https://github.com/mrclrchtr/tandem/commit/3d89d6df486ba9dfe7822390476c62e48eb436d5))
+* **tandem-cli:** add missing clippy allow on write_prefix_config helper ([9b06357](https://github.com/mrclrchtr/tandem/commit/9b06357fa7d48db7c5d94f1ec0f548c43e679cd9))
+* **tandem-cli:** support bare ticket ID shorthand ([9b87594](https://github.com/mrclrchtr/tandem/commit/9b8759459184f993f8ce9d1a8511fd53478156e9))
+
 ## [0.9.0](https://github.com/mrclrchtr/tandem/compare/v0.8.3...v0.9.0) (2026-05-12)
 
 

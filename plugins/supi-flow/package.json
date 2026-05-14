@@ -1,6 +1,6 @@
 {
   "name": "@mrclrchtr/supi-flow",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": false,
   "description": "PI extension for spec-driven workflow (brainstorm → plan → apply → archive) with TNDM ticket coordination, custom tools, and 5 auto-discovered skills",
   "keywords": [
