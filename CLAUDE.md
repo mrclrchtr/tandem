@@ -42,6 +42,8 @@ Sources of truth (enforced by tooling):
 
 If you add or rename workspace crates, update `crates/xtask/src/main.rs` to keep the workspace crate list and edge rules current.
 
+Cross-crate shared constants and defaults go in `tandem-core` — it is the dependency root, so placing values like `DEFAULT_CONTENT_TEMPLATE` there avoids duplicating string literals across crates.
+
 Product vision lives in `docs/vision.md`; design decisions in `docs/decisions.md`. Avoid encoding future plans here.
 
 ## Common development commands
