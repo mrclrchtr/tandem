@@ -102,6 +102,7 @@ The plugin tools wrap the `tndm` CLI directly — update the CLI help text when 
 - `#[serde(flatten)]` on two structs sharing a field name (e.g., `TicketMeta` + `TicketState` both flattened in `TicketJsonEntry`) causes duplicate-key errors. Use `#[serde(skip)]` or extract a shared parent field.
 - `string_enum!` macro in `crates/tandem-core/src/ticket/mod.rs` — use for new string-backed enums; generates `parse()`, `as_str()`, `FromStr`, `Display`, `Serialize` from variant→str mapping (e.g., `InProgress => "in_progress"`)
 - `string_enum!` variants: the variant name's `snake_case` must match its `$str` literal — `Serialize` (derive + `rename_all`) and `Display` (`as_str()`) output will diverge silently otherwise. Tests in `macro_generated_impls` catch mismatches.
+- `string_enum!` is not `#[macro_export]` — define new string-backed enums in `ticket/mod.rs`, not in `id.rs`, `meta.rs`, or `state.rs`.
 - Naming: modules/functions `snake_case`, types `CamelCase`, constants `SCREAMING_SNAKE_CASE`.
 
 ## CI notes
