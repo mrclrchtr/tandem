@@ -1,0 +1,14 @@
+- [x] **Task 1**: Add CLI regression tests for bare ticket ID shorthand
+  - File: `crates/tandem-cli/tests/ticket_cli_tests.rs`
+  - Change: add tests that demonstrate bare ID inputs currently fail / should succeed once fixed for `ticket show`, `ticket update`, `ticket sync`, `ticket doc create`, and `--depends-on` values on create/update while preserving explicit prefixed IDs.
+  - Verification: `cargo test -p tandem-cli bare_ticket -- --nocapture`
+- [x] **Task 2**: Normalize bare ticket IDs using the configured repo prefix in CLI handlers
+  - File: `crates/tandem-cli/src/cli/util.rs`
+  - File: `crates/tandem-cli/src/cli/ticket.rs`
+  - File: `crates/tandem-cli/src/cli/doc.rs`
+  - Change: add a helper that prefixes bare IDs with the configured `id.prefix`, leaves already-formed IDs unchanged, and use it for direct ticket target commands plus `--depends-on` parsing.
+  - Verification: `cargo test -p tandem-cli bare_ticket -- --nocapture`
+- [x] **Task 3**: Run focused CLI regression coverage
+  - File: `crates/tandem-cli/tests/ticket_cli_tests.rs`
+  - Verification: `cargo test -p tandem-cli ticket_ -- --nocapture`
+  - Test-exempt rationale: this task is verification-only; no code changes beyond the earlier tasks.
