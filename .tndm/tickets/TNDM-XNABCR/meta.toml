@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-XNABCR"
+title = "Fix code review findings: task-add normalization, idempotent complete test, test hygiene"
+type = "task"
+priority = "p2"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

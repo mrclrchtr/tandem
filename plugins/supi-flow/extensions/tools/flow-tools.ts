@@ -1,5 +1,5 @@
-import { dirname, join } from "node:path";
-import { readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { writeFileSync } from "node:fs";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { tndm, tndmJson } from "../cli.js";
@@ -79,60 +79,91 @@ export const supiFlowPlanParams = Type.Object({
     description:
       "Markdown plan content with tasks numbered as '**Task {N}**'.\n\n- [ ] **Task 1**: Description\n  - File: path/to/file\n  - Verification: command",
   }),
-  append: Type.Optional(
-    Type.Boolean({
-      description:
-        "If true, append to existing content. If false (default), replace content entirely.",
-    }),
-  ),
 });
 
 export type FlowPlanParams = Static<typeof supiFlowPlanParams>;
 
+function stripMarkdownCodeTicks(value: string): string {
+  return value.startsWith("`") && value.endsWith("`") && value.length >= 2
+    ? value.slice(1, -1)
+    : value;
+}
+
 export async function executeFlowPlan(params: FlowPlanParams) {
-  // Create a "plan" document and get its path
-  const docResult = await tndmJson<{ path: string }>([
-    "ticket",
-    "doc",
-    "create",
-    params.ticket_id,
-    "plan",
-  ]);
-  const docPath = docResult.path;
+  // Parse plan_content markdown into structured tasks
+  const taskRegex = /^\s*- \[([ x])\] \*\*Task (\d+)\*\*: (.+)$/m;
+  const subLineRegex = /^\s*[-*]\s+(File|Verification|Notes):\s+(.+)$/;
 
-  let content = params.plan_content;
+  const tasks: Array<{
+    number: number;
+    title: string;
+    status: string;
+    file?: string;
+    verification?: string;
+    notes?: string;
+  }> = [];
 
-  if (params.append) {
-    try {
-      const existingContent = readFileSync(docPath, "utf-8");
-      if (existingContent) {
-        content = existingContent + "\n\n" + content;
+  const lines = params.plan_content.split("\n");
+  let currentTask: (typeof tasks)[0] | null = null;
+
+  for (const line of lines) {
+    const taskMatch = line.match(taskRegex);
+    if (taskMatch) {
+      // Save previous task if any
+      if (currentTask) tasks.push(currentTask);
+      currentTask = {
+        number: parseInt(taskMatch[2], 10),
+        title: taskMatch[3].trim(),
+        status: taskMatch[1] === "x" ? "done" : "todo",
+      };
+      continue;
+    }
+
+    // Parse sub-lines for the current task
+    if (currentTask) {
+      const subMatch = line.match(subLineRegex);
+      if (subMatch) {
+        const key = subMatch[1].toLowerCase();
+        const value = stripMarkdownCodeTicks(subMatch[2].trim());
+        if (key === "file") currentTask.file = value;
+        else if (key === "verification") currentTask.verification = value;
+        else if (key === "notes") currentTask.notes = value;
       }
-    } catch {
-      // If reading fails, just use the new content
     }
   }
+  // Push the last task
+  if (currentTask) tasks.push(currentTask);
 
-  // Write the plan content to the document file
-  writeFileSync(docPath, content, "utf-8");
+  // Reject empty plans — malformed content should not silently clear all tasks
+  if (tasks.length === 0) {
+    throw new Error(
+      "supi_flow_plan: no **Task N**: lines found in plan_content. " +
+        "Did you use the correct format?\n\n" +
+        "Expected: - [ ] **Task 1**: Description\n" +
+        "  - File: path/to/file\n" +
+        "  - Verification: command",
+    );
+  }
 
-  // Sync fingerprints and update tags
-  await tndm(["ticket", "sync", params.ticket_id]);
+  // Bulk-replace all tasks via the CLI
+  await tndmJson([
+    "ticket",
+    "task",
+    "set",
+    params.ticket_id,
+    "--tasks",
+    JSON.stringify(tasks),
+  ]);
 
   // Replace any flow-state tag with flow:planned — remove all possible flow-state tags
-  // first, then add flow:planned, to work correctly regardless of the ticket's current
-  // flow state (brainstorm, planned, applying, or done).
+  // and add flow:planned in one atomic call, to work correctly regardless of the ticket's
+  // current flow state (brainstorm, planned, applying, or done).
   await tndm([
     "ticket",
     "update",
     params.ticket_id,
     "--remove-tags",
     "flow:brainstorm,flow:planned,flow:applying,flow:done",
-  ]);
-  await tndm([
-    "ticket",
-    "update",
-    params.ticket_id,
     "--add-tags",
     "flow:planned",
   ]);
@@ -141,10 +172,15 @@ export async function executeFlowPlan(params: FlowPlanParams) {
     content: [
       {
         type: "text" as const,
-        text: `Plan stored in ${params.ticket_id} (${docPath}). Tags updated to flow:planned.`,
+        text: `Plan stored as ${tasks.length} task(s) in ticket ${params.ticket_id}. Tags updated to flow:planned.`,
       },
     ],
-    details: { action: "flow_plan", ticketId: params.ticket_id, tags: "flow:planned", path: docPath },
+    details: {
+      action: "flow_plan",
+      ticketId: params.ticket_id,
+      tags: "flow:planned",
+      taskCount: tasks.length,
+    },
   };
 }
 
@@ -159,139 +195,41 @@ export const supiFlowCompleteTaskParams = Type.Object({
 
 export type FlowCompleteTaskParams = Static<typeof supiFlowCompleteTaskParams>;
 
-type CheckTaskResult =
-  | { kind: "unchecked"; updatedContent: string }
-  | { kind: "already_checked" }
-  | { kind: "not_found" };
-
-function checkTask(content: string, taskNumber: number): CheckTaskResult {
-  // Match a task line like "- [ ] **Task N:**" or "  - [ ] **Task N:**"
-  const lines = content.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trimStart();
-
-    const uncheckedMatch = trimmed.match(
-      new RegExp(`^- \\[ \\] \\*\\*Task ${taskNumber}\\*\\*:`),
-    );
-    if (uncheckedMatch) {
-      // Replace the [ ] with [x] in the trimmed version
-      const indent = line.slice(0, line.length - trimmed.length);
-      lines[i] = indent + trimmed.replace("- [ ]", "- [x]");
-      return { kind: "unchecked", updatedContent: lines.join("\n") };
-    }
-
-    const checkedMatch = trimmed.match(
-      new RegExp(`^- \\[x\\] \\*\\*Task ${taskNumber}\\*\\*:`),
-    );
-    if (checkedMatch) {
-      return { kind: "already_checked" };
-    }
-  }
-  return { kind: "not_found" };
-}
-
 export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
-  const showResult = await tndmJson<{
-    id: string;
-    content_path?: string;
-    documents?: Array<{ name: string; path: string }>;
-  }>([
-    "ticket",
-    "show",
-    params.ticket_id,
-  ]);
+  try {
+    const result = await tndmJson<Record<string, unknown>>([
+      "ticket",
+      "task",
+      "complete",
+      params.ticket_id,
+      String(params.task_number),
+    ]);
 
-  const contentPath = showResult.content_path;
-  if (!contentPath) {
     return {
       content: [
         {
           type: "text" as const,
-          text: `No content path found in ticket ${params.ticket_id}.`,
-        },
-      ],
-      details: { action: "flow_complete_task", ticketId: params.ticket_id, error: "No content path" },
-    };
-  }
-
-  const planDocument = showResult.documents?.find((document) => document.name === "plan");
-  if (!planDocument) {
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `No plan file is registered in ticket ${params.ticket_id}.`,
+          text: `Task ${params.task_number} completed in ${params.ticket_id}.`,
         },
       ],
       details: {
         action: "flow_complete_task",
         ticketId: params.ticket_id,
-        error: "No plan file",
+        taskNumber: params.task_number,
+        completed: true,
+        result,
       },
     };
-  }
-
-  const planPath = join(dirname(contentPath), planDocument.path);
-
-  let content: string;
-  try {
-    content = readFileSync(planPath, "utf-8");
-  } catch {
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `No plan file found at ${planPath}. No tasks to complete.`,
-        },
-      ],
-      details: { action: "flow_complete_task", ticketId: params.ticket_id, error: "No plan file" },
-    };
-  }
-
-  const result = checkTask(content, params.task_number);
-
-  switch (result.kind) {
-    case "unchecked":
-      writeFileSync(planPath, result.updatedContent, "utf-8");
-      await tndm(["ticket", "sync", params.ticket_id]);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Task ${params.task_number} checked off in ${params.ticket_id}.`,
-          },
-        ],
-        details: {
-          action: "flow_complete_task",
-          ticketId: params.ticket_id,
-          taskNumber: params.task_number,
-          completed: true,
-        },
-      };
-
-    case "already_checked":
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Task ${params.task_number} is already checked off in ${params.ticket_id}.`,
-          },
-        ],
-        details: {
-          action: "flow_complete_task",
-          ticketId: params.ticket_id,
-          taskNumber: params.task_number,
-          completed: true,
-          skipped: true,
-        },
-      };
-
-    case "not_found":
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // Task already done returns a regular success from the CLI; only hard failure
+    // happens when the task doesn't exist
+    if (message.includes("not found")) {
       throw new Error(
-        `Task ${params.task_number} not found in ticket ${params.ticket_id}.` +
-        ` Task must exist as '- [ ] **Task N:**' or '- [x] **Task N:**'.`,
+        `Task ${params.task_number} not found in ticket ${params.ticket_id}.`,
       );
+    }
+    throw error;
   }
 }
 
@@ -326,20 +264,15 @@ export async function executeFlowClose(params: FlowCloseParams) {
     await tndm(["ticket", "sync", params.ticket_id]);
   }
 
-  // Replace any flow-state tag with flow:done — remove all possible flow-state tags
-  // first, then set status and add flow:done, to work correctly regardless of the
-  // ticket's current flow state.
+  // Replace any flow-state tag with flow:done — remove all possible flow-state tags,
+  // set status, and add flow:done in one atomic call, to work correctly regardless of
+  // the ticket's current flow state.
   await tndm([
     "ticket",
     "update",
     params.ticket_id,
     "--remove-tags",
     "flow:brainstorm,flow:planned,flow:applying,flow:done",
-  ]);
-  await tndm([
-    "ticket",
-    "update",
-    params.ticket_id,
     "--status",
     "done",
     "--add-tags",

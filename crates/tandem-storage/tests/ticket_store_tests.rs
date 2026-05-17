@@ -3,7 +3,8 @@ use std::fs;
 use tandem_core::{
     ports::TicketStore,
     ticket::{
-        NewTicket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType,
+        NewTicket, TaskStatus, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus,
+        TicketType,
     },
 };
 use tandem_storage::{FileTicketStore, discover_repo_root};
@@ -817,5 +818,134 @@ fn sync_clears_drift() {
     assert!(
         drift.is_empty(),
         "drift should be empty after sync, got: {drift:?}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn load_ticket_with_tasks() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let id = TicketId::parse("TNDM-TSK01").expect("valid ticket id");
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join(id.as_str());
+    fs::create_dir_all(&ticket_dir).expect("create ticket dir");
+
+    fs::write(
+        ticket_dir.join("meta.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "id = \"TNDM-TSK01\"\n",
+            "title = \"Task test\"\n",
+            "type = \"task\"\n",
+            "priority = \"p2\"\n",
+            "depends_on = []\n",
+            "tags = []\n",
+            "\n",
+            "[[documents]]\n",
+            "name = \"content\"\n",
+            "path = \"content.md\"\n",
+        ),
+    )
+    .expect("write meta.toml");
+    fs::write(
+        ticket_dir.join("state.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "status = \"todo\"\n",
+            "updated_at = \"2026-03-03T12:34:56Z\"\n",
+            "revision = 1\n",
+            "\n",
+            "[[tasks]]\n",
+            "number = 1\n",
+            "title = \"Do thing\"\n",
+            "status = \"todo\"\n",
+            "file = \"src/main.rs\"\n",
+            "verification = \"cargo test\"\n",
+            "notes = \"Important\"\n",
+            "\n",
+            "[[tasks]]\n",
+            "number = 2\n",
+            "title = \"Another task\"\n",
+            "status = \"done\"\n",
+        ),
+    )
+    .expect("write state.toml");
+    fs::write(ticket_dir.join("content.md"), "content\n").expect("write content.md");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+    let loaded = store.load_ticket(&id).expect("load ticket");
+
+    assert_eq!(loaded.state.tasks.len(), 2);
+    assert_eq!(loaded.state.tasks[0].number, 1);
+    assert_eq!(loaded.state.tasks[0].title, "Do thing");
+    assert_eq!(loaded.state.tasks[0].status, TaskStatus::Todo);
+    assert_eq!(loaded.state.tasks[0].file.as_deref(), Some("src/main.rs"));
+    assert_eq!(
+        loaded.state.tasks[0].verification.as_deref(),
+        Some("cargo test")
+    );
+    assert_eq!(loaded.state.tasks[0].notes.as_deref(), Some("Important"));
+    assert_eq!(loaded.state.tasks[1].number, 2);
+    assert_eq!(loaded.state.tasks[1].title, "Another task");
+    assert_eq!(loaded.state.tasks[1].status, TaskStatus::Done);
+    assert!(loaded.state.tasks[1].file.is_none());
+    assert!(loaded.state.tasks[1].verification.is_none());
+    assert!(loaded.state.tasks[1].notes.is_none());
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn load_ticket_without_tasks_is_empty_vec() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+
+    let id = TicketId::parse("TNDM-EMPTY").expect("valid ticket id");
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join(id.as_str());
+    fs::create_dir_all(&ticket_dir).expect("create ticket dir");
+
+    fs::write(
+        ticket_dir.join("meta.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "id = \"TNDM-EMPTY\"\n",
+            "title = \"Empty tasks\"\n",
+            "type = \"task\"\n",
+            "priority = \"p2\"\n",
+            "depends_on = []\n",
+            "tags = []\n",
+            "\n",
+            "[[documents]]\n",
+            "name = \"content\"\n",
+            "path = \"content.md\"\n",
+        ),
+    )
+    .expect("write meta.toml");
+    fs::write(
+        ticket_dir.join("state.toml"),
+        concat!(
+            "schema_version = 1\n",
+            "status = \"todo\"\n",
+            "updated_at = \"2026-03-03T12:34:56Z\"\n",
+            "revision = 1\n",
+        ),
+    )
+    .expect("write state.toml");
+    fs::write(ticket_dir.join("content.md"), "content\n").expect("write content.md");
+
+    let store = FileTicketStore::new(repo_root.path().to_path_buf());
+    let loaded = store.load_ticket(&id).expect("load ticket");
+
+    assert!(
+        loaded.state.tasks.is_empty(),
+        "tasks should be empty vec when no [[tasks]] in state.toml"
     );
 }

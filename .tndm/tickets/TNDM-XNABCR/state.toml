@@ -1,0 +1,29 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-17T02:19:39.019845Z"
+revision = 11
+
+[document_fingerprints]
+archive = "sha256:ed4e35510120da92cbec3cc7d9a6cfd2376976e7d3eb355e1927e0fd82750190"
+content = "sha256:2b0fb8fe4bcad87f48bf800df3d979e71193fa95c0f71ab1bd58acdd702631f9"
+
+[[tasks]]
+number = 1
+title = "Normalize empty optional strings to `None` in `handle_task_add`"
+status = "done"
+file = "crates/tandem-cli/src/cli/ticket.rs"
+verification = "`cargo test --workspace` (all existing tests pass; no regressions)"
+
+[[tasks]]
+number = 2
+title = "Add idempotent `task complete` test"
+status = "done"
+file = "crates/tandem-cli/tests/ticket_cli_tests.rs"
+verification = "cargo test task_complete_twice_is_idempotent"
+
+[[tasks]]
+number = 3
+title = "Swap `show --json` → `task list --json` in three task-verification tests"
+status = "done"
+file = "crates/tandem-cli/tests/ticket_cli_tests.rs"
+verification = "`cargo test --workspace` (all tests still pass; no behavioral change)"

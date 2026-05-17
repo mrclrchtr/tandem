@@ -33,7 +33,7 @@ macro_rules! string_enum {
         error = $err:expr
     ) => {
         $(#[$attr])*
-        #[derive(serde::Serialize)]
+        #[derive(serde::Serialize, serde::Deserialize)]
         #[serde(rename_all = "snake_case")]
         $vis enum $name {
             $(
@@ -110,6 +110,28 @@ string_enum! {
         Done => "done",
     }
     error = "invalid ticket status [possible values: todo, in_progress, blocked, done]"
+}
+
+string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum TaskStatus {
+        Todo => "todo",
+        Done => "done",
+    }
+    error = "invalid task status [possible values: todo, done]"
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Task {
+    pub number: u32,
+    pub title: String,
+    pub status: TaskStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verification: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
 }
 
 string_enum! {
@@ -309,5 +331,74 @@ mod tests {
             "\"blocked\""
         );
         assert_eq!(serde_json::to_string(&TicketEffort::Xl).unwrap(), "\"xl\"");
+    }
+
+    #[test]
+    fn task_status_parse_and_as_str_roundtrip() {
+        assert_eq!(
+            TaskStatus::parse("todo")
+                .expect("todo should parse")
+                .as_str(),
+            "todo"
+        );
+        assert_eq!(
+            TaskStatus::parse("done")
+                .expect("done should parse")
+                .as_str(),
+            "done"
+        );
+    }
+
+    #[test]
+    fn task_status_rejects_unknown() {
+        let error = TaskStatus::parse("blocked").expect_err("should be rejected");
+        assert_eq!(
+            error.message(),
+            "invalid task status [possible values: todo, done]"
+        );
+    }
+
+    #[test]
+    fn task_status_case_insensitive() {
+        assert_eq!(TaskStatus::parse("DONE").unwrap(), TaskStatus::Done);
+        assert_eq!(TaskStatus::parse("Todo").unwrap(), TaskStatus::Todo);
+    }
+
+    #[test]
+    fn task_serializes_with_all_fields() {
+        let task = Task {
+            number: 1,
+            title: "Do the thing".to_string(),
+            status: TaskStatus::Todo,
+            file: Some("src/main.rs".to_string()),
+            verification: Some("cargo test".to_string()),
+            notes: Some("Important task".to_string()),
+        };
+        let json = serde_json::to_value(&task).unwrap();
+        assert_eq!(json["number"], 1);
+        assert_eq!(json["title"], "Do the thing");
+        assert_eq!(json["status"], "todo");
+        assert_eq!(json["file"], "src/main.rs");
+        assert_eq!(json["verification"], "cargo test");
+        assert_eq!(json["notes"], "Important task");
+    }
+
+    #[test]
+    fn task_serializes_with_minimal_fields() {
+        let task = Task {
+            number: 42,
+            title: "Minimal".to_string(),
+            status: TaskStatus::Done,
+            file: None,
+            verification: None,
+            notes: None,
+        };
+        let json = serde_json::to_value(&task).unwrap();
+        assert_eq!(json["number"], 42);
+        assert_eq!(json["title"], "Minimal");
+        assert_eq!(json["status"], "done");
+        assert!(!json.as_object().unwrap().contains_key("file"));
+        assert!(!json.as_object().unwrap().contains_key("verification"));
+        assert!(!json.as_object().unwrap().contains_key("notes"));
     }
 }

@@ -56,7 +56,13 @@ export default function (pi: ExtensionAPI) {
       "- update: id (required), title, status, priority, type, tags, add_tags, remove_tags, depends_on, effort, content\n" +
       "- show: id (required)\n" +
       "- list: all (boolean), definition (ready|questions|unknown)\n" +
-      "- awareness: against (git ref, required)",
+      "- awareness: against (git ref, required)\n" +
+      "- task_add: id (required), task_title (required), task_file, task_verification, task_notes\n" +
+      "- task_list: id (required)\n" +
+      "- task_complete: id (required), task_number (required)\n" +
+      "- task_remove: id (required), task_number (required)\n" +
+      "- task_edit: id (required), task_number (required), task_title, task_file, task_verification, task_notes\n" +
+      "- task_set: id (required), task_json (required)",
     promptSnippet: "Execute tndm ticket operations via supi_tndm_cli",
     promptGuidelines: [
       "Use supi_tndm_cli for direct tndm operations instead of running tndm via bash",
@@ -90,7 +96,7 @@ export default function (pi: ExtensionAPI) {
     name: "supi_flow_plan",
     label: "Flow Plan",
     description:
-      "Store an implementation plan in a ticket's plan.md while keeping content.md as the canonical design summary. " +
+      "Parse a markdown plan into structured tasks stored in state.toml (replacing plan.md). " +
       "Updates tags from flow:brainstorm to flow:planned. Tasks must be numbered as '**Task {N}**' in the plan.",
     promptSnippet: "Store a plan in a TNDM ticket",
     promptGuidelines: [
@@ -108,8 +114,8 @@ export default function (pi: ExtensionAPI) {
     name: "supi_flow_complete_task",
     label: "Flow Complete Task",
     description:
-      "Mark a task as done in a ticket's plan.md by task number (1-based). " +
-      "Finds '- [ ] **Task N:**' and changes to '- [x] **Task N:**'.",
+      "Mark a task as done in a ticket by task number (1-based). " +
+      "Calls 'tndm ticket task complete' to update the structured task in state.toml.",
     promptSnippet: "Check off a completed plan task in a TNDM ticket",
     promptGuidelines: [
       "Use supi_flow_complete_task after each task's verification passes during apply",

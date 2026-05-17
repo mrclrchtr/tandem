@@ -12,8 +12,8 @@ use tandem_core::{
     awareness::TicketSnapshot,
     ports::TicketStore,
     ticket::{
-        NewTicket, Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState,
-        TicketStatus, TicketType,
+        NewTicket, Task, TaskStatus, Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority,
+        TicketState, TicketStatus, TicketType,
     },
 };
 
@@ -191,12 +191,30 @@ struct RawTicketDocument {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum RawTaskStatus {
+    Todo,
+    Done,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawTask {
+    number: u32,
+    title: String,
+    status: RawTaskStatus,
+    file: Option<String>,
+    verification: Option<String>,
+    notes: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct RawTicketState {
     schema_version: Option<u32>,
     status: String,
     updated_at: String,
     revision: u64,
     document_fingerprints: Option<BTreeMap<String, String>>,
+    tasks: Option<Vec<RawTask>>,
 }
 
 pub fn tandem_dir(repo_root: &Path) -> PathBuf {
@@ -513,6 +531,22 @@ impl TicketStore for FileTicketStore {
             ))
         })?;
         state.document_fingerprints = raw_state.document_fingerprints.unwrap_or_default();
+        state.tasks = raw_state
+            .tasks
+            .unwrap_or_default()
+            .into_iter()
+            .map(|raw| Task {
+                number: raw.number,
+                title: raw.title,
+                status: match raw.status {
+                    RawTaskStatus::Todo => TaskStatus::Todo,
+                    RawTaskStatus::Done => TaskStatus::Done,
+                },
+                file: raw.file,
+                verification: raw.verification,
+                notes: raw.notes,
+            })
+            .collect();
 
         Ok(Ticket {
             meta,

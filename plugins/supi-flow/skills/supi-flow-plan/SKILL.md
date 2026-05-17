@@ -112,6 +112,6 @@ Fix issues inline before handing off.
 
 Write the plan in the lightest form that will still survive execution:
 
-- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to store the executable checklist in `plan.md` while leaving `content.md` as the approved design summary.
+- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to parse the markdown into structured tasks stored in `state.toml`.
 - **If no ticket exists:** default to conversation-first. Offer saving to a ticket or file if the work is larger or likely multi-session.
 - Close with: `Plan ready. Review it and approve before we start. Then run /supi-flow-apply TNDM-XXXXXX.`

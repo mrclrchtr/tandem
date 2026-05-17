@@ -129,6 +129,45 @@ pub(crate) fn run() -> anyhow::Result<()> {
             ticket::TicketCommand::Sync { id, output } => {
                 ticket::handle_ticket_sync(id, output.json)
             }
+            ticket::TicketCommand::Task { command } => match command {
+                ticket::TaskCommand::Add {
+                    id,
+                    title,
+                    file,
+                    verification,
+                    notes,
+                    output,
+                } => ticket::handle_task_add(id, title, file, verification, notes, output.json),
+                ticket::TaskCommand::List { id, output } => {
+                    ticket::handle_task_list(id, output.json)
+                }
+                ticket::TaskCommand::Complete { id, number, output } => {
+                    ticket::handle_task_complete(id, number, output.json)
+                }
+                ticket::TaskCommand::Remove { id, number, output } => {
+                    ticket::handle_task_remove(id, number, output.json)
+                }
+                ticket::TaskCommand::Edit {
+                    id,
+                    number,
+                    title,
+                    file,
+                    verification,
+                    notes,
+                    output,
+                } => ticket::handle_task_edit(
+                    id,
+                    number,
+                    title,
+                    file,
+                    verification,
+                    notes,
+                    output.json,
+                ),
+                ticket::TaskCommand::Set { id, tasks, output } => {
+                    ticket::handle_task_set(id, tasks, output.json)
+                }
+            },
         },
         Command::Awareness(args) => awareness::handle_awareness(args.against, args.output),
     }

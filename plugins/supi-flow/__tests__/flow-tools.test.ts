@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -99,137 +100,176 @@ describe("executeFlowStart", () => {
 // ─── executeFlowPlan ───────────────────────────────────────────
 
 describe("executeFlowPlan", () => {
-  it("creates a plan document, writes content, syncs, and updates tags", async () => {
-    // Mock doc create returning a temp path
-    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-plan-test-"));
-    const docPath = join(tmpDir, "plan.md");
-    vi.mocked(tndmJson).mockResolvedValue({ path: docPath });
+  it("parses single task and calls task set with correct JSON", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({});
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
     await flowTools.executeFlowPlan({
       ticket_id: "TNDM-TEST",
-      plan_content: "- [ ] **Task 1**: Do thing",
+      plan_content: "- [ ] **Task 1**: Do the thing",
     });
 
-    // Should have called doc create first via tndmJson
+    // Should call task set, not doc create
     expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
       "ticket",
-      "doc",
-      "create",
+      "task",
+      "set",
       "TNDM-TEST",
-      "plan",
+      "--tasks",
+      JSON.stringify([
+        { number: 1, title: "Do the thing", status: "todo" },
+      ]),
     ]);
 
-    // Should have written the plan content to the file
-    const written = readFileSync(docPath, "utf-8");
-    expect(written).toContain("Task 1");
-
-    // Should have called sync
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"]);
-
-    // Should have updated tags: remove all flow-state tags first, then add flow:planned
+    // Should update tags in a single atomic call
     expect(vi.mocked(tndm)).toHaveBeenCalledWith([
       "ticket",
       "update",
       "TNDM-TEST",
       "--remove-tags",
       "flow:brainstorm,flow:planned,flow:applying,flow:done",
-    ]);
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
-      "ticket",
-      "update",
-      "TNDM-TEST",
       "--add-tags",
       "flow:planned",
     ]);
   });
 
-  it("appends to existing content when append=true", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-plan-append-"));
-    const docPath = join(tmpDir, "plan.md");
-    writeFileSync(docPath, "Existing content\n", "utf-8");
-
-    vi.mocked(tndmJson).mockResolvedValue({ path: docPath });
+  it("parses multiple tasks with file, verification, and notes", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({});
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
     await flowTools.executeFlowPlan({
-      ticket_id: "TNDM-TEST",
-      plan_content: "- [ ] **Task 1**: Do thing",
-      append: true,
+      ticket_id: "TNDM-MULTI",
+      plan_content: `
+- [ ] **Task 1**: Create the helper
+  - File: src/helper.ts
+  - Verification: pnpm exec tsc --noEmit
+
+- [ ] **Task 2**: Add tests
+  - File: tests/helper.test.ts
+  - Verification: pnpm exec vitest run
+  - Notes: Cover edge cases
+`,
     });
 
-    const written = readFileSync(docPath, "utf-8");
-    expect(written).toContain("Existing content");
-    expect(written).toContain("Task 1");
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+      "ticket",
+      "task",
+      "set",
+      "TNDM-MULTI",
+      "--tasks",
+      JSON.stringify([
+        { number: 1, title: "Create the helper", status: "todo", file: "src/helper.ts", verification: "pnpm exec tsc --noEmit" },
+        { number: 2, title: "Add tests", status: "todo", file: "tests/helper.test.ts", verification: "pnpm exec vitest run", notes: "Cover edge cases" },
+      ]),
+    ]);
+  });
+
+  it("strips markdown code ticks from task subfields", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({});
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    await flowTools.executeFlowPlan({
+      ticket_id: "TNDM-TICKS",
+      plan_content: `
+- [ ] **Task 1**: Normalize values
+  - File: \`src/lib.rs\`
+  - Verification: \`cargo test\`
+  - Notes: \`manual check\`
+`,
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+      "ticket",
+      "task",
+      "set",
+      "TNDM-TICKS",
+      "--tasks",
+      JSON.stringify([
+        { number: 1, title: "Normalize values", status: "todo", file: "src/lib.rs", verification: "cargo test", notes: "manual check" },
+      ]),
+    ]);
+  });
+
+  it("parses checked tasks as done", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({});
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    await flowTools.executeFlowPlan({
+      ticket_id: "TNDM-DONE",
+      plan_content: "- [x] **Task 1**: Already completed",
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+      "ticket",
+      "task",
+      "set",
+      "TNDM-DONE",
+      "--tasks",
+      JSON.stringify([
+        { number: 1, title: "Already completed", status: "done" },
+      ]),
+    ]);
+  });
+
+  it("rejects empty plan_content instead of silently clearing tasks", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({});
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    await expect(
+      flowTools.executeFlowPlan({
+        ticket_id: "TNDM-EMPTY",
+        plan_content: "Just some text with no task lines",
+      }),
+    ).rejects.toThrow(/no \*\*Task N\*\*: lines found/);
+
+    // Should not have called task set or anything else
+    expect(vi.mocked(tndmJson)).not.toHaveBeenCalled();
+    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+  });
+
+  it("returns task count in details", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({});
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const result = await flowTools.executeFlowPlan({
+      ticket_id: "TNDM-CNT",
+      plan_content: "- [ ] **Task 1**: A\n- [ ] **Task 2**: B\n- [ ] **Task 3**: C",
+    });
+
+    expect(result.details.taskCount).toBe(3);
   });
 });
 
 // ─── executeFlowCompleteTask ───────────────────────────────────
 
 describe("executeFlowCompleteTask", () => {
-  function setupContent(initialContent: string): string {
-    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-complete-"));
-    const docPath = join(tmpDir, "plan.md");
-    writeFileSync(docPath, initialContent, "utf-8");
-
+  it("calls task complete CLI and returns success", async () => {
     vi.mocked(tndmJson).mockResolvedValue({
       id: "TNDM-TEST",
-      content_path: join(tmpDir, "content.md"),
-      documents: [
-        { name: "content", path: "content.md" },
-        { name: "plan", path: "plan.md" },
-      ],
+      tasks: [{ number: 1, title: "Do thing", status: "done" }],
     });
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
-
-    return docPath;
-  }
-
-  it("checks off an unchecked task via the registered plan document path and sync", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-complete-docs-"));
-    const planDir = join(tmpDir, "nested");
-    mkdirSync(planDir, { recursive: true });
-    const docPath = join(planDir, "plan.md");
-    writeFileSync(docPath, "- [ ] **Task 1**: Do the thing\n- [ ] **Task 2**: Do another", "utf-8");
-
-    vi.mocked(tndmJson).mockResolvedValue({
-      id: "TNDM-TEST",
-      content_path: join(tmpDir, "content.md"),
-      documents: [
-        { name: "content", path: "content.md" },
-        { name: "plan", path: "nested/plan.md" },
-      ],
-    });
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
     const result = await flowTools.executeFlowCompleteTask({
       ticket_id: "TNDM-TEST",
       task_number: 1,
     });
 
-    expect(result.details.completed).toBe(true);
-    // Should have written to the file
-    const content = readFileSync(docPath, "utf-8");
-    expect(content).toContain("- [x] **Task 1**");
-    expect(content).toContain("- [ ] **Task 2**");
-    // Should have synced
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"]);
-  });
-
-  it("soft-fails when task is already checked off", async () => {
-    setupContent("- [x] **Task 1**: Already done");
-
-    const result = await flowTools.executeFlowCompleteTask({
-      ticket_id: "TNDM-TEST",
-      task_number: 1,
-    });
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+      "ticket",
+      "task",
+      "complete",
+      "TNDM-TEST",
+      "1",
+    ]);
 
     expect(result.details.completed).toBe(true);
-    expect(result.details.skipped).toBe(true);
-    // Should NOT call sync since no change needed
-    expect(vi.mocked(tndm)).not.toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"]);
+    expect(result.details.taskNumber).toBe(1);
   });
 
-  it("hard-fails when task number does not exist", async () => {
-    setupContent("- [ ] **Task 1**: The only task");
+  it("throws when task number does not exist", async () => {
+    vi.mocked(tndmJson).mockRejectedValue(
+      new Error("task 99 not found"),
+    );
 
     await expect(
       flowTools.executeFlowCompleteTask({
@@ -239,32 +279,17 @@ describe("executeFlowCompleteTask", () => {
     ).rejects.toThrow("Task 99 not found");
   });
 
-  it("soft-fails when ticket has no content path", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({
-      id: "TNDM-TEST",
-    });
+  it("re-throws unexpected errors", async () => {
+    vi.mocked(tndmJson).mockRejectedValue(
+      new Error("tndm is not installed"),
+    );
 
-    const result = await flowTools.executeFlowCompleteTask({
-      ticket_id: "TNDM-TEST",
-      task_number: 1,
-    });
-
-    expect(result.details.error).toContain("content path");
-  });
-
-  it("soft-fails when no plan document is registered", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({
-      id: "TNDM-TEST",
-      content_path: "/nonexistent/path/content.md",
-      documents: [{ name: "content", path: "content.md" }],
-    });
-
-    const result = await flowTools.executeFlowCompleteTask({
-      ticket_id: "TNDM-TEST",
-      task_number: 1,
-    });
-
-    expect(result.details.error).toContain("plan file");
+    await expect(
+      flowTools.executeFlowCompleteTask({
+        ticket_id: "TNDM-TEST",
+        task_number: 1,
+      }),
+    ).rejects.toThrow("tndm is not installed");
   });
 });
 
@@ -279,26 +304,20 @@ describe("executeFlowClose", () => {
     return archivePath;
   }
 
-  it("updates status and tags", async () => {
+  it("updates status and tags in a single atomic call", async () => {
     setup();
 
     await flowTools.executeFlowClose({
       ticket_id: "TNDM-TEST",
     });
 
-    // Should first remove all flow-state tags
+    // Should remove all flow-state tags, set status, and add flow:done in one call
     expect(vi.mocked(tndm)).toHaveBeenCalledWith([
       "ticket",
       "update",
       "TNDM-TEST",
       "--remove-tags",
       "flow:brainstorm,flow:planned,flow:applying,flow:done",
-    ]);
-    // Then set status and add flow:done
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
-      "ticket",
-      "update",
-      "TNDM-TEST",
       "--status",
       "done",
       "--add-tags",

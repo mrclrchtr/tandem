@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
-use crate::ticket::{Ticket, TicketEffort, TicketId};
+use crate::ticket::{Task, Ticket, TicketEffort, TicketId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TicketSnapshot {
@@ -69,6 +69,25 @@ pub enum AwarenessChangeKind {
     Diverged,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AwarenessTasksDiff {
+    pub current: Vec<TaskSnapshotEntry>,
+    pub against: Vec<TaskSnapshotEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TaskSnapshotEntry {
+    pub number: u32,
+    pub title: String,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verification: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
 pub struct AwarenessFieldDiffs {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -87,6 +106,8 @@ pub struct AwarenessFieldDiffs {
     pub tags: Option<AwarenessVecDiff>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub documents: Option<Vec<AwarenessDocEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tasks: Option<AwarenessTasksDiff>,
 }
 
 impl AwarenessFieldDiffs {
@@ -147,6 +168,14 @@ impl AwarenessFieldDiffs {
 
         let documents = (!changed_entries.is_empty()).then_some(changed_entries);
 
+        // Compare tasks — snapshots are sorted by number
+        let current_tasks = canonicalize_tasks(&current.state.tasks);
+        let against_tasks = canonicalize_tasks(&against.state.tasks);
+        let tasks = (current_tasks != against_tasks).then_some(AwarenessTasksDiff {
+            current: current_tasks,
+            against: against_tasks,
+        });
+
         let diffs = Self {
             status,
             priority,
@@ -156,6 +185,7 @@ impl AwarenessFieldDiffs {
             depends_on,
             tags,
             documents,
+            tasks,
         };
 
         (!diffs.is_empty()).then_some(diffs)
@@ -170,6 +200,7 @@ impl AwarenessFieldDiffs {
             && self.depends_on.is_none()
             && self.tags.is_none()
             && self.documents.is_none()
+            && self.tasks.is_none()
     }
 }
 
@@ -247,11 +278,27 @@ fn canonicalize_tags(tags: &[String]) -> Vec<String> {
     canonical
 }
 
+fn canonicalize_tasks(tasks: &[Task]) -> Vec<TaskSnapshotEntry> {
+    let mut canonical: Vec<TaskSnapshotEntry> = tasks
+        .iter()
+        .map(|task| TaskSnapshotEntry {
+            number: task.number,
+            title: task.title.clone(),
+            status: task.status.as_str().to_string(),
+            file: task.file.clone(),
+            verification: task.verification.clone(),
+            notes: task.notes.clone(),
+        })
+        .collect();
+    canonical.sort_by(|a, b| a.number.cmp(&b.number));
+    canonical
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ticket::{
-        Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState, TicketStatus,
-        TicketType,
+        Task, TaskStatus, Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketState,
+        TicketStatus, TicketType,
     };
 
     use super::{
@@ -918,5 +965,186 @@ mod tests {
         let report = compare_snapshots("main", &current, &against);
 
         assert!(report.tickets.is_empty(), "no diff when fingerprints match");
+    }
+
+    #[test]
+    fn compare_snapshots_omits_tasks_when_identical() {
+        let task = Task {
+            number: 1,
+            title: "Same task".to_string(),
+            status: TaskStatus::Todo,
+            file: None,
+            verification: None,
+            notes: None,
+        };
+        let mut current_ticket = ticket(
+            "TNDM-TSKID",
+            "Task identical",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.state.tasks = vec![task.clone()];
+
+        let mut against_ticket = ticket(
+            "TNDM-TSKID",
+            "Task identical",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket.state.tasks = vec![task];
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+        assert!(report.tickets.is_empty(), "no diff when tasks identical");
+    }
+
+    #[test]
+    fn compare_snapshots_reports_diverged_task_status() {
+        let mut current_ticket = ticket(
+            "TNDM-TSKDV",
+            "Task diverged",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.state.tasks = vec![Task {
+            number: 1,
+            title: "Do thing".to_string(),
+            status: TaskStatus::Done,
+            file: None,
+            verification: None,
+            notes: None,
+        }];
+
+        let mut against_ticket = ticket(
+            "TNDM-TSKDV",
+            "Task diverged",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket.state.tasks = vec![Task {
+            number: 1,
+            title: "Do thing".to_string(),
+            status: TaskStatus::Todo,
+            file: None,
+            verification: None,
+            notes: None,
+        }];
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        let tasks = &report.tickets[0]
+            .fields
+            .tasks
+            .as_ref()
+            .expect("should have tasks diff");
+        assert_eq!(tasks.current.len(), 1);
+        assert_eq!(tasks.current[0].number, 1);
+        assert_eq!(tasks.current[0].status, "done");
+        assert_eq!(tasks.against.len(), 1);
+        assert_eq!(tasks.against[0].status, "todo");
+    }
+
+    #[test]
+    fn compare_snapshots_reports_diverged_task_metadata() {
+        let mut current_ticket = ticket(
+            "TNDM-TSKMD",
+            "Task metadata diverged",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.state.tasks = vec![Task {
+            number: 1,
+            title: "Do thing".to_string(),
+            status: TaskStatus::Todo,
+            file: Some("src/current.rs".to_string()),
+            verification: Some("cargo test current".to_string()),
+            notes: Some("current notes".to_string()),
+        }];
+
+        let mut against_ticket = ticket(
+            "TNDM-TSKMD",
+            "Task metadata diverged",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        against_ticket.state.tasks = vec![Task {
+            number: 1,
+            title: "Do thing".to_string(),
+            status: TaskStatus::Todo,
+            file: Some("src/against.rs".to_string()),
+            verification: Some("cargo test against".to_string()),
+            notes: Some("against notes".to_string()),
+        }];
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+        assert_eq!(report.tickets.len(), 1);
+        assert_eq!(report.tickets[0].change, AwarenessChangeKind::Diverged);
+        let tasks = report.tickets[0]
+            .fields
+            .tasks
+            .as_ref()
+            .expect("should have tasks diff");
+        assert_eq!(
+            tasks.current[0].verification.as_deref(),
+            Some("cargo test current")
+        );
+        assert_eq!(tasks.against[0].file.as_deref(), Some("src/against.rs"));
+        assert_eq!(tasks.against[0].notes.as_deref(), Some("against notes"));
+    }
+
+    #[test]
+    fn compare_snapshots_reports_added_task() {
+        let mut current_ticket = ticket(
+            "TNDM-TSKAD",
+            "Task added",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+        current_ticket.state.tasks = vec![Task {
+            number: 1,
+            title: "New task".to_string(),
+            status: TaskStatus::Todo,
+            file: None,
+            verification: None,
+            notes: None,
+        }];
+
+        let against_ticket = ticket(
+            "TNDM-TSKAD",
+            "Task added",
+            TicketStatus::Todo,
+            TicketPriority::P2,
+            &[],
+        );
+
+        let current = TicketSnapshot::from_tickets([current_ticket]);
+        let against = TicketSnapshot::from_tickets([against_ticket]);
+
+        let report = compare_snapshots("main", &current, &against);
+        assert_eq!(report.tickets.len(), 1);
+        let tasks = &report.tickets[0]
+            .fields
+            .tasks
+            .as_ref()
+            .expect("should have tasks diff");
+        assert_eq!(tasks.current.len(), 1);
+        assert_eq!(tasks.current[0].title, "New task");
+        assert_eq!(tasks.against.len(), 0);
     }
 }

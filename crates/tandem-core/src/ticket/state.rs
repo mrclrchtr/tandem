@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::error::ValidationError;
-use crate::ticket::TicketStatus;
+use crate::ticket::{Task, TicketStatus};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TicketState {
@@ -14,6 +14,8 @@ pub struct TicketState {
     pub revision: u64,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub document_fingerprints: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tasks: Vec<Task>,
 }
 impl TicketState {
     pub fn initial(updated_at: impl Into<String>) -> Result<Self, ValidationError> {
@@ -40,6 +42,7 @@ impl TicketState {
             updated_at,
             revision,
             document_fingerprints: BTreeMap::new(),
+            tasks: Vec::new(),
         })
     }
 
@@ -154,5 +157,67 @@ mod tests {
             !toml.contains("[document_fingerprints]"),
             "toml should NOT contain [document_fingerprints] when empty: {toml}"
         );
+    }
+
+    #[test]
+    fn state_canonical_toml_omits_tasks_when_empty() {
+        let state = TicketState::new("2026-03-03T10:00:00Z", 1).expect("state should be valid");
+
+        let toml = state.to_canonical_toml();
+        assert!(
+            !toml.contains("[[tasks]]"),
+            "toml should NOT contain [[tasks]] when empty: {toml}"
+        );
+    }
+
+    #[test]
+    fn state_canonical_toml_includes_tasks() {
+        use crate::ticket::{Task, TaskStatus};
+        let mut state = TicketState::new("2026-03-03T10:00:00Z", 1).expect("state should be valid");
+        state.tasks = vec![Task {
+            number: 1,
+            title: "Do the thing".to_string(),
+            status: TaskStatus::Todo,
+            file: Some("src/main.rs".to_string()),
+            verification: Some("cargo test".to_string()),
+            notes: Some("Important".to_string()),
+        }];
+
+        let toml = state.to_canonical_toml();
+        assert!(
+            toml.contains("[[tasks]]"),
+            "toml should contain [[tasks]]: {toml}"
+        );
+        assert!(
+            toml.contains(r###"number = 1"###),
+            "toml should contain number: {toml}"
+        );
+        assert!(
+            toml.contains(r###"title = "Do the thing""###),
+            "toml should contain title: {toml}"
+        );
+        assert!(
+            toml.contains(r###"status = "todo""###),
+            "toml should contain status: {toml}"
+        );
+    }
+
+    #[test]
+    fn state_serializes_tasks_to_json() {
+        use crate::ticket::{Task, TaskStatus};
+        let mut state = TicketState::new("2026-03-17T12:00:00Z", 3).unwrap();
+        state.tasks = vec![Task {
+            number: 1,
+            title: "First".to_string(),
+            status: TaskStatus::Done,
+            file: None,
+            verification: None,
+            notes: None,
+        }];
+
+        let json: serde_json::Value = serde_json::to_value(&state).unwrap();
+        assert_eq!(json["tasks"][0]["number"], 1);
+        assert_eq!(json["tasks"][0]["title"], "First");
+        assert_eq!(json["tasks"][0]["status"], "done");
     }
 }

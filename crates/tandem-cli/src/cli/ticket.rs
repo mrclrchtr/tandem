@@ -5,7 +5,8 @@ use tabled::{builder::Builder, settings::Style};
 use tandem_core::{
     ports::TicketStore,
     ticket::{
-        NewTicket, TicketEffort, TicketId, TicketMeta, TicketPriority, TicketStatus, TicketType,
+        NewTicket, Task, TaskStatus, Ticket, TicketEffort, TicketId, TicketMeta, TicketPriority,
+        TicketStatus, TicketType,
     },
 };
 use tandem_storage::{FileTicketStore, discover_repo_root, load_config};
@@ -152,6 +153,11 @@ pub(crate) enum TicketCommand {
         #[command(subcommand)]
         command: DocCommand,
     },
+    /// Manage ticket tasks.
+    Task {
+        #[command(subcommand)]
+        command: TaskCommand,
+    },
     /// Synchronize document fingerprints after file edits.
     Sync {
         /// Ticket ID to synchronize.
@@ -171,6 +177,103 @@ pub(crate) enum DocCommand {
 
         /// Document name (e.g. plan, archive).
         name: String,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum TaskCommand {
+    /// Add a task to a ticket.
+    Add {
+        /// Ticket ID.
+        id: String,
+
+        /// Task title.
+        #[arg(long, short = 't')]
+        title: String,
+
+        /// File path (optional).
+        #[arg(long, short = 'f')]
+        file: Option<String>,
+
+        /// Verification command (optional).
+        #[arg(long, short = 'v')]
+        verification: Option<String>,
+
+        /// Extra notes (optional).
+        #[arg(long, short = 'n')]
+        notes: Option<String>,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+    /// List tasks for a ticket.
+    List {
+        /// Ticket ID.
+        id: String,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+    /// Mark a task as done.
+    Complete {
+        /// Ticket ID.
+        id: String,
+
+        /// Task number to complete.
+        number: u32,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+    /// Remove a task from a ticket.
+    Remove {
+        /// Ticket ID.
+        id: String,
+
+        /// Task number to remove.
+        number: u32,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+    /// Edit a task's fields.
+    Edit {
+        /// Ticket ID.
+        id: String,
+
+        /// Task number to edit.
+        number: u32,
+
+        /// New title (optional).
+        #[arg(long, short = 't')]
+        title: Option<String>,
+
+        /// New file path (optional).
+        #[arg(long, short = 'f')]
+        file: Option<String>,
+
+        /// New verification command (optional).
+        #[arg(long, short = 'v')]
+        verification: Option<String>,
+
+        /// New notes (optional).
+        #[arg(long, short = 'n')]
+        notes: Option<String>,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+    /// Bulk-replace all tasks from a JSON string.
+    Set {
+        /// Ticket ID.
+        id: String,
+
+        /// JSON array of task objects.
+        #[arg(long)]
+        tasks: String,
 
         #[command(flatten)]
         output: OutputArgs,
@@ -505,6 +608,10 @@ pub(crate) fn handle_ticket_update(
     if let Some(value) = effort {
         ticket.meta.effort = Some(value);
     }
+    if let Some(value) = remove_tags {
+        let to_remove: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
+        ticket.meta.tags.retain(|t| !to_remove.contains(t));
+    }
     if let Some(value) = add_tags {
         for tag in value.split(',') {
             let trimmed = tag.trim().to_string();
@@ -513,10 +620,6 @@ pub(crate) fn handle_ticket_update(
             }
         }
         ticket.meta.tags.sort();
-    }
-    if let Some(value) = remove_tags {
-        let to_remove: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
-        ticket.meta.tags.retain(|t| !to_remove.contains(t));
     }
     if let Some(path) = content_file {
         ticket.content = fs::read_to_string(&path)
@@ -576,5 +679,237 @@ pub(crate) fn handle_ticket_sync(id: String, json: bool) -> anyhow::Result<()> {
     } else {
         println!("{ticket_id}");
     }
+    Ok(())
+}
+
+// ─── Task handlers ───────────────────────────────────────────
+
+fn load_and_bump(store: &FileTicketStore, ticket_id: &TicketId) -> anyhow::Result<Ticket> {
+    let mut ticket = store
+        .load_ticket(ticket_id)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    ticket.state.revision += 1;
+    ticket.state.updated_at = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .map_err(|error| anyhow::anyhow!("failed to format timestamp: {error}"))?;
+    Ok(ticket)
+}
+
+fn persist_and_output(store: &FileTicketStore, ticket: &Ticket, json: bool) -> anyhow::Result<()> {
+    let _ = store
+        .update_ticket(ticket)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    if json {
+        let envelope = TicketJson {
+            schema_version: 1,
+            ticket: TicketJsonEntry {
+                meta: &ticket.meta,
+                state: &ticket.state,
+                content_path: ticket_content_path(&ticket.meta.id),
+            },
+        };
+        println!("{}", serde_json::to_string_pretty(&envelope)?);
+    } else {
+        println!("{}", ticket.meta.id);
+    }
+    Ok(())
+}
+
+fn find_task(tasks: &[Task], number: u32) -> Result<(usize, &Task), anyhow::Error> {
+    tasks
+        .iter()
+        .enumerate()
+        .find(|(_, t)| t.number == number)
+        .map(|(i, t)| (i, t))
+        .ok_or_else(|| anyhow::anyhow!("task {number} not found"))
+}
+
+pub(crate) fn handle_task_add(
+    id: String,
+    title: String,
+    file: Option<String>,
+    verification: Option<String>,
+    notes: Option<String>,
+    json: bool,
+) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+
+    if title.trim().is_empty() {
+        anyhow::bail!("task title must not be empty");
+    }
+
+    let mut ticket = load_and_bump(&store, &ticket_id)?;
+
+    let next_number = ticket
+        .state
+        .tasks
+        .iter()
+        .map(|t| t.number)
+        .max()
+        .unwrap_or(0)
+        + 1;
+
+    // Normalize empty strings to None, matching handle_task_edit behavior
+    let file = file.and_then(|f| if f.trim().is_empty() { None } else { Some(f) });
+    let verification = verification.and_then(|v| if v.trim().is_empty() { None } else { Some(v) });
+    let notes = notes.and_then(|n| if n.trim().is_empty() { None } else { Some(n) });
+
+    ticket.state.tasks.push(Task {
+        number: next_number,
+        title,
+        status: TaskStatus::Todo,
+        file,
+        verification,
+        notes,
+    });
+
+    persist_and_output(&store, &ticket, json)?;
+    Ok(())
+}
+
+pub(crate) fn handle_task_list(id: String, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ticket = store
+        .load_ticket(&ticket_id)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&ticket.state.tasks)?);
+    } else {
+        if ticket.state.tasks.is_empty() {
+            println!("No tasks found.");
+            return Ok(());
+        }
+        let mut builder = Builder::new();
+        builder.push_record(["#", "STATUS", "TITLE"]);
+        for task in &ticket.state.tasks {
+            builder.push_record([&task.number.to_string(), task.status.as_str(), &task.title]);
+        }
+        println!("{}", builder.build().with(Style::blank()));
+    }
+    Ok(())
+}
+
+pub(crate) fn handle_task_complete(id: String, number: u32, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+
+    let mut ticket = load_and_bump(&store, &ticket_id)?;
+
+    let (idx, _) = find_task(&ticket.state.tasks, number)?;
+    ticket.state.tasks[idx].status = TaskStatus::Done;
+
+    persist_and_output(&store, &ticket, json)?;
+    Ok(())
+}
+
+pub(crate) fn handle_task_remove(id: String, number: u32, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+
+    let mut ticket = load_and_bump(&store, &ticket_id)?;
+
+    let (idx, _) = find_task(&ticket.state.tasks, number)?;
+    ticket.state.tasks.remove(idx);
+
+    persist_and_output(&store, &ticket, json)?;
+    Ok(())
+}
+
+pub(crate) fn handle_task_edit(
+    id: String,
+    number: u32,
+    title: Option<String>,
+    file: Option<String>,
+    verification: Option<String>,
+    notes: Option<String>,
+    json: bool,
+) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+
+    let mut ticket = load_and_bump(&store, &ticket_id)?;
+
+    let (idx, _) = find_task(&ticket.state.tasks, number)?;
+    let task = &mut ticket.state.tasks[idx];
+    if let Some(value) = title {
+        if value.trim().is_empty() {
+            anyhow::bail!("task title must not be empty");
+        }
+        task.title = value;
+    }
+    if let Some(value) = file {
+        task.file = if value.trim().is_empty() {
+            None
+        } else {
+            Some(value)
+        };
+    }
+    if let Some(value) = verification {
+        task.verification = if value.trim().is_empty() {
+            None
+        } else {
+            Some(value)
+        };
+    }
+    if let Some(value) = notes {
+        task.notes = if value.trim().is_empty() {
+            None
+        } else {
+            Some(value)
+        };
+    }
+
+    persist_and_output(&store, &ticket, json)?;
+    Ok(())
+}
+
+pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root);
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+
+    let mut ticket = load_and_bump(&store, &ticket_id)?;
+
+    let new_tasks: Vec<Task> = serde_json::from_str(&tasks_json)
+        .map_err(|error| anyhow::anyhow!("invalid tasks JSON: {error}"))?;
+
+    // Validate task numbers are >= 1 and unique
+    if new_tasks.iter().any(|t| t.number == 0) {
+        anyhow::bail!("task numbers must be >= 1");
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for task in &new_tasks {
+        if !seen.insert(task.number) {
+            anyhow::bail!("duplicate task number: {}", task.number);
+        }
+    }
+    if new_tasks.iter().any(|t| t.title.trim().is_empty()) {
+        anyhow::bail!("task title must not be empty");
+    }
+
+    ticket.state.tasks = new_tasks;
+
+    persist_and_output(&store, &ticket, json)?;
     Ok(())
 }

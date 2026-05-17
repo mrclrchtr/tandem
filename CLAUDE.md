@@ -107,6 +107,8 @@ The plugin tools wrap the `tndm` CLI directly — update the CLI help text when 
 - `string_enum!` macro in `crates/tandem-core/src/ticket/mod.rs` — use for new string-backed enums; generates `parse()`, `as_str()`, `FromStr`, `Display`, `Serialize` from variant→str mapping (e.g., `InProgress => "in_progress"`)
 - `string_enum!` variants: the variant name's `snake_case` must match its `$str` literal — `Serialize` (derive + `rename_all`) and `Display` (`as_str()`) output will diverge silently otherwise. Tests in `macro_generated_impls` catch mismatches.
 - `string_enum!` is not `#[macro_export]` — define new string-backed enums in `ticket/mod.rs`, not in `id.rs`, `meta.rs`, or `state.rs`.
+- `tndm ticket task list --json` returns a bare `[{number, title, status, ...}]` task array (not the `TicketJson` envelope like `ticket show --json` uses) — test assertions and tool callers must deserialize directly.
+- CLI integration tests in `crates/tandem-cli/tests/ticket_cli_tests.rs` use a module-level `create_test_ticket(repo_root, id, title)` helper when they need a pre-existing ticket — prefer this over manual `Command::new("tndm")` setup in each test.
 - Naming: modules/functions `snake_case`, types `CamelCase`, constants `SCREAMING_SNAKE_CASE`.
 
 ## CI notes
