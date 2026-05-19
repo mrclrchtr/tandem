@@ -721,7 +721,6 @@ fn find_task(tasks: &[Task], number: u32) -> Result<(usize, &Task), anyhow::Erro
         .iter()
         .enumerate()
         .find(|(_, t)| t.number == number)
-        .map(|(i, t)| (i, t))
         .ok_or_else(|| anyhow::anyhow!("task {number} not found"))
 }
 
