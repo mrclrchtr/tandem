@@ -2133,8 +2133,6 @@ fn task_complete_marks_task_done() {
 
 #[test]
 #[allow(clippy::disallowed_methods)]
-#[test]
-#[allow(clippy::disallowed_methods)]
 fn task_complete_twice_is_idempotent() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
