@@ -85,9 +85,6 @@ jobs:
 
   supi-flow:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: plugins/supi-flow
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -100,10 +97,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: pnpm exec tsc --noEmit
+        run: pnpm --dir plugins/supi-flow exec tsc --noEmit
 
       - name: Run tests
-        run: pnpm exec vitest run
+        run: pnpm --dir plugins/supi-flow exec vitest run
 
   release-please:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
