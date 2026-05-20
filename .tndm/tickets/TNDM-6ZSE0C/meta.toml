@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-6ZSE0C"
+title = "Refresh plugins/supi-flow/README.md"
+type = "chore"
+priority = "p2"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

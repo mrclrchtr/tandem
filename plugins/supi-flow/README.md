@@ -1,134 +1,142 @@
 # supi-flow
 
-PI extension for spec-driven workflow with TNDM ticket coordination (optional for trivial changes).
+> **PI-only workflow package for spec-driven changes backed by TNDM tickets.**
 
-## Flow
+`supi-flow` adds a lightweight workflow on top of tandem's `tndm` CLI:
+**brainstorm → plan → apply → archive**.
 
-```mermaid
-flowchart TD
-    START(["Start a change"]) --> BRAIN
-    BRAIN["/skill:supi-flow-brainstorm
-         HARD-GATE: no code yet
-         Explore, design, approve
-         Classify trivial vs non-trivial"]
-    BRAIN --> APPROVED{Design approved?}
-    APPROVED -->|"No"| BRAIN
-    APPROVED -->|"Yes"| TRIVIAL{Trivial change?}
+It is published as `@mrclrchtr/supi-flow` and ships inside the tandem repository at
+`plugins/supi-flow/`.
 
-    TRIVIAL -->|"Yes (skip ticket)"| LIGHT["Implement directly
-         No ticket needed"]
-    TRIVIAL -->|"No"| PLAN
+Use it when a change needs:
 
-    PLAN["/skill:supi-flow-plan [ID]
-         Bite-sized tasks
-         Exact file paths
-         No placeholders
-         TDD: red-green-refactor
-         Stores plan via supi_flow_plan"]
-    PLAN --> APPROVE2{"Plan approved?"}
-    APPROVE2 -->|"No"| PLAN
-    APPROVE2 -->|"Yes"| APPLY
+- an approved design before implementation
+- a durable TNDM ticket for non-trivial work
+- explicit task-by-task verification during implementation
+- archived verification evidence at closeout
 
-    APPLY["/skill:supi-flow-apply [ID]
-         Iron Law: fresh verify each task
-         TDD gate: test-first or delete
-         Sets flow:applying at start
-         Checks off tasks via supi_flow_complete_task"]
-    APPLY --> BLOCKED{"Verification
-         failed?"}
+Trivial changes can still be implemented directly without a ticket.
 
-    BLOCKED -->|"Yes"| DEBUG["/skill:supi-flow-debug
-         4-phase systematic debugging
-         3-fix → question architecture"]
-    DEBUG --> FIXED{Fixed?}
-    FIXED -->|"Yes"| APPLY
-    FIXED -->|"No"| USER["Talk to user
-         before fix #4"]
+## What ships in the package
 
-    BLOCKED -->|"No"| DONE{"All tasks
-         done?"}
-    DONE -->|"No"| APPLY
-    DONE -->|"Yes"| ARCHIVE
+`supi-flow` uses PI's conventional package directories, so PI auto-discovers the resources in:
 
-    ARCHIVE["/skill:supi-flow-archive [ID]
-         Fresh verification (gate function)
-         Update living documentation
-         Quality gate checklist"]
-    ARCHIVE --> QGATE{"Quality gate
-         passes?"}
-    QGATE -->|"No"| ARCHIVE
-    QGATE -->|"Yes"| CLOSE
+- `extensions/`
+- `skills/`
+- `prompts/`
 
-    CLOSE["supi_flow_close
-         Sets status=done, flow:done
-         Writes archive.md"]
+Current package contents:
 
-    classDef phase fill:#e8f5e9,stroke:#4caf50,stroke-width:2
-    classDef decision fill:#e3f2fd,stroke:#2196f3
-    classDef entry fill:#e8e8e8,stroke:#666
-    classDef blocker fill:#ffebee,stroke:#f44336
+- **5 custom tools**
+  - `supi_tndm_cli`
+  - `supi_flow_start`
+  - `supi_flow_plan`
+  - `supi_flow_complete_task`
+  - `supi_flow_close`
+- **5 skills**
+  - `supi-flow-brainstorm`
+  - `supi-flow-plan`
+  - `supi-flow-apply`
+  - `supi-flow-archive`
+  - `supi-flow-debug`
+- **1 prompt template**
+  - `/supi-coding-retro`
+- **Startup/reload version check**
+  - on PI session start and reload, the extension compares `tndm --version` with the package version and warns when they do not match
 
-    class BRAIN,PLAN,APPLY,ARCHIVE,CLOSE phase
-    class APPROVED,APPROVE2,BLOCKED,FIXED,DONE,TRIVIAL decision
-    class START entry
-    class USER blocker
-    class LIGHT entry
+This package does **not** rely on a `pi` manifest in `package.json`; it uses PI's conventional directory discovery.
+
+## Installation and loading
+
+### Install from npm
+
+```bash
+pi install npm:@mrclrchtr/supi-flow
 ```
 
-Non-trivial flows require a TNDM ticket created by `supi_flow_start`. Trivial changes can be implemented directly without a ticket.
+### Install from a local checkout
 
-## Skills
+From the tandem repository root:
 
-Five skills ship under `skills/`:
+```bash
+pi install ./plugins/supi-flow
+```
 
-| Skill | Trigger | Purpose |
+Or add the package root to PI settings:
+
+```json
+{
+  "packages": ["./plugins/supi-flow"]
+}
+```
+
+### Important: prefer the package root, not just the extension entrypoint
+
+If you load only `plugins/supi-flow/extensions/index.ts`, PI gets the extension entrypoint,
+but not the package-style resource loading for the bundled skills and prompt template.
+
+Use the **package root** when you want the full package:
+
+- extension tools
+- auto-discovered skills
+- auto-discovered prompt template
+
+### Dependency: `tndm`
+
+`supi-flow` wraps the tandem CLI and expects `tndm` to be installed and on your `PATH`.
+Keep `tndm` and `@mrclrchtr/supi-flow` on matching release versions so the startup/reload
+version check stays quiet.
+
+See the tandem project README for CLI install options:
+<https://github.com/mrclrchtr/tandem>
+
+## How you use it in PI
+
+This package is primarily used through:
+
+- **skills** via `/skill:<name>`
+- **tools** invoked by the model
+- **prompt template** `/supi-coding-retro`
+
+There is no custom `/supi-flow` slash command registered by the extension.
+
+### Typical workflow
+
+1. **Brainstorm** — `/skill:supi-flow-brainstorm`
+   - clarify intent
+   - inspect the codebase
+   - compare approaches
+   - approve a design before editing
+   - decide whether the change is trivial or non-trivial
+
+2. **Plan** — `/skill:supi-flow-plan TNDM-XXXXXX`
+   - store the approved overview in `content.md`
+   - define executable tasks separately in `state.toml`
+   - keep tasks concrete, ordered, and verifiable
+
+3. **Apply** — `/skill:supi-flow-apply TNDM-XXXXXX`
+   - execute tasks in order
+   - run fresh verification for each task
+   - check off tasks with `supi_flow_complete_task`
+
+4. **Debug when blocked** — `/skill:supi-flow-debug`
+   - use the root-cause workflow instead of guessing
+
+5. **Archive** — `/skill:supi-flow-archive TNDM-XXXXXX`
+   - re-verify the completed change
+   - update living docs if needed
+   - close the ticket with archived verification evidence
+
+## Flow phases
+
+| Phase | Main skill | Ticket behavior |
 |---|---|---|
-| `supi-flow-brainstorm` | `/supi-flow-brainstorm` | Explore intent and design, classify trivial vs non-trivial, create ticket if needed |
-| `supi-flow-plan` | `/supi-flow-plan [ID]` | Create bite-sized implementation plan |
-| `supi-flow-apply` | `/supi-flow-apply` | Execute plan task by task |
-| `supi-flow-archive` | `/supi-flow-archive` | Verify, update docs, close out |
-| `supi-flow-debug` | Loaded on demand when blocked | Root-cause debugging protocol |
+| Brainstorm | `supi-flow-brainstorm` | creates or refines the change definition; non-trivial work starts with `supi_flow_start` |
+| Plan | `supi-flow-plan` | stores the approved overview in `content.md` and moves the ticket to `flow:planned` |
+| Apply | `supi-flow-apply` | executes tasks, verifies each step fresh, and marks tasks done |
+| Archive | `supi-flow-archive` | verifies the final result, writes `archive.md`, and closes the ticket |
 
-## Tools
-
-Five custom tools registered by the extension:
-
-| Tool | Purpose |
-|---|---|
-| `supi_tndm_cli` | Thin wrapper around the `tndm` CLI with action enum (create/update/show/list/awareness) |
-| `supi_flow_start` | Create a ticket with status=todo, tag=flow:brainstorm, and optional design context in `content.md` |
-| `supi_flow_plan` | Store the approved overview / plan in `content.md` and move the ticket to `flow:planned` |
-| `supi_flow_complete_task` | Check off a numbered task in the structured task manifest stored in `state.toml` |
-| `supi_flow_close` | Mark done and write verification results to `archive.md` |
-
-Tools should be used instead of calling `tndm` via bash. The agent invokes them with structured parameters.
-
-## Ticket documents
-
-`supi-flow` uses TNDM's registered document model with one canonical ticket body plus execution-time attachments:
-
-- `content.md`: approved overview / design / plan prose
-- structured tasks in `state.toml`: execution manifest used during `/supi-flow-apply`
-- optional task docs in `tasks/`: linked task detail for tasks that need more than a headline/files/verification/notes
-- `archive.md`: final verification evidence written during `/supi-flow-archive`
-
-Older tickets may still contain a legacy brainstorm sidecar document, but new flow work should not create or depend on it.
-
-## Overview-first workflow
-
-`content.md` is overview-first and may contain zero tasks. After the overview is approved and stored, create the executable task list separately in `state.toml`.
-
-Use headline-only tasks when the title is enough. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task already exists in the manifest.
-
-## Prompt templates
-
-| Prompt | Description |
-|---|---|
-| `/supi-coding-retro` | Retrospective on project setup, architecture, tooling, workflows, and conventions |
-
-## Ticket flow phase tracking
-
-Flow phases map to TNDM statuses and tags:
+Flow state is tracked with TNDM status/tag combinations:
 
 | Flow phase | Status | Tags |
 |---|---|---|
@@ -137,35 +145,88 @@ Flow phases map to TNDM statuses and tags:
 | Implementing | `in_progress` | `flow:applying` |
 | Done | `done` | `flow:done` |
 
-## Dependencies
+## Ticket document model
 
-- **tndm CLI** (`tandem-cli`): required (all ticket operations shell out to `tndm`)
+`supi-flow` uses tandem's registered document model with an overview-first workflow:
 
-  ```sh
-  brew install mrclrchtr/tap/tandem-cli
-  ```
+| Artifact | Role |
+|---|---|
+| `content.md` | Canonical approved overview / design / plan prose |
+| `state.toml` tasks | Structured execution manifest used during apply |
+| `tasks/task-XX.md` | Optional task detail attachment for tasks that need more than a headline/files/verification/notes |
+| `archive.md` | Final verification evidence written during archive/closeout |
 
-- **pi**: discovers bundled skills and prompt templates automatically from the package
+Key rules from the current implementation:
 
-## PI package
+- `content.md` is **overview-first** and may contain zero tasks.
+- Executable tasks live in `state.toml`, not in checklist blocks parsed from markdown.
+- Headline-only tasks are preferred when they are clear enough.
+- Task detail docs are optional and attached only when a task needs extra implementation detail.
+- Older tickets may still contain a legacy brainstorm sidecar document, but new flow work should not depend on it.
 
-This extension is published as a [`pi-package`](https://pi.dev/packages) — listed in the PI package gallery. Install directly:
+## Tools
 
-```bash
-pi install npm:@mrclrchtr/supi-flow
-```
+The extension registers five custom tools.
 
-## Installation
+| Tool | What it does |
+|---|---|
+| `supi_tndm_cli` | Structured wrapper around `tndm` for ticket create/update/show/list/awareness plus task add/list/complete/remove/edit/set |
+| `supi_flow_start` | Creates a ticket with `status=todo` and tag `flow:brainstorm`, optionally persisting initial context into `content.md` |
+| `supi_flow_plan` | Stores the approved overview in `content.md` and replaces flow-state tags with `flow:planned` |
+| `supi_flow_complete_task` | Marks one numbered task as done in the structured task manifest |
+| `supi_flow_close` | Writes verification evidence to `archive.md`, syncs documents, and closes the ticket with `status=done` and `flow:done` |
 
-The extension is auto-discovered when the plugin directory is in pi's extension search path:
+### `supi_tndm_cli` at a glance
 
-```bash
-# Option 1: symlink
-ln -s "$(pwd)/plugins/supi-flow" ~/.pi/agent/extensions/supi-flow
+`supi_tndm_cli` is intentionally thinner than the flow skills. Use it for direct ticket operations when
+a skill is not the right abstraction.
 
-# Option 2: settings.json
-# Add to ~/.pi/agent/settings.json:
-# { "extensions": ["./plugins/supi-flow/extensions/index.ts"] }
+Current action groups:
+
+- **ticket actions** — `create`, `update`, `show`, `list`, `awareness`
+- **task actions** — `task_add`, `task_list`, `task_complete`, `task_remove`, `task_edit`, `task_set`
+
+Task-detail behavior worth knowing:
+
+- `task_add` can stay manifest-only for headline tasks
+- when `task_detail` is provided, the tool ensures the canonical task detail doc, writes the markdown body, and runs `tndm ticket sync`
+- `task_edit` can also write or clear linked task detail docs
+
+## Skills
+
+The package ships five skills under `skills/`.
+
+| Skill | Use it for |
+|---|---|
+| `supi-flow-brainstorm` | Clarify intent, inspect context, compare approaches, and get approval before implementation |
+| `supi-flow-plan` | Turn the approved design into an executable plan with exact files and verification |
+| `supi-flow-apply` | Execute the approved plan task by task with fresh verification gates |
+| `supi-flow-archive` | Re-verify the completed change, update living docs, and close the ticket |
+| `supi-flow-debug` | Systematic root-cause debugging when verification fails or the cause is unclear |
+
+## Prompt template
+
+| Prompt | Purpose |
+|---|---|
+| `/supi-coding-retro` | Retrospective on setup, architecture, tooling, workflow, and conventions |
+
+## Package layout
+
+```text
+plugins/supi-flow/
+├── extensions/
+│   ├── index.ts
+│   ├── cli.ts
+│   └── tools/
+├── skills/
+│   ├── supi-flow-brainstorm/
+│   ├── supi-flow-plan/
+│   ├── supi-flow-apply/
+│   ├── supi-flow-archive/
+│   └── supi-flow-debug/
+├── prompts/
+│   └── supi-coding-retro.md
+└── __tests__/
 ```
 
 ## Development
@@ -177,6 +238,29 @@ pnpm install
 # Type-check
 pnpm exec tsc --noEmit
 
-# Run tests
+# Run the full test suite
 pnpm exec vitest run
 ```
+
+Useful targeted checks from the current package guidance:
+
+```bash
+# Version-check / tool registration behavior
+pnpm exec vitest run __tests__/index.test.ts __tests__/resources.test.ts
+
+# CLI wrapper behavior
+pnpm exec vitest run __tests__/cli.test.ts
+
+# Flow tools
+pnpm exec vitest run __tests__/flow-tools.test.ts
+
+# TNDM CLI tool behavior
+pnpm exec vitest run __tests__/tndm-cli-tool.test.ts
+```
+
+## Validation notes while developing
+
+- After changing `extensions/`, `skills/`, or `prompts/`, use `/reload` or restart PI before validating behavior.
+- Use the plugin source and tests as the source of truth for README claims.
+- Keep runtime PI packages in `peerDependencies` with `"*"` ranges and non-PI runtime deps in `dependencies`.
+- Do not add `resources_discover` for `skills/` or `prompts/`; PI already auto-discovers them from the conventional directories.
