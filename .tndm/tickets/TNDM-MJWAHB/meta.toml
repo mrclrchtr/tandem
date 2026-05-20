@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-MJWAHB"
+title = "Inspect tandem source for capabilities and API/CLI design, then refresh README.md"
+type = "chore"
+priority = "p2"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"
