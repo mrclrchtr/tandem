@@ -87,9 +87,10 @@ pnpm exec vitest run __tests__/cli.test.ts
 
 - Skills live in `skills/<name>/SKILL.md` and are auto-discovered by pi.
 - Skills reference tools (e.g. `supi_tndm_cli`, `supi_flow_start`) with structured parameter examples, never raw `tndm` CLI commands.
-- `content.md` is the canonical approved-design body, `plan.md` is the executable checklist, and `archive.md` stores final verification evidence.
+- `content.md` is the canonical approved overview/design body, structured tasks in `state.toml` are the executable manifest, optional task docs may live under `tasks/`, and `archive.md` stores final verification evidence.
 - Older tickets may still contain a legacy brainstorm sidecar document, but new flow behavior should not create it or depend on it.
-- Task numbering in plans uses `**Task N**` format; `supi_flow_complete_task` relies on this convention.
+- `supi_flow_plan` persists overview markdown in `content.md`; task authoring happens separately in `state.toml`.
+- Use headline-only tasks when possible. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task already exists.
 
 ## When changing this plugin
 

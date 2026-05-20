@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { tndm, tndmJson } from "../cli.js";
@@ -85,14 +87,23 @@ export const supi_tndm_cli_params = Type.Object({
   task_number: Type.Optional(
     Type.Number({ description: "Task number (required for task_complete, task_remove, task_edit)" }),
   ),
-  task_file: Type.Optional(
-    Type.String({ description: "File path for the task" }),
+  task_files: Type.Optional(
+    Type.Array(Type.String(), { description: "File paths for the task" }),
+  ),
+  task_clear_files: Type.Optional(
+    Type.Boolean({ description: "Clear all file paths for the task" }),
   ),
   task_verification: Type.Optional(
     Type.String({ description: "Verification command for the task" }),
   ),
   task_notes: Type.Optional(
     Type.String({ description: "Extra notes for the task" }),
+  ),
+  task_detail: Type.Optional(
+    Type.String({ description: "Optional markdown body for a task detail doc" }),
+  ),
+  task_clear_detail: Type.Optional(
+    Type.Boolean({ description: "Explicitly detach a task detail doc link" }),
   ),
   task_json: Type.Optional(
     Type.String({ description: "JSON array of tasks (required for task_set)" }),
@@ -108,11 +119,11 @@ export const supi_tndm_cli_params = Type.Object({
  *   show       → tndm ticket show <id> --json
  *   list       → tndm ticket list [--all] [--definition <state>] --json
  *   awareness  → tndm awareness --against <ref> --json
- *   task_add       → tndm ticket task add <id> --title <title> [--file] [--verification] [--notes] --json
+ *   task_add       → tndm ticket task add <id> --title <title> [--file <path> ...] [--verification] [--notes] --json, optionally followed by task detail ensure + sync when task_detail is provided
  *   task_list      → tndm ticket task list <id> --json
  *   task_complete  → tndm ticket task complete <id> <number> --json
  *   task_remove    → tndm ticket task remove <id> <number> --json
- *   task_edit      → tndm ticket task edit <id> <number> [--title] [--file] [--verification] [--notes] --json
+ *   task_edit      → tndm ticket task edit <id> <number> [--title] [--file <path> ...] [--verification] [--notes] --json, optionally followed by task detail ensure/clear
  *   task_set       → tndm ticket task set <id> --tasks <json> --json
  *   doc_create and sync are internal operations used by flow tools, not exposed here.
  */
@@ -225,13 +236,25 @@ export async function executeTndmCli(params: TndmCliParams) {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_add");
       if (!params.task_title) throw new Error("supi_tndm_cli: task_title is required for task_add");
       const args: string[] = ["ticket", "task", "add", params.id, "--title", params.task_title];
-      if (params.task_file) args.push("--file", params.task_file);
+      for (const file of params.task_files ?? []) {
+        args.push("--file", file);
+      }
       if (params.task_verification) args.push("--verification", params.task_verification);
       if (params.task_notes) args.push("--notes", params.task_notes);
-      const result = await tndmJson(args);
+      const result = await tndmJson<Record<string, unknown>>(args);
+      let finalResult = result;
+
+      if (params.task_detail !== undefined) {
+        const taskNumber = extractLatestTaskNumber(result);
+        const detailResult = await ensureTaskDetailDoc(params.id, taskNumber);
+        writeTaskDetailDoc(detailResult.path, taskNumber, params.task_title, params.task_detail);
+        await tndm(["ticket", "sync", params.id]);
+        finalResult = await loadTicket(params.id);
+      }
+
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-        details: { action: "task_add", ticketId: params.id, result },
+        content: [{ type: "text" as const, text: JSON.stringify(finalResult, null, 2) }],
+        details: { action: "task_add", ticketId: params.id, result: finalResult },
       };
     }
 
@@ -273,15 +296,61 @@ export async function executeTndmCli(params: TndmCliParams) {
     case "task_edit": {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_edit");
       if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_edit");
+      if (params.task_detail !== undefined && params.task_clear_detail) {
+        throw new Error("supi_tndm_cli: task_detail and task_clear_detail cannot be used together");
+      }
       const args: string[] = ["ticket", "task", "edit", params.id, String(params.task_number)];
       if (params.task_title !== undefined) args.push("--title", params.task_title);
-      if (params.task_file !== undefined) args.push("--file", params.task_file);
+      if (params.task_files !== undefined) {
+        if (params.task_files.length === 0) {
+          args.push("--clear-files");
+        } else {
+          for (const file of params.task_files) args.push("--file", file);
+        }
+      } else if (params.task_clear_files) {
+        args.push("--clear-files");
+      }
       if (params.task_verification !== undefined) args.push("--verification", params.task_verification);
       if (params.task_notes !== undefined) args.push("--notes", params.task_notes);
-      const result = await tndmJson(args);
+
+      const hasManifestFieldChanges = args.length > 5;
+      const result = hasManifestFieldChanges
+        ? await tndmJson<Record<string, unknown>>(args)
+        : undefined;
+      let finalResult = result;
+
+      if (params.task_detail !== undefined) {
+        const detailResult = await ensureTaskDetailDoc(params.id, params.task_number);
+        const taskSnapshot = result ?? await loadTicket(params.id);
+        const taskTitle =
+          params.task_title ??
+          extractTaskTitle(taskSnapshot, params.task_number) ??
+          `Task ${params.task_number}`;
+        writeTaskDetailDoc(
+          detailResult.path,
+          params.task_number,
+          taskTitle,
+          params.task_detail,
+        );
+        await tndm(["ticket", "sync", params.id]);
+        finalResult = await loadTicket(params.id);
+      } else if (params.task_clear_detail) {
+        await tndmJson([
+          "ticket",
+          "task",
+          "detail",
+          "clear",
+          params.id,
+          String(params.task_number),
+        ]);
+        finalResult = await loadTicket(params.id);
+      } else if (!finalResult) {
+        finalResult = await tndmJson<Record<string, unknown>>(args);
+      }
+
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-        details: { action: "task_edit", ticketId: params.id, taskNumber: params.task_number, result },
+        content: [{ type: "text" as const, text: JSON.stringify(finalResult, null, 2) }],
+        details: { action: "task_edit", ticketId: params.id, taskNumber: params.task_number, result: finalResult },
       };
     }
 
@@ -310,4 +379,58 @@ function addOptionalFlags(
     const flagName = String(flag).replace(/_/g, "-");
     args.push(`--${flagName}`, String(value));
   }
+}
+
+// NOTE: This assumes task numbers are auto-incremented (1, 2, 3…). If task_add ever
+// supports explicit task numbering, this will need to use a more precise source
+// of truth (e.g. a top-level `task_number` field in the JSON response).
+function extractLatestTaskNumber(result: Record<string, unknown>): number {
+  const tasks = extractTasks(result);
+  const numbers = tasks
+    .map((task) => task.number)
+    .filter((value): value is number => typeof value === "number");
+
+  if (numbers.length === 0) {
+    throw new Error("supi_tndm_cli: task_add did not return a task list; cannot attach task detail");
+  }
+
+  return Math.max(...numbers);
+}
+
+function extractTaskTitle(result: Record<string, unknown>, taskNumber: number): string | undefined {
+  return extractTasks(result).find((task) => task.number === taskNumber)?.title;
+}
+
+function extractTasks(result: Record<string, unknown>): Array<{ number?: number; title?: string }> {
+  const ticket = result.ticket;
+  if (typeof ticket === "object" && ticket !== null) {
+    const state = (ticket as { state?: unknown }).state;
+    if (typeof state === "object" && state !== null && Array.isArray((state as { tasks?: unknown }).tasks)) {
+      return ((state as { tasks: unknown[] }).tasks).filter(
+        (task): task is { number?: number; title?: string } => typeof task === "object" && task !== null,
+      );
+    }
+  }
+
+  return [];
+}
+
+async function loadTicket(id: string): Promise<Record<string, unknown>> {
+  return tndmJson<Record<string, unknown>>(["ticket", "show", id]);
+}
+
+async function ensureTaskDetailDoc(id: string, taskNumber: number): Promise<{ path: string }> {
+  return tndmJson<{ path: string }>([
+    "ticket",
+    "task",
+    "detail",
+    "ensure",
+    id,
+    String(taskNumber),
+  ]);
+}
+
+function writeTaskDetailDoc(path: string, taskNumber: number, title: string, detail: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `# Task ${taskNumber}: ${title}\n\n${detail}\n`, "utf-8");
 }

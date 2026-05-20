@@ -1888,6 +1888,135 @@ fn bare_ticket_doc_create_uses_configured_prefix() {
 
 #[test]
 #[allow(clippy::disallowed_methods)]
+fn ticket_doc_create_accepts_nested_ticket_relative_path() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DOCPTH", "Nested doc path test");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "doc",
+            "create",
+            "TNDM-DOCPTH",
+            "task-01",
+            "--path",
+            "tasks/task-01.md",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create nested doc");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        repo_root
+            .path()
+            .join(".tndm")
+            .join("tickets")
+            .join("TNDM-DOCPTH")
+            .join("tasks")
+            .join("task-01.md")
+            .is_file(),
+        "nested task doc should be created under tasks/"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_doc_create_rejects_absolute_and_traversing_paths() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DOCPATHERR", "Invalid doc path test");
+
+    let absolute = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "doc",
+            "create",
+            "TNDM-DOCPATHERR",
+            "task-abs",
+            "--path",
+            "/tmp/task.md",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create doc with absolute path");
+    assert!(!absolute.status.success());
+    let stderr_abs = String::from_utf8_lossy(&absolute.stderr);
+    assert!(
+        stderr_abs.contains("must be ticket-relative"),
+        "stderr: {stderr_abs}"
+    );
+
+    let parent = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "doc",
+            "create",
+            "TNDM-DOCPATHERR",
+            "task-parent",
+            "--path",
+            "../escape.md",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create doc with parent traversal");
+    assert!(!parent.status.success());
+    let stderr_parent = String::from_utf8_lossy(&parent.stderr);
+    assert!(
+        stderr_parent.contains("must not traverse"),
+        "stderr: {stderr_parent}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn ticket_doc_create_rejects_existing_registered_path() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DOCDUP", "Duplicate doc path test");
+
+    let content_path = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("TNDM-DOCDUP")
+        .join("content.md");
+    let original_content = fs::read_to_string(&content_path).expect("read original content");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "doc",
+            "create",
+            "TNDM-DOCDUP",
+            "copy",
+            "--path",
+            "content.md",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create duplicate doc path");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("already registered"),
+        "stderr should explain the duplicate path: {stderr}"
+    );
+    assert_eq!(
+        fs::read_to_string(&content_path).expect("re-read content"),
+        original_content,
+        "content.md should remain unchanged when duplicate paths are rejected"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
 fn bare_ticket_create_depends_on_uses_configured_prefix() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
@@ -1986,6 +2115,48 @@ fn create_test_ticket(repo_root: &std::path::Path, id: &str, title: &str) {
         output.status.success(),
         "create ticket failed: {}",
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn doc_create_rejects_conflicting_path_for_existing_name() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DOCPATH", "Doc path mismatch test");
+
+    let first = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "doc", "create", "TNDM-DOCPATH", "archive"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create archive doc");
+    assert!(
+        first.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+
+    let conflicting = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "doc",
+            "create",
+            "TNDM-DOCPATH",
+            "archive",
+            "--path",
+            "nested/archive.md",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("create conflicting archive doc");
+    assert!(
+        !conflicting.status.success(),
+        "conflicting --path should fail"
+    );
+    let stderr = String::from_utf8_lossy(&conflicting.stderr);
+    assert!(
+        stderr.contains("already registered") || stderr.contains("expected"),
+        "stderr was: {stderr}"
     );
 }
 
@@ -2273,6 +2444,8 @@ fn task_edit_updates_fields() {
             "New title",
             "--file",
             "src/main.rs",
+            "--file",
+            "tests/main.rs",
             "--verification",
             "cargo test",
             "--notes",
@@ -2297,9 +2470,68 @@ fn task_edit_updates_fields() {
     let tasks: Vec<serde_json::Value> =
         serde_json::from_str(&String::from_utf8(list.stdout).unwrap()).unwrap();
     assert_eq!(tasks[0]["title"], "New title");
-    assert_eq!(tasks[0]["file"], "src/main.rs");
+    assert_eq!(
+        tasks[0]["files"],
+        serde_json::json!(["src/main.rs", "tests/main.rs"])
+    );
     assert_eq!(tasks[0]["verification"], "cargo test");
     assert_eq!(tasks[0]["notes"], "Important");
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_edit_clear_files_clears_files() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-CLR", "Clear files test");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "add",
+            "TNDM-CLR",
+            "--title",
+            "Has files",
+            "--file",
+            "src/main.rs",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task");
+
+    // Clear files
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "edit",
+            "TNDM-CLR",
+            "1",
+            "--clear-files",
+            "--json",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("clear files");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let list = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "task", "list", "TNDM-CLR", "--json"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("list tasks");
+    let tasks: Vec<serde_json::Value> =
+        serde_json::from_str(&String::from_utf8(list.stdout).unwrap()).unwrap();
+    assert!(
+        tasks[0]["files"].is_null() || tasks[0]["files"] == serde_json::json!([]),
+        "files should be cleared: {}",
+        tasks[0]["files"]
+    );
 }
 
 #[test]
@@ -2324,7 +2556,7 @@ fn task_set_bulk_replace() {
         .expect("add task");
 
     // Bulk replace with set
-    let tasks_json = r#"[{"number":10,"title":"New A","status":"todo"},{"number":20,"title":"New B","status":"done"}]"#;
+    let tasks_json = r#"[{"number":10,"title":"New A","status":"todo","files":["src/lib.rs","tests/lib.rs"],"verification":"cargo test","notes":"Covers core path"},{"number":20,"title":"New B","status":"done"}]"#;
     let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
         .args([
             "ticket",
@@ -2356,6 +2588,12 @@ fn task_set_bulk_replace() {
     assert_eq!(tasks[0]["number"], 10);
     assert_eq!(tasks[0]["title"], "New A");
     assert_eq!(tasks[0]["status"], "todo");
+    assert_eq!(
+        tasks[0]["files"],
+        serde_json::json!(["src/lib.rs", "tests/lib.rs"])
+    );
+    assert_eq!(tasks[0]["verification"], "cargo test");
+    assert_eq!(tasks[0]["notes"], "Covers core path");
     assert_eq!(tasks[1]["number"], 20);
     assert_eq!(tasks[1]["title"], "New B");
     assert_eq!(tasks[1]["status"], "done");
@@ -2464,6 +2702,106 @@ fn task_add_rejects_empty_title() {
 
 #[test]
 #[allow(clippy::disallowed_methods)]
+fn task_add_rejects_unregistered_detail_path() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DETADD", "Task add detail path test");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "add",
+            "TNDM-DETADD",
+            "--title",
+            "Task with dangling detail",
+            "--detail-path",
+            "tasks/task-01.md",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task with unregistered detail path");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("use `tndm ticket task detail ensure`")
+            || stderr.contains("registered task detail document"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_edit_rejects_unregistered_detail_path() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(
+        repo_root.path(),
+        "TNDM-DETEDIT",
+        "Task edit detail path test",
+    );
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "task", "add", "TNDM-DETEDIT", "--title", "Task"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "edit",
+            "TNDM-DETEDIT",
+            "1",
+            "--detail-path",
+            "tasks/task-01.md",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("edit task with unregistered detail path");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("use `tndm ticket task detail ensure`")
+            || stderr.contains("registered task detail document"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_set_rejects_unregistered_detail_path() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DETSET", "Task set detail path test");
+
+    let tasks_json = r#"[{"number":1,"title":"Task with dangling detail","status":"todo","detail_path":"tasks/task-01.md"}]"#;
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "set",
+            "TNDM-DETSET",
+            "--tasks",
+            tasks_json,
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("set task with unregistered detail path");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("registered task detail document"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
 fn task_edit_clears_optional_fields() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
@@ -2480,6 +2818,8 @@ fn task_edit_clears_optional_fields() {
             "With fields",
             "--file",
             "src/main.rs",
+            "--file",
+            "tests/main.rs",
             "--verification",
             "cargo test",
             "--notes",
@@ -2489,6 +2829,25 @@ fn task_edit_clears_optional_fields() {
         .output()
         .expect("add task with fields");
 
+    let ensure = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "detail",
+            "ensure",
+            "TNDM-EDCLR",
+            "1",
+            "--json",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("ensure task detail before clearing");
+    assert!(
+        ensure.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&ensure.stderr)
+    );
+
     // Clear optional fields with empty strings
     let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
         .args([
@@ -2497,11 +2856,12 @@ fn task_edit_clears_optional_fields() {
             "edit",
             "TNDM-EDCLR",
             "1",
-            "--file",
-            "",
+            "--clear-files",
             "--verification",
             "",
             "--notes",
+            "",
+            "--detail-path",
             "",
             "--json",
         ])
@@ -2526,9 +2886,366 @@ fn task_edit_clears_optional_fields() {
     assert_eq!(tasks[0]["number"], 1);
     assert_eq!(tasks[0]["title"], "With fields");
     // Optional fields should be absent (None -> skipped in JSON)
-    assert!(!tasks[0].as_object().unwrap().contains_key("file"));
+    assert!(!tasks[0].as_object().unwrap().contains_key("files"));
     assert!(!tasks[0].as_object().unwrap().contains_key("verification"));
     assert!(!tasks[0].as_object().unwrap().contains_key("notes"));
+    assert!(!tasks[0].as_object().unwrap().contains_key("detail_path"));
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_detail_ensure_creates_and_links_canonical_doc() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DETENS", "Ensure detail doc test");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "add",
+            "TNDM-DETENS",
+            "--title",
+            "Detailed task",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "detail",
+            "ensure",
+            "TNDM-DETENS",
+            "1",
+            "--json",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("ensure task detail");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("TNDM-DETENS");
+    assert!(
+        ticket_dir.join("tasks").join("task-01.md").is_file(),
+        "canonical task detail doc should exist"
+    );
+
+    let state_text = fs::read_to_string(ticket_dir.join("state.toml")).expect("read state.toml");
+    assert!(
+        state_text.contains("detail_path = \"tasks/task-01.md\""),
+        "state.toml should link the canonical task detail doc: {state_text}"
+    );
+
+    let meta_text = fs::read_to_string(ticket_dir.join("meta.toml")).expect("read meta.toml");
+    assert!(
+        meta_text.contains("name = \"task-01\""),
+        "meta.toml should register task-01: {meta_text}"
+    );
+    assert!(
+        meta_text.contains("path = \"tasks/task-01.md\""),
+        "meta.toml should register the canonical task detail path: {meta_text}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_detail_ensure_is_idempotent() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(
+        repo_root.path(),
+        "TNDM-DETIDEM",
+        "Idempotent detail doc test",
+    );
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "add",
+            "TNDM-DETIDEM",
+            "--title",
+            "Detailed task",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task");
+
+    for _ in 0..2 {
+        let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+            .args([
+                "ticket",
+                "task",
+                "detail",
+                "ensure",
+                "TNDM-DETIDEM",
+                "1",
+                "--json",
+            ])
+            .current_dir(repo_root.path())
+            .output()
+            .expect("ensure task detail");
+        assert!(
+            output.status.success(),
+            "stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let meta_text = fs::read_to_string(
+        repo_root
+            .path()
+            .join(".tndm")
+            .join("tickets")
+            .join("TNDM-DETIDEM")
+            .join("meta.toml"),
+    )
+    .expect("read meta.toml");
+    assert_eq!(meta_text.matches("name = \"task-01\"").count(), 1);
+    assert_eq!(meta_text.matches("path = \"tasks/task-01.md\"").count(), 1);
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_detail_clear_detaches_link_without_deleting_doc() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DETCLR", "Clear detail doc test");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "add",
+            "TNDM-DETCLR",
+            "--title",
+            "Detailed task",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "detail",
+            "ensure",
+            "TNDM-DETCLR",
+            "1",
+            "--json",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("ensure task detail");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "detail",
+            "clear",
+            "TNDM-DETCLR",
+            "1",
+            "--json",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("clear task detail");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let list = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "task", "list", "TNDM-DETCLR", "--json"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("list tasks");
+    let tasks: Vec<serde_json::Value> =
+        serde_json::from_str(&String::from_utf8(list.stdout).unwrap()).unwrap();
+    assert!(
+        !tasks[0].as_object().unwrap().contains_key("detail_path"),
+        "detail_path should be detached after clear: {}",
+        tasks[0]
+    );
+
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("TNDM-DETCLR");
+    assert!(
+        ticket_dir.join("tasks").join("task-01.md").is_file(),
+        "clearing detail should not delete the task detail doc"
+    );
+
+    let meta_text = fs::read_to_string(ticket_dir.join("meta.toml")).expect("read meta.toml");
+    assert!(
+        meta_text.contains("name = \"task-01\""),
+        "registered task detail doc should remain available after clear: {meta_text}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_remove_prunes_orphaned_canonical_detail_doc() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(repo_root.path(), "TNDM-DETREM", "Remove detail doc test");
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "add",
+            "TNDM-DETREM",
+            "--title",
+            "Old task",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task");
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "task", "detail", "ensure", "TNDM-DETREM", "1"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("ensure task detail");
+
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("TNDM-DETREM");
+    fs::write(
+        ticket_dir.join("tasks").join("task-01.md"),
+        "# Old task\n\nOld detail\n",
+    )
+    .expect("overwrite canonical task detail doc");
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "sync", "TNDM-DETREM"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("sync task detail doc");
+
+    let remove = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "task", "remove", "TNDM-DETREM", "1"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("remove task");
+    assert!(
+        remove.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&remove.stderr)
+    );
+
+    assert!(
+        !ticket_dir.join("tasks").join("task-01.md").exists(),
+        "removing the task should prune the canonical task detail doc"
+    );
+
+    let meta_text = fs::read_to_string(ticket_dir.join("meta.toml")).expect("read meta.toml");
+    assert!(
+        !meta_text.contains("name = \"task-01\""),
+        "meta.toml should no longer register task-01 after removal: {meta_text}"
+    );
+    let state_text = fs::read_to_string(ticket_dir.join("state.toml")).expect("read state.toml");
+    assert!(
+        !state_text.contains("task-01 ="),
+        "state.toml should no longer fingerprint task-01 after removal: {state_text}"
+    );
+}
+
+#[test]
+#[allow(clippy::disallowed_methods)]
+fn task_set_prunes_unlinked_canonical_detail_docs() {
+    let repo_root = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    create_test_ticket(
+        repo_root.path(),
+        "TNDM-DETSETP",
+        "Task set prune detail doc test",
+    );
+
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "add",
+            "TNDM-DETSETP",
+            "--title",
+            "Old task",
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("add task");
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "task", "detail", "ensure", "TNDM-DETSETP", "1"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("ensure task detail");
+
+    let ticket_dir = repo_root
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("TNDM-DETSETP");
+    fs::write(
+        ticket_dir.join("tasks").join("task-01.md"),
+        "# Old task\n\nOld detail\n",
+    )
+    .expect("overwrite canonical task detail doc");
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args(["ticket", "sync", "TNDM-DETSETP"])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("sync task detail doc");
+
+    let set = Command::new(env!("CARGO_BIN_EXE_tndm"))
+        .args([
+            "ticket",
+            "task",
+            "set",
+            "TNDM-DETSETP",
+            "--tasks",
+            r#"[{"number":1,"title":"Replacement task","status":"todo"}]"#,
+        ])
+        .current_dir(repo_root.path())
+        .output()
+        .expect("replace tasks");
+    assert!(
+        set.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&set.stderr)
+    );
+
+    assert!(
+        !ticket_dir.join("tasks").join("task-01.md").exists(),
+        "task set should prune unlinked canonical task detail docs"
+    );
+
+    let meta_text = fs::read_to_string(ticket_dir.join("meta.toml")).expect("read meta.toml");
+    assert!(
+        !meta_text.contains("name = \"task-01\""),
+        "meta.toml should no longer register task-01 after replacement: {meta_text}"
+    );
+    let state_text = fs::read_to_string(ticket_dir.join("state.toml")).expect("read state.toml");
+    assert!(
+        !state_text.contains("task-01 ="),
+        "state.toml should no longer fingerprint task-01 after replacement: {state_text}"
+    );
 }
 
 #[test]

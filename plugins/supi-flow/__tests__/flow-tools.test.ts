@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -100,29 +100,29 @@ describe("executeFlowStart", () => {
 // ─── executeFlowPlan ───────────────────────────────────────────
 
 describe("executeFlowPlan", () => {
-  it("parses single task and calls task set with correct JSON", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({});
+  it("stores overview markdown in content.md without requiring tasks", async () => {
     vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const planContent = `## Overview
+
+Ship the simplified workflow in phases.
+
+No tasks yet.`;
 
     await flowTools.executeFlowPlan({
       ticket_id: "TNDM-TEST",
-      plan_content: "- [ ] **Task 1**: Do the thing",
+      plan_content: planContent,
     });
 
-    // Should call task set, not doc create
-    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+    expect(vi.mocked(tndmJson)).not.toHaveBeenCalled();
+    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(1, [
       "ticket",
-      "task",
-      "set",
+      "update",
       "TNDM-TEST",
-      "--tasks",
-      JSON.stringify([
-        { number: 1, title: "Do the thing", status: "todo" },
-      ]),
+      "--content",
+      planContent,
     ]);
-
-    // Should update tags in a single atomic call
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(2, [
       "ticket",
       "update",
       "TNDM-TEST",
@@ -133,110 +133,55 @@ describe("executeFlowPlan", () => {
     ]);
   });
 
-  it("parses multiple tasks with file, verification, and notes", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({});
+  it("does not treat checklist-style task text as executable task parsing", async () => {
     vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const planContent = `## Execution ideas
+
+- [ ] **Task 1**: Draft parser work
+  - Files: src/parser.ts
+  - Verification: pnpm exec vitest run`;
 
     await flowTools.executeFlowPlan({
-      ticket_id: "TNDM-MULTI",
-      plan_content: `
-- [ ] **Task 1**: Create the helper
-  - File: src/helper.ts
-  - Verification: pnpm exec tsc --noEmit
-
-- [ ] **Task 2**: Add tests
-  - File: tests/helper.test.ts
-  - Verification: pnpm exec vitest run
-  - Notes: Cover edge cases
-`,
+      ticket_id: "TNDM-RAW",
+      plan_content: planContent,
     });
 
-    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
-      "ticket",
-      "task",
-      "set",
-      "TNDM-MULTI",
-      "--tasks",
-      JSON.stringify([
-        { number: 1, title: "Create the helper", status: "todo", file: "src/helper.ts", verification: "pnpm exec tsc --noEmit" },
-        { number: 2, title: "Add tests", status: "todo", file: "tests/helper.test.ts", verification: "pnpm exec vitest run", notes: "Cover edge cases" },
-      ]),
-    ]);
-  });
-
-  it("strips markdown code ticks from task subfields", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({});
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
-
-    await flowTools.executeFlowPlan({
-      ticket_id: "TNDM-TICKS",
-      plan_content: `
-- [ ] **Task 1**: Normalize values
-  - File: \`src/lib.rs\`
-  - Verification: \`cargo test\`
-  - Notes: \`manual check\`
-`,
-    });
-
-    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
-      "ticket",
-      "task",
-      "set",
-      "TNDM-TICKS",
-      "--tasks",
-      JSON.stringify([
-        { number: 1, title: "Normalize values", status: "todo", file: "src/lib.rs", verification: "cargo test", notes: "manual check" },
-      ]),
-    ]);
-  });
-
-  it("parses checked tasks as done", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({});
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
-
-    await flowTools.executeFlowPlan({
-      ticket_id: "TNDM-DONE",
-      plan_content: "- [x] **Task 1**: Already completed",
-    });
-
-    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
-      "ticket",
-      "task",
-      "set",
-      "TNDM-DONE",
-      "--tasks",
-      JSON.stringify([
-        { number: 1, title: "Already completed", status: "done" },
-      ]),
-    ]);
-  });
-
-  it("rejects empty plan_content instead of silently clearing tasks", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({});
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
-
-    await expect(
-      flowTools.executeFlowPlan({
-        ticket_id: "TNDM-EMPTY",
-        plan_content: "Just some text with no task lines",
-      }),
-    ).rejects.toThrow(/no \*\*Task N\*\*: lines found/);
-
-    // Should not have called task set or anything else
     expect(vi.mocked(tndmJson)).not.toHaveBeenCalled();
-    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+    expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "update",
+      "TNDM-RAW",
+      "--content",
+      planContent,
+    ]);
   });
 
-  it("returns task count in details", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({});
+  it("returns overview persistence details instead of task counts", async () => {
     vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
 
     const result = await flowTools.executeFlowPlan({
       ticket_id: "TNDM-CNT",
-      plan_content: "- [ ] **Task 1**: A\n- [ ] **Task 2**: B\n- [ ] **Task 3**: C",
+      plan_content: "## Overview\n\nStore this overview only.",
     });
 
-    expect(result.details.taskCount).toBe(3);
+    expect(result.details).toEqual({
+      action: "flow_plan",
+      ticketId: "TNDM-CNT",
+      tags: "flow:planned",
+      contentStored: true,
+    });
+  });
+
+  it("rejects blank overview content before mutating the ticket", async () => {
+    await expect(
+      flowTools.executeFlowPlan({
+        ticket_id: "TNDM-BLANK",
+        plan_content: " \n\t ",
+      }),
+    ).rejects.toThrow("plan_content must not be blank");
+
+    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
   });
 });
 

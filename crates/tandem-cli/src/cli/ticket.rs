@@ -1,4 +1,7 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use clap::{Subcommand, ValueEnum};
 use tabled::{builder::Builder, settings::Style};
@@ -9,10 +12,11 @@ use tandem_core::{
         TicketStatus, TicketType,
     },
 };
-use tandem_storage::{FileTicketStore, discover_repo_root, load_config};
+use tandem_storage::{FileTicketStore, discover_repo_root, load_config, ticket_dir};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::OutputArgs;
+use super::doc::{normalize_ticket_relative_doc_path, recompute_ticket_document_fingerprints};
 use super::render::{TicketJson, TicketJsonEntry};
 use super::util::{
     DEFINITION_TAG_QUESTIONS, DEFINITION_TAG_READY, generate_ticket_id, load_ticket_content,
@@ -178,6 +182,10 @@ pub(crate) enum DocCommand {
         /// Document name (e.g. plan, archive).
         name: String,
 
+        /// Ticket-relative document path (optional; defaults to <name>.md).
+        #[arg(long)]
+        path: Option<String>,
+
         #[command(flatten)]
         output: OutputArgs,
     },
@@ -194,9 +202,9 @@ pub(crate) enum TaskCommand {
         #[arg(long, short = 't')]
         title: String,
 
-        /// File path (optional).
+        /// File paths (optional; repeat --file for multiple entries).
         #[arg(long, short = 'f')]
-        file: Option<String>,
+        file: Vec<String>,
 
         /// Verification command (optional).
         #[arg(long, short = 'v')]
@@ -205,6 +213,10 @@ pub(crate) enum TaskCommand {
         /// Extra notes (optional).
         #[arg(long, short = 'n')]
         notes: Option<String>,
+
+        /// Ticket-relative path to a task detail document (optional).
+        #[arg(long)]
+        detail_path: Option<String>,
 
         #[command(flatten)]
         output: OutputArgs,
@@ -251,9 +263,13 @@ pub(crate) enum TaskCommand {
         #[arg(long, short = 't')]
         title: Option<String>,
 
-        /// New file path (optional).
+        /// New file paths (optional; repeat --file for multiple entries).
         #[arg(long, short = 'f')]
-        file: Option<String>,
+        file: Option<Vec<String>>,
+
+        /// Clear all file paths.
+        #[arg(long, conflicts_with = "file")]
+        clear_files: bool,
 
         /// New verification command (optional).
         #[arg(long, short = 'v')]
@@ -263,8 +279,17 @@ pub(crate) enum TaskCommand {
         #[arg(long, short = 'n')]
         notes: Option<String>,
 
+        /// New ticket-relative path to a task detail document (optional).
+        #[arg(long)]
+        detail_path: Option<String>,
+
         #[command(flatten)]
         output: OutputArgs,
+    },
+    /// Ensure or clear a task's linked detail document.
+    Detail {
+        #[command(subcommand)]
+        command: TaskDetailCommand,
     },
     /// Bulk-replace all tasks from a JSON string.
     Set {
@@ -274,6 +299,32 @@ pub(crate) enum TaskCommand {
         /// JSON array of task objects.
         #[arg(long)]
         tasks: String,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum TaskDetailCommand {
+    /// Ensure the canonical task detail document exists and is linked.
+    Ensure {
+        /// Ticket ID.
+        id: String,
+
+        /// Task number.
+        number: u32,
+
+        #[command(flatten)]
+        output: OutputArgs,
+    },
+    /// Clear a task's linked detail document reference without deleting the file.
+    Clear {
+        /// Ticket ID.
+        id: String,
+
+        /// Task number.
+        number: u32,
 
         #[command(flatten)]
         output: OutputArgs,
@@ -724,18 +775,124 @@ fn find_task(tasks: &[Task], number: u32) -> Result<(usize, &Task), anyhow::Erro
         .ok_or_else(|| anyhow::anyhow!("task {number} not found"))
 }
 
+fn normalize_task_files(files: Vec<String>) -> Vec<String> {
+    files
+        .into_iter()
+        .filter_map(|file| {
+            let trimmed = file.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        })
+        .collect()
+}
+
+fn normalize_optional_detail_path(detail_path: Option<String>) -> anyhow::Result<Option<String>> {
+    detail_path
+        .and_then(|value| {
+            let trimmed = value.trim().to_string();
+            (!trimmed.is_empty()).then_some(trimmed)
+        })
+        .map(|value| normalize_ticket_relative_doc_path(&value))
+        .transpose()
+}
+
+fn canonical_task_detail_doc(number: u32) -> (String, String) {
+    let name = format!("task-{:02}", number);
+    let path = format!("tasks/{name}.md");
+    (name, path)
+}
+
+fn is_canonical_task_detail_doc(doc: &tandem_core::ticket::TicketDocument) -> bool {
+    let Some(number) = doc
+        .name
+        .strip_prefix("task-")
+        .and_then(|value| value.parse::<u32>().ok())
+    else {
+        return false;
+    };
+    let (expected_name, expected_path) = canonical_task_detail_doc(number);
+    doc.name == expected_name && doc.path == expected_path
+}
+
+fn prune_unlinked_canonical_task_detail_docs(
+    repo_root: &Path,
+    ticket_id: &TicketId,
+    ticket: &mut Ticket,
+) -> anyhow::Result<()> {
+    let linked_detail_paths = ticket
+        .state
+        .tasks
+        .iter()
+        .filter_map(|task| task.detail_path.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+
+    let original_len = ticket.meta.documents.len();
+    ticket.meta.documents.retain(|doc| {
+        !is_canonical_task_detail_doc(doc) || linked_detail_paths.contains(&doc.path)
+    });
+
+    if ticket.meta.documents.len() != original_len {
+        recompute_ticket_document_fingerprints(repo_root, ticket_id, ticket)?;
+    }
+
+    Ok(())
+}
+
+fn validate_registered_task_detail_path(
+    repo_root: &Path,
+    ticket_id: &TicketId,
+    ticket: &Ticket,
+    task_number: u32,
+    detail_path: Option<String>,
+) -> anyhow::Result<Option<String>> {
+    let Some(detail_path) = normalize_optional_detail_path(detail_path)? else {
+        return Ok(None);
+    };
+
+    let (doc_name, canonical_path) = canonical_task_detail_doc(task_number);
+    if detail_path != canonical_path {
+        anyhow::bail!(
+            "task {task_number} detail_path must use the canonical registered task detail document {}; use `tndm ticket task detail ensure {} {task_number}`",
+            canonical_path,
+            ticket_id.as_str()
+        );
+    }
+
+    let doc = ticket
+        .meta
+        .documents
+        .iter()
+        .find(|doc| doc.name == doc_name && doc.path == canonical_path)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "task {task_number} detail_path must reference a registered task detail document; use `tndm ticket task detail ensure {} {task_number}`",
+                ticket_id.as_str()
+            )
+        })?;
+
+    let abs_path = ticket_dir(repo_root, ticket_id).join(&doc.path);
+    if !abs_path.is_file() {
+        anyhow::bail!(
+            "task {task_number} detail_path must reference an existing registered task detail document; missing {}",
+            doc.path
+        );
+    }
+
+    Ok(Some(detail_path))
+}
+
 pub(crate) fn handle_task_add(
     id: String,
     title: String,
-    file: Option<String>,
+    file: Vec<String>,
     verification: Option<String>,
     notes: Option<String>,
+    detail_path: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
+    let store = FileTicketStore::new(repo_root.clone());
     let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
 
     if title.trim().is_empty() {
@@ -753,18 +910,25 @@ pub(crate) fn handle_task_add(
         .unwrap_or(0)
         + 1;
 
-    // Normalize empty strings to None, matching handle_task_edit behavior
-    let file = file.and_then(|f| if f.trim().is_empty() { None } else { Some(f) });
+    let files = normalize_task_files(file);
     let verification = verification.and_then(|v| if v.trim().is_empty() { None } else { Some(v) });
     let notes = notes.and_then(|n| if n.trim().is_empty() { None } else { Some(n) });
+    let detail_path = validate_registered_task_detail_path(
+        &repo_root,
+        &ticket_id,
+        &ticket,
+        next_number,
+        detail_path,
+    )?;
 
     ticket.state.tasks.push(Task {
         number: next_number,
         title,
         status: TaskStatus::Todo,
-        file,
+        files,
         verification,
         notes,
+        detail_path,
     });
 
     persist_and_output(&store, &ticket, json)?;
@@ -818,34 +982,49 @@ pub(crate) fn handle_task_remove(id: String, number: u32, json: bool) -> anyhow:
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
+    let store = FileTicketStore::new(repo_root.clone());
     let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
 
     let mut ticket = load_and_bump(&store, &ticket_id)?;
 
     let (idx, _) = find_task(&ticket.state.tasks, number)?;
     ticket.state.tasks.remove(idx);
+    prune_unlinked_canonical_task_detail_docs(&repo_root, &ticket_id, &mut ticket)?;
 
     persist_and_output(&store, &ticket, json)?;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn handle_task_edit(
     id: String,
     number: u32,
     title: Option<String>,
-    file: Option<String>,
+    file: Option<Vec<String>>,
+    clear_files: bool,
     verification: Option<String>,
     notes: Option<String>,
+    detail_path: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
+    let store = FileTicketStore::new(repo_root.clone());
     let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
 
     let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let validated_detail_path = if detail_path.is_some() {
+        Some(validate_registered_task_detail_path(
+            &repo_root,
+            &ticket_id,
+            &ticket,
+            number,
+            detail_path,
+        )?)
+    } else {
+        None
+    };
 
     let (idx, _) = find_task(&ticket.state.tasks, number)?;
     let task = &mut ticket.state.tasks[idx];
@@ -856,11 +1035,10 @@ pub(crate) fn handle_task_edit(
         task.title = value;
     }
     if let Some(value) = file {
-        task.file = if value.trim().is_empty() {
-            None
-        } else {
-            Some(value)
-        };
+        task.files = normalize_task_files(value);
+    }
+    if clear_files {
+        task.files = Vec::new();
     }
     if let Some(value) = verification {
         task.verification = if value.trim().is_empty() {
@@ -876,12 +1054,106 @@ pub(crate) fn handle_task_edit(
             Some(value)
         };
     }
+    if let Some(detail_path) = validated_detail_path {
+        task.detail_path = detail_path;
+    }
 
     persist_and_output(&store, &ticket, json)?;
     Ok(())
 }
 
-pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> anyhow::Result<()> {
+pub(crate) fn handle_task_detail_ensure(id: String, number: u32, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root.clone());
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+
+    let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let (idx, _) = find_task(&ticket.state.tasks, number)?;
+    let (doc_name, rel_path) = canonical_task_detail_doc(number);
+    let ticket_path = ticket_dir(&repo_root, &ticket_id);
+    let abs_path = ticket_path.join(&rel_path);
+
+    if let Some(existing) = ticket
+        .meta
+        .documents
+        .iter()
+        .find(|doc| doc.name == doc_name)
+        && existing.path != rel_path
+    {
+        anyhow::bail!(
+            "task detail document {} is registered at unexpected path {} (expected {})",
+            doc_name,
+            existing.path,
+            rel_path
+        );
+    }
+    if let Some(existing) = ticket
+        .meta
+        .documents
+        .iter()
+        .find(|doc| doc.path == rel_path && doc.name != doc_name)
+    {
+        anyhow::bail!(
+            "ticket-relative path {} is already registered as document {}",
+            rel_path,
+            existing.name
+        );
+    }
+
+    let mut created_file = false;
+    if !abs_path.is_file() {
+        if let Some(parent) = abs_path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                anyhow::anyhow!("failed to create directory {}: {error}", parent.display())
+            })?;
+        }
+        fs::write(&abs_path, format!("# Task {number}\n\n"))
+            .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", abs_path.display()))?;
+        created_file = true;
+    }
+
+    if !ticket.meta.documents.iter().any(|doc| doc.name == doc_name) {
+        ticket
+            .meta
+            .documents
+            .push(tandem_core::ticket::TicketDocument {
+                name: doc_name.clone(),
+                path: rel_path.clone(),
+            });
+    }
+    ticket.state.tasks[idx].detail_path = Some(rel_path.clone());
+    recompute_ticket_document_fingerprints(&repo_root, &ticket_id, &mut ticket)?;
+
+    if let Err(error) = store
+        .update_ticket(&ticket)
+        .map_err(|error| anyhow::anyhow!("{error}"))
+    {
+        if created_file {
+            let _ = fs::remove_file(&abs_path);
+        }
+        return Err(error);
+    }
+
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ticket_id": ticket_id.as_str(),
+                "task_number": number,
+                "name": doc_name,
+                "detail_path": rel_path,
+                "path": abs_path.to_string_lossy(),
+            })
+        );
+    } else {
+        println!("{}", abs_path.display());
+    }
+    Ok(())
+}
+
+pub(crate) fn handle_task_detail_clear(id: String, number: u32, json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -889,8 +1161,40 @@ pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> any
     let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
 
     let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let (idx, _) = find_task(&ticket.state.tasks, number)?;
+    let cleared = ticket.state.tasks[idx].detail_path.take().is_some();
 
-    let new_tasks: Vec<Task> = serde_json::from_str(&tasks_json)
+    let _ = store
+        .update_ticket(&ticket)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ticket_id": ticket_id.as_str(),
+                "task_number": number,
+                "cleared": cleared,
+            })
+        );
+    } else if cleared {
+        println!("cleared task detail for {}#{}", ticket_id, number);
+    } else {
+        println!("task detail already clear for {}#{}", ticket_id, number);
+    }
+    Ok(())
+}
+
+pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> anyhow::Result<()> {
+    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
+    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let store = FileTicketStore::new(repo_root.clone());
+    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+
+    let mut ticket = load_and_bump(&store, &ticket_id)?;
+
+    let mut new_tasks: Vec<Task> = serde_json::from_str(&tasks_json)
         .map_err(|error| anyhow::anyhow!("invalid tasks JSON: {error}"))?;
 
     // Validate task numbers are >= 1 and unique
@@ -906,8 +1210,18 @@ pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> any
     if new_tasks.iter().any(|t| t.title.trim().is_empty()) {
         anyhow::bail!("task title must not be empty");
     }
+    for task in &mut new_tasks {
+        task.detail_path = validate_registered_task_detail_path(
+            &repo_root,
+            &ticket_id,
+            &ticket,
+            task.number,
+            task.detail_path.clone(),
+        )?;
+    }
 
     ticket.state.tasks = new_tasks;
+    prune_unlinked_canonical_task_detail_docs(&repo_root, &ticket_id, &mut ticket)?;
 
     persist_and_output(&store, &ticket, json)?;
     Ok(())

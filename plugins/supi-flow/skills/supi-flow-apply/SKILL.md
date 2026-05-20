@@ -16,7 +16,8 @@ If you haven't run the verification command for this task, you cannot check it o
 ## Step 1: Find the plan
 
 - A TNDM-ID was set during plan phase. Read the ticket tasks first:
-  `supi_tndm_cli { action: "task_list", id: "<ID>" }` — returns the structured task list with status, title, file, and verification for each task.
+  `supi_tndm_cli { action: "task_list", id: "<ID>" }` — returns the structured task list with status, title, files, verification, and an optional linked task doc reference for each task.
+  If a task has a linked task doc (`detail_path`), read that task doc before implementing so you do not miss task detail captured outside the manifest.
   Then mark the ticket as in progress and move the flow tag:
   `supi_tndm_cli { action: "update", id: "<ID>", status: "in_progress", add_tags: "flow:applying", remove_tags: "flow:planned" }`
 - If no plan is available: ask which change to implement.
@@ -40,7 +41,7 @@ Do not start implementation until those concerns are resolved.
 For each unchecked task, in order:
 
 1. Announce which task you are working on.
-2. Follow the task as written.
+2. Follow the task as written. If the task references a linked task doc via `detail_path`, read it first and treat it as part of the task definition.
 3. Run the verification for that task and read the result carefully.
 4. If verification passes: call `supi_flow_complete_task { ticket_id: "<ID>", task_number: <N> }` to check the task off in the ticket.
 5. If verification fails: stop, diagnose, fix, and re-verify before moving on.

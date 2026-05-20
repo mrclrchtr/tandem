@@ -57,11 +57,11 @@ export default function (pi: ExtensionAPI) {
       "- show: id (required)\n" +
       "- list: all (boolean), definition (ready|questions|unknown)\n" +
       "- awareness: against (git ref, required)\n" +
-      "- task_add: id (required), task_title (required), task_file, task_verification, task_notes\n" +
+      "- task_add: id (required), task_title (required), task_files, task_verification, task_notes, task_detail\n" +
       "- task_list: id (required)\n" +
       "- task_complete: id (required), task_number (required)\n" +
       "- task_remove: id (required), task_number (required)\n" +
-      "- task_edit: id (required), task_number (required), task_title, task_file, task_verification, task_notes\n" +
+      "- task_edit: id (required), task_number (required), task_title, task_files, task_verification, task_notes, task_detail, task_clear_detail\n" +
       "- task_set: id (required), task_json (required)",
     promptSnippet: "Execute tndm ticket operations via supi_tndm_cli",
     promptGuidelines: [
@@ -96,12 +96,12 @@ export default function (pi: ExtensionAPI) {
     name: "supi_flow_plan",
     label: "Flow Plan",
     description:
-      "Parse a markdown plan into structured tasks stored in state.toml (replacing plan.md). " +
-      "Updates tags from flow:brainstorm to flow:planned. Tasks must be numbered as '**Task {N}**' in the plan.",
+      "Store the approved overview / plan in the ticket's canonical content.md. " +
+      "Updates tags from flow:brainstorm to flow:planned. Task authoring happens separately in state.toml.",
     promptSnippet: "Store a plan in a TNDM ticket",
     promptGuidelines: [
-      "Use supi_flow_plan after creating a plan to persist it in the ticket",
-      "Number tasks sequentially as **Task 1**, **Task 2**, etc.",
+      "Use supi_flow_plan after creating a plan to persist the approved overview in content.md",
+      "Create execution tasks separately after the overview exists; do not rely on supi_flow_plan to parse task blocks into state.toml",
     ],
     parameters: supiFlowPlanParams,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {

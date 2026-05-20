@@ -178,9 +178,10 @@ mod tests {
             number: 1,
             title: "Do the thing".to_string(),
             status: TaskStatus::Todo,
-            file: Some("src/main.rs".to_string()),
+            files: vec!["src/main.rs".to_string(), "tests/main.rs".to_string()],
             verification: Some("cargo test".to_string()),
             notes: Some("Important".to_string()),
+            detail_path: Some("tasks/task-01.md".to_string()),
         }];
 
         let toml = state.to_canonical_toml();
@@ -200,6 +201,14 @@ mod tests {
             toml.contains(r###"status = "todo""###),
             "toml should contain status: {toml}"
         );
+        assert!(
+            toml.contains(r###"files = ["src/main.rs", "tests/main.rs"]"###),
+            "toml should contain files: {toml}"
+        );
+        assert!(
+            toml.contains(r###"detail_path = "tasks/task-01.md""###),
+            "toml should contain detail_path: {toml}"
+        );
     }
 
     #[test]
@@ -210,14 +219,16 @@ mod tests {
             number: 1,
             title: "First".to_string(),
             status: TaskStatus::Done,
-            file: None,
+            files: vec!["src/lib.rs".to_string()],
             verification: None,
             notes: None,
+            detail_path: None,
         }];
 
         let json: serde_json::Value = serde_json::to_value(&state).unwrap();
         assert_eq!(json["tasks"][0]["number"], 1);
         assert_eq!(json["tasks"][0]["title"], "First");
         assert_eq!(json["tasks"][0]["status"], "done");
+        assert_eq!(json["tasks"][0]["files"], serde_json::json!(["src/lib.rs"]));
     }
 }

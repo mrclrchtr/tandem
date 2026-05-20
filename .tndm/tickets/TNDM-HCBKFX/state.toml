@@ -1,0 +1,24 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-20T19:52:04.245094Z"
+revision = 12
+
+[document_fingerprints]
+archive = "sha256:7db46206c71b4a5ea75e13b032ea3a8cf39454c705a43f8f6d25b8ef302be1c6"
+content = "sha256:84758f7732228967461b4e4c653c8eec5223e5ae71af8ab1769023665fdf2368"
+
+[[tasks]]
+number = 1
+title = "Reject duplicate ticket document paths during doc creation"
+status = "done"
+files = ["crates/tandem-cli/src/cli/doc.rs", "crates/tandem-cli/tests/ticket_cli_tests.rs"]
+verification = "cargo test -p tandem-cli ticket_doc_create_rejects_existing_registered_path"
+notes = "Add a regression test proving `ticket doc create --path content.md` fails instead of overwriting the existing content document."
+
+[[tasks]]
+number = 2
+title = "Require canonical task-detail lifecycle before persisting detail_path"
+status = "done"
+files = ["crates/tandem-cli/src/cli/ticket.rs", "crates/tandem-cli/tests/ticket_cli_tests.rs", "plugins/supi-flow/extensions/tools/tndm-cli.ts", "plugins/supi-flow/__tests__/tndm-cli-tool.test.ts"]
+verification = "cargo test -p tandem-cli task_add_rejects_unregistered_detail_path && (cd plugins/supi-flow && pnpm exec vitest run __tests__/tndm-cli-tool.test.ts)"
+notes = "Task add/edit/set should not accept raw detail_path persistence. The plugin should keep using task detail ensure + write + sync as the supported path."

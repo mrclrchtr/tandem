@@ -33,9 +33,11 @@ Before writing tasks, list which files will be created or modified and what each
 - Follow existing codebase patterns.
 - Include doc targets when the change affects user-facing or maintainer-facing behavior.
 
-## Step 5: Write ordered tasks
+## Step 5: Write the overview, then define ordered tasks separately
 
-A good plan is broken into small, verifiable tasks. For each task, include:
+The approved overview belongs in `content.md`. It can be pure design / plan prose and may contain zero tasks.
+
+After the overview is approved and persisted, define executable tasks separately in `state.toml`. For each task, include:
 
 - the goal
 - exact file paths
@@ -45,18 +47,9 @@ A good plan is broken into small, verifiable tasks. For each task, include:
 
 Use enough detail that an agent can execute without guessing, but do not force huge code blocks into every step.
 
-**Task numbering convention**: Tasks must be numbered sequentially starting at 1:
+**Task numbering convention**: Tasks must be numbered sequentially starting at 1 when you create them in the task manifest.
 
-```markdown
-- [ ] **Task 1**: Create the CLI helper module
-  - File: `extensions/cli.ts`
-  - Verification: `pnpm exec tsc --noEmit`
-- [ ] **Task 2**: Register the tools
-  - File: `extensions/tools/tndm-cli.ts`
-  - Verification: `pnpm exec vitest run`
-```
-
-The task number must be in the `**Task N**` format so `supi_flow_complete_task` can find and check it off.
+Use headline-only tasks when the title is enough. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task exists in `state.toml`.
 
 ## TDD by default
 
@@ -112,6 +105,6 @@ Fix issues inline before handing off.
 
 Write the plan in the lightest form that will still survive execution:
 
-- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to parse the markdown into structured tasks stored in `state.toml`.
+- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to store the approved overview in `content.md`. Then create the executable task list separately in `state.toml`.
 - **If no ticket exists:** default to conversation-first. Offer saving to a ticket or file if the work is larger or likely multi-session.
 - Close with: `Plan ready. Review it and approve before we start. Then run /supi-flow-apply TNDM-XXXXXX.`

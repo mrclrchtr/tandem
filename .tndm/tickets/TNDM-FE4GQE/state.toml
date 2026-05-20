@@ -1,0 +1,32 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-20T20:35:46.662867Z"
+revision = 14
+
+[document_fingerprints]
+archive = "sha256:17397086f8fe74fdcba6df744bdaa32fb18010291d7afd03d5f0c7c0f71a3bb9"
+content = "sha256:f6377ed44e171922d1ecb93f90fac741ccbb9fc40a59f6ed4b91cb96f291d0e7"
+
+[[tasks]]
+number = 1
+title = "Prune canonical task detail docs on task removal/replacement"
+status = "done"
+files = ["crates/tandem-cli/src/cli/ticket.rs", "crates/tandem-cli/tests/ticket_cli_tests.rs"]
+verification = "cargo test -p tandem-cli --test ticket_cli_tests"
+notes = "TDD: add failing CLI regression coverage for remove/set lifecycle before code changes."
+
+[[tasks]]
+number = 2
+title = "Reject doc create name/path mismatches for existing documents"
+status = "done"
+files = ["crates/tandem-cli/src/cli/doc.rs", "crates/tandem-cli/tests/ticket_cli_tests.rs"]
+verification = "cargo test -p tandem-cli --test ticket_cli_tests"
+notes = "TDD: add a CLI regression that existing document names cannot silently ignore a conflicting --path."
+
+[[tasks]]
+number = 3
+title = "Return final post-mutation state from supi_tndm_cli task actions"
+status = "done"
+files = ["plugins/supi-flow/extensions/tools/tndm-cli.ts", "plugins/supi-flow/__tests__/tndm-cli-tool.test.ts"]
+verification = "cd plugins/supi-flow && pnpm exec vitest run __tests__/tndm-cli-tool.test.ts"
+notes = "TDD: update/add wrapper tests so task_add/task_edit expose final task detail linkage state after follow-up operations."

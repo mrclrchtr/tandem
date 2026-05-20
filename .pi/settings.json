@@ -1,5 +1,6 @@
 {
   "packages": [
-    "../plugins/supi-flow"
+    "../plugins/supi-flow",
+    "../../supi"
   ]
 }

@@ -1,0 +1,205 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+vi.mock("../extensions/cli.js", () => {
+  const mockTndm = vi.fn();
+  const mockTndmJson = vi.fn();
+  return {
+    tndm: mockTndm,
+    tndmJson: mockTndmJson,
+  };
+});
+
+const { tndm, tndmJson } = await import("../extensions/cli.js");
+const { executeTndmCli } = await import("../extensions/tools/tndm-cli.js");
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("executeTndmCli task_add", () => {
+  it("keeps headline-only tasks manifest-only", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({ ok: true });
+
+    await executeTndmCli({
+      action: "task_add",
+      id: "TNDM-HEAD",
+      task_title: "Headline only",
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+      "ticket",
+      "task",
+      "add",
+      "TNDM-HEAD",
+      "--title",
+      "Headline only",
+    ]);
+    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+  });
+
+  it("creates and links a task detail doc when detail markdown is provided", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-cli-tool-"));
+    const docPath = join(tmpDir, "tasks", "task-01.md");
+    const finalTicket = {
+      ticket: {
+        state: {
+          tasks: [{ number: 1, title: "Detailed task", status: "todo", detail_path: "tasks/task-01.md" }],
+        },
+      },
+    };
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({
+        ticket: {
+          state: {
+            tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
+          },
+        },
+      })
+      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-01.md" })
+      .mockResolvedValueOnce(finalTicket);
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const result = await executeTndmCli({
+      action: "task_add",
+      id: "TNDM-DETAIL",
+      task_title: "Detailed task",
+      task_detail: "Implementation notes go here.",
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "task",
+      "add",
+      "TNDM-DETAIL",
+      "--title",
+      "Detailed task",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "task",
+      "detail",
+      "ensure",
+      "TNDM-DETAIL",
+      "1",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
+      "ticket",
+      "show",
+      "TNDM-DETAIL",
+    ]);
+    expect(readFileSync(docPath, "utf-8")).toContain("Implementation notes go here.");
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-DETAIL"]);
+    expect(result.details.result).toEqual(finalTicket);
+    expect(result.content[0].text).toContain("detail_path");
+  });
+});
+
+describe("executeTndmCli task_edit", () => {
+  it("emits --clear-files when task_files is empty", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({ ok: true });
+
+    await executeTndmCli({
+      action: "task_edit",
+      id: "TNDM-CLEAR",
+      task_number: 2,
+      task_files: [],
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+      "ticket",
+      "task",
+      "edit",
+      "TNDM-CLEAR",
+      "2",
+      "--clear-files",
+    ]);
+  });
+
+  it("clears linked task detail without issuing a no-op task edit", async () => {
+    const finalTicket = {
+      ticket: {
+        state: {
+          tasks: [{ number: 3, title: "Existing task", status: "todo" }],
+        },
+      },
+    };
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce(finalTicket);
+
+    const result = await executeTndmCli({
+      action: "task_edit",
+      id: "TNDM-CLEAR",
+      task_number: 3,
+      task_clear_detail: true,
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "task",
+      "detail",
+      "clear",
+      "TNDM-CLEAR",
+      "3",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "show",
+      "TNDM-CLEAR",
+    ]);
+    expect(result.details.result).toEqual(finalTicket);
+    expect(result.content[0].text).not.toContain("detail_path");
+  });
+
+  it("still edits manifest fields before clearing linked task detail", async () => {
+    const finalTicket = {
+      ticket: {
+        state: {
+          tasks: [{ number: 3, title: "Renamed task", status: "todo" }],
+        },
+      },
+    };
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce(finalTicket);
+
+    await executeTndmCli({
+      action: "task_edit",
+      id: "TNDM-CLEAR",
+      task_number: 3,
+      task_title: "Renamed task",
+      task_clear_detail: true,
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "task",
+      "edit",
+      "TNDM-CLEAR",
+      "3",
+      "--title",
+      "Renamed task",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "task",
+      "detail",
+      "clear",
+      "TNDM-CLEAR",
+      "3",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
+      "ticket",
+      "show",
+      "TNDM-CLEAR",
+    ]);
+  });
+});

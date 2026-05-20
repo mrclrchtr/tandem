@@ -77,87 +77,25 @@ export const supiFlowPlanParams = Type.Object({
   ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
   plan_content: Type.String({
     description:
-      "Markdown plan content with tasks numbered as '**Task {N}**'.\n\n- [ ] **Task 1**: Description\n  - File: path/to/file\n  - Verification: command",
+      "Approved overview / plan markdown to store in the ticket's canonical content.md. This may contain zero tasks; task authoring happens separately in state.toml.",
   }),
 });
 
 export type FlowPlanParams = Static<typeof supiFlowPlanParams>;
 
-function stripMarkdownCodeTicks(value: string): string {
-  return value.startsWith("`") && value.endsWith("`") && value.length >= 2
-    ? value.slice(1, -1)
-    : value;
-}
-
 export async function executeFlowPlan(params: FlowPlanParams) {
-  // Parse plan_content markdown into structured tasks
-  const taskRegex = /^\s*- \[([ x])\] \*\*Task (\d+)\*\*: (.+)$/m;
-  const subLineRegex = /^\s*[-*]\s+(File|Verification|Notes):\s+(.+)$/;
-
-  const tasks: Array<{
-    number: number;
-    title: string;
-    status: string;
-    file?: string;
-    verification?: string;
-    notes?: string;
-  }> = [];
-
-  const lines = params.plan_content.split("\n");
-  let currentTask: (typeof tasks)[0] | null = null;
-
-  for (const line of lines) {
-    const taskMatch = line.match(taskRegex);
-    if (taskMatch) {
-      // Save previous task if any
-      if (currentTask) tasks.push(currentTask);
-      currentTask = {
-        number: parseInt(taskMatch[2], 10),
-        title: taskMatch[3].trim(),
-        status: taskMatch[1] === "x" ? "done" : "todo",
-      };
-      continue;
-    }
-
-    // Parse sub-lines for the current task
-    if (currentTask) {
-      const subMatch = line.match(subLineRegex);
-      if (subMatch) {
-        const key = subMatch[1].toLowerCase();
-        const value = stripMarkdownCodeTicks(subMatch[2].trim());
-        if (key === "file") currentTask.file = value;
-        else if (key === "verification") currentTask.verification = value;
-        else if (key === "notes") currentTask.notes = value;
-      }
-    }
-  }
-  // Push the last task
-  if (currentTask) tasks.push(currentTask);
-
-  // Reject empty plans — malformed content should not silently clear all tasks
-  if (tasks.length === 0) {
-    throw new Error(
-      "supi_flow_plan: no **Task N**: lines found in plan_content. " +
-        "Did you use the correct format?\n\n" +
-        "Expected: - [ ] **Task 1**: Description\n" +
-        "  - File: path/to/file\n" +
-        "  - Verification: command",
-    );
+  if (!params.plan_content.trim()) {
+    throw new Error("supi_flow_plan: plan_content must not be blank");
   }
 
-  // Bulk-replace all tasks via the CLI
-  await tndmJson([
+  await tndm([
     "ticket",
-    "task",
-    "set",
+    "update",
     params.ticket_id,
-    "--tasks",
-    JSON.stringify(tasks),
+    "--content",
+    params.plan_content,
   ]);
 
-  // Replace any flow-state tag with flow:planned — remove all possible flow-state tags
-  // and add flow:planned in one atomic call, to work correctly regardless of the ticket's
-  // current flow state (brainstorm, planned, applying, or done).
   await tndm([
     "ticket",
     "update",
@@ -172,14 +110,14 @@ export async function executeFlowPlan(params: FlowPlanParams) {
     content: [
       {
         type: "text" as const,
-        text: `Plan stored as ${tasks.length} task(s) in ticket ${params.ticket_id}. Tags updated to flow:planned.`,
+        text: `Overview stored in content.md for ticket ${params.ticket_id}. Tags updated to flow:planned.`,
       },
     ],
     details: {
       action: "flow_plan",
       ticketId: params.ticket_id,
       tags: "flow:planned",
-      taskCount: tasks.length,
+      contentStored: true,
     },
   };
 }

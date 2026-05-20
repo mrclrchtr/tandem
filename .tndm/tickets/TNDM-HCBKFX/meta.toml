@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-HCBKFX"
+title = "Fix review findings in task detail/doc path handling"
+type = "bug"
+priority = "p1"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

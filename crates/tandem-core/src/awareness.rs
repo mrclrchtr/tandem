@@ -80,12 +80,14 @@ pub struct TaskSnapshotEntry {
     pub number: u32,
     pub title: String,
     pub status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verification: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
@@ -285,9 +287,10 @@ fn canonicalize_tasks(tasks: &[Task]) -> Vec<TaskSnapshotEntry> {
             number: task.number,
             title: task.title.clone(),
             status: task.status.as_str().to_string(),
-            file: task.file.clone(),
+            files: task.files.clone(),
             verification: task.verification.clone(),
             notes: task.notes.clone(),
+            detail_path: task.detail_path.clone(),
         })
         .collect();
     canonical.sort_by(|a, b| a.number.cmp(&b.number));
@@ -973,9 +976,10 @@ mod tests {
             number: 1,
             title: "Same task".to_string(),
             status: TaskStatus::Todo,
-            file: None,
+            files: Vec::new(),
             verification: None,
             notes: None,
+            detail_path: None,
         };
         let mut current_ticket = ticket(
             "TNDM-TSKID",
@@ -1015,9 +1019,10 @@ mod tests {
             number: 1,
             title: "Do thing".to_string(),
             status: TaskStatus::Done,
-            file: None,
+            files: Vec::new(),
             verification: None,
             notes: None,
+            detail_path: None,
         }];
 
         let mut against_ticket = ticket(
@@ -1031,9 +1036,10 @@ mod tests {
             number: 1,
             title: "Do thing".to_string(),
             status: TaskStatus::Todo,
-            file: None,
+            files: Vec::new(),
             verification: None,
             notes: None,
+            detail_path: None,
         }];
 
         let current = TicketSnapshot::from_tickets([current_ticket]);
@@ -1067,9 +1073,10 @@ mod tests {
             number: 1,
             title: "Do thing".to_string(),
             status: TaskStatus::Todo,
-            file: Some("src/current.rs".to_string()),
+            files: vec!["src/current.rs".to_string(), "tests/current.rs".to_string()],
             verification: Some("cargo test current".to_string()),
             notes: Some("current notes".to_string()),
+            detail_path: Some("tasks/task-01-current.md".to_string()),
         }];
 
         let mut against_ticket = ticket(
@@ -1083,9 +1090,10 @@ mod tests {
             number: 1,
             title: "Do thing".to_string(),
             status: TaskStatus::Todo,
-            file: Some("src/against.rs".to_string()),
+            files: vec!["src/against.rs".to_string()],
             verification: Some("cargo test against".to_string()),
             notes: Some("against notes".to_string()),
+            detail_path: Some("tasks/task-01-against.md".to_string()),
         }];
 
         let current = TicketSnapshot::from_tickets([current_ticket]);
@@ -1103,8 +1111,15 @@ mod tests {
             tasks.current[0].verification.as_deref(),
             Some("cargo test current")
         );
-        assert_eq!(tasks.against[0].file.as_deref(), Some("src/against.rs"));
+        assert_eq!(
+            tasks.current[0].files,
+            vec!["src/current.rs".to_string(), "tests/current.rs".to_string()]
+        );
         assert_eq!(tasks.against[0].notes.as_deref(), Some("against notes"));
+        assert_eq!(
+            tasks.against[0].detail_path.as_deref(),
+            Some("tasks/task-01-against.md")
+        );
     }
 
     #[test]
@@ -1120,9 +1135,10 @@ mod tests {
             number: 1,
             title: "New task".to_string(),
             status: TaskStatus::Todo,
-            file: None,
+            files: Vec::new(),
             verification: None,
             notes: None,
+            detail_path: None,
         }];
 
         let against_ticket = ticket(

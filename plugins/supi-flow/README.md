@@ -97,21 +97,28 @@ Five custom tools registered by the extension:
 |---|---|
 | `supi_tndm_cli` | Thin wrapper around the `tndm` CLI with action enum (create/update/show/list/awareness) |
 | `supi_flow_start` | Create a ticket with status=todo, tag=flow:brainstorm, and optional design context in `content.md` |
-| `supi_flow_plan` | Store the executable implementation plan in `plan.md` while leaving `content.md` as the approved design summary |
-| `supi_flow_complete_task` | Check off a numbered task (`**Task N**`) in the registered `plan` document |
+| `supi_flow_plan` | Store the approved overview / plan in `content.md` and move the ticket to `flow:planned` |
+| `supi_flow_complete_task` | Check off a numbered task in the structured task manifest stored in `state.toml` |
 | `supi_flow_close` | Mark done and write verification results to `archive.md` |
 
 Tools should be used instead of calling `tndm` via bash. The agent invokes them with structured parameters.
 
 ## Ticket documents
 
-`supi-flow` uses TNDM's registered document model with one canonical ticket body and two phase-specific attachments:
+`supi-flow` uses TNDM's registered document model with one canonical ticket body plus execution-time attachments:
 
-- `content.md`: approved design summary and durable handoff context
-- `plan.md`: executable checklist used during `/supi-flow-apply`
+- `content.md`: approved overview / design / plan prose
+- structured tasks in `state.toml`: execution manifest used during `/supi-flow-apply`
+- optional task docs in `tasks/`: linked task detail for tasks that need more than a headline/files/verification/notes
 - `archive.md`: final verification evidence written during `/supi-flow-archive`
 
 Older tickets may still contain a legacy brainstorm sidecar document, but new flow work should not create or depend on it.
+
+## Overview-first workflow
+
+`content.md` is overview-first and may contain zero tasks. After the overview is approved and stored, create the executable task list separately in `state.toml`.
+
+Use headline-only tasks when the title is enough. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task already exists in the manifest.
 
 ## Prompt templates
 

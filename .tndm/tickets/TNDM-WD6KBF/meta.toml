@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-WD6KBF"
+title = "Simplify task detail docs and task metadata UX in supi-flow/TNDM"
+type = "feature"
+priority = "p2"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

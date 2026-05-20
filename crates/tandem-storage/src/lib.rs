@@ -202,9 +202,10 @@ struct RawTask {
     number: u32,
     title: String,
     status: RawTaskStatus,
-    file: Option<String>,
+    files: Option<Vec<String>>,
     verification: Option<String>,
     notes: Option<String>,
+    detail_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -542,9 +543,10 @@ impl TicketStore for FileTicketStore {
                     RawTaskStatus::Todo => TaskStatus::Todo,
                     RawTaskStatus::Done => TaskStatus::Done,
                 },
-                file: raw.file,
+                files: raw.files.unwrap_or_default(),
                 verification: raw.verification,
                 notes: raw.notes,
+                detail_path: raw.detail_path,
             })
             .collect();
 

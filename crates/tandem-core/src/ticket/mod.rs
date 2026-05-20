@@ -126,12 +126,14 @@ pub struct Task {
     pub number: u32,
     pub title: String,
     pub status: TaskStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub file: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verification: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail_path: Option<String>,
 }
 
 string_enum! {
@@ -370,17 +372,22 @@ mod tests {
             number: 1,
             title: "Do the thing".to_string(),
             status: TaskStatus::Todo,
-            file: Some("src/main.rs".to_string()),
+            files: vec!["src/main.rs".to_string(), "tests/main.rs".to_string()],
             verification: Some("cargo test".to_string()),
             notes: Some("Important task".to_string()),
+            detail_path: Some("tasks/task-01.md".to_string()),
         };
         let json = serde_json::to_value(&task).unwrap();
         assert_eq!(json["number"], 1);
         assert_eq!(json["title"], "Do the thing");
         assert_eq!(json["status"], "todo");
-        assert_eq!(json["file"], "src/main.rs");
+        assert_eq!(
+            json["files"],
+            serde_json::json!(["src/main.rs", "tests/main.rs"])
+        );
         assert_eq!(json["verification"], "cargo test");
         assert_eq!(json["notes"], "Important task");
+        assert_eq!(json["detail_path"], "tasks/task-01.md");
     }
 
     #[test]
@@ -389,16 +396,18 @@ mod tests {
             number: 42,
             title: "Minimal".to_string(),
             status: TaskStatus::Done,
-            file: None,
+            files: Vec::new(),
             verification: None,
             notes: None,
+            detail_path: None,
         };
         let json = serde_json::to_value(&task).unwrap();
         assert_eq!(json["number"], 42);
         assert_eq!(json["title"], "Minimal");
         assert_eq!(json["status"], "done");
-        assert!(!json.as_object().unwrap().contains_key("file"));
+        assert!(!json.as_object().unwrap().contains_key("files"));
         assert!(!json.as_object().unwrap().contains_key("verification"));
         assert!(!json.as_object().unwrap().contains_key("notes"));
+        assert!(!json.as_object().unwrap().contains_key("detail_path"));
     }
 }

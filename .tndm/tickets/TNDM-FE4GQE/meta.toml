@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-FE4GQE"
+title = "Fix review findings in task detail lifecycle and supi-flow wrapper state"
+type = "bug"
+priority = "p1"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

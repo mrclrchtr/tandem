@@ -1,0 +1,50 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-20T18:00:09.139713Z"
+revision = 16
+
+[document_fingerprints]
+archive = "sha256:6089fc028ff4a6799207666005a19ca55482c2529be5dee11b76630795bc239b"
+content = "sha256:29c23d256ee5e87cc5a4bf849c75788fcbd5edb48de3138268e9f399cfcfa9f7"
+
+[[tasks]]
+number = 1
+title = "Lock the new overview-first UX with failing tests before changing behavior"
+status = "done"
+verification = "cargo test -p tandem-cli && (cd plugins/supi-flow && pnpm exec vitest run __tests__/flow-tools.test.ts __tests__/tndm-cli-tool.test.ts)"
+notes = "RED first. Add tests proving `supi_flow_plan` accepts pure overview markdown with zero tasks, task creation/editing is separate from overview persistence, headline-only tasks do not create task docs, detailed tasks use an explicit higher-level detail flow, and the CLI has an idempotent task-detail lifecycle for an existing task."
+
+[[tasks]]
+number = 2
+title = "Add an atomic CLI primitive for task-detail document lifecycle"
+status = "done"
+verification = "cargo test -p tandem-cli"
+notes = "GREEN after Task 1 RED coverage. Introduce a task-scoped helper for an existing task number that derives the canonical `tasks/task-XX.md` path, creates/registers the doc, updates the task linkage atomically, returns the resolved path for the plugin to write, and supports explicit detach/clear behavior without allowing task docs to create tasks on their own."
+
+[[tasks]]
+number = 3
+title = "Rework `supi_flow_plan` into an overview-persistence tool instead of a task parser"
+status = "done"
+verification = "cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/flow-tools.test.ts"
+notes = "Change `executeFlowPlan` so it writes the approved overview to `content.md`, allows plan content with zero tasks, keeps the `flow:brainstorm` → `flow:planned` transition, and updates tool/skill guidance to say overview persistence is separate from task authoring."
+
+[[tasks]]
+number = 4
+title = "Refactor public task authoring around a higher-level hybrid detail-doc workflow"
+status = "done"
+verification = "cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/tndm-cli-tool.test.ts __tests__/flow-tools.test.ts"
+notes = "Remove or demote raw public `task_detail_path` authoring, replace it with a higher-level detail input or attach-detail intent, keep headline-only tasks manifest-only, and for detailed tasks perform manifest update, task-doc ensure/link, markdown write, and fingerprint sync as one predictable workflow with explicit detail clearing."
+
+[[tasks]]
+number = 5
+title = "Rewrite user and agent guidance to separate overview planning from task execution"
+status = "done"
+verification = 'rg -n "content\.md|state\.toml|task doc|tasks/task-|overview|detail" plugins/supi-flow/skills/supi-flow-plan/SKILL.md plugins/supi-flow/skills/supi-flow-apply/SKILL.md plugins/supi-flow/README.md plugins/supi-flow/CLAUDE.md docs/decisions.md'
+notes = "Test-exempt docs task. Teach one consistent mental model: `content.md` is the approved overview, `state.toml` is the executable task list, `tasks/task-XX.md` is optional for tasks with real implementation detail or notices, and apply-phase agents read the manifest first and a linked task doc only when present."
+
+[[tasks]]
+number = 6
+title = "Run full regression verification across Rust and plugin surfaces"
+status = "done"
+verification = "cargo test --workspace --locked && (cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run)"
+notes = "Final verification task. Confirm the Rust CLI covers the new task-detail lifecycle, the plugin covers overview persistence and hybrid task authoring, and no remaining tool descriptions or docs still describe the old mixed overview-plus-task parser behavior."
