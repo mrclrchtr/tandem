@@ -13,8 +13,8 @@ importers:
         version: 1.1.38
     devDependencies:
       '@earendil-works/pi-ai':
-        specifier: 0.75.0
-        version: 0.75.0(ws@8.20.1)(zod@4.4.3)
+        specifier: 0.75.1
+        version: 0.75.1(ws@8.20.1)(zod@4.4.3)
       '@earendil-works/pi-coding-agent':
         specifier: 0.74.1
         version: 0.74.1(ws@8.20.1)(zod@4.4.3)
@@ -146,8 +146,8 @@ packages:
     engines: {node: '>=20.0.0'}
     hasBin: true
 
-  '@earendil-works/pi-ai@0.75.0':
-    resolution: {integrity: sha512-mWSYHAjGQPs8fr+OjWXC/HvPAgybzuwqe4aFy69DZpc6a19NlaNvHLEUjqzMqQwS1vaQE36kPn0yk7CZE2aznw==}
+  '@earendil-works/pi-ai@0.75.1':
+    resolution: {integrity: sha512-/bhCWS2R+qHLBDnN+d1t1QRUxtZk7sZpMcrlexPq3W++3bJ0Df0GjhM2FToTubhoCsjOBdBOuRYcV8FNPfRUVQ==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
@@ -1264,7 +1264,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@0.75.0(ws@8.20.1)(zod@4.4.3)':
+  '@earendil-works/pi-ai@0.75.1(ws@8.20.1)(zod@4.4.3)':
     dependencies:
       '@anthropic-ai/sdk': 0.91.1(zod@4.4.3)
       '@aws-sdk/client-bedrock-runtime': 3.1049.0
