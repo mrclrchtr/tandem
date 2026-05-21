@@ -30,7 +30,7 @@
     "README.md"
   ],
   "devDependencies": {
-    "@earendil-works/pi-ai": "0.75.0",
+    "@earendil-works/pi-ai": "0.75.1",
     "@earendil-works/pi-coding-agent": "0.74.1",
     "@types/node": "25.8.0",
     "vitest": "4.1.6"
