@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "pi-upgrade": {
+      "source": "mrclrchtr/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pi-upgrade/SKILL.md",
+      "computedHash": "f15c6a25d586fb91c2197214680d21b6064a64f89ffd72edb6627e9089d96305"
+    }
+  }
+}

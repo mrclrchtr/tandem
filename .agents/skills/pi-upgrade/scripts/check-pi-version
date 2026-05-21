@@ -1,0 +1,609 @@
+#!/usr/bin/env bash
+#
+# Detect @earendil-works/pi-* (and legacy @mariozechner/pi-*) version drift against earendil-works/pi releases.
+# Default: bump + install. Use --dry-run to preview.
+# Requires: Bash >= 5.0 (uses modern arrays, namerefs, and shell quoting transforms).
+#
+
+if ((BASH_VERSINFO[0] < 5)); then
+  printf '%s\n' '{"error":"Bash >= 5.0 is required to run check-pi-version"}' >&2
+  exit 1
+fi
+
+set -Eeuo pipefail
+shopt -s inherit_errexit
+
+readonly REPO="earendil-works/pi"
+readonly PI_PACKAGE_MAP_JSON='{"@mariozechner/pi-ai":"@earendil-works/pi-ai","@mariozechner/pi-agent-core":"@earendil-works/pi-agent-core","@mariozechner/pi-coding-agent":"@earendil-works/pi-coding-agent","@mariozechner/pi-tui":"@earendil-works/pi-tui","@mariozechner/pi-web-ui":"@earendil-works/pi-web-ui"}'
+readonly PI_MANAGED_PACKAGES_JSON='["@earendil-works/pi-ai","@earendil-works/pi-agent-core","@earendil-works/pi-coding-agent","@earendil-works/pi-tui","@earendil-works/pi-web-ui","@mariozechner/pi-ai","@mariozechner/pi-agent-core","@mariozechner/pi-coding-agent","@mariozechner/pi-tui","@mariozechner/pi-web-ui"]'
+readonly PI_PROVIDED_PACKAGES_JSON='["@earendil-works/pi-ai","@earendil-works/pi-agent-core","@earendil-works/pi-coding-agent","@earendil-works/pi-tui","@earendil-works/pi-web-ui","@mariozechner/pi-ai","@mariozechner/pi-agent-core","@mariozechner/pi-coding-agent","@mariozechner/pi-tui","@mariozechner/pi-web-ui","typebox"]'
+readonly PI_PREFERRED_PACKAGES_JSON='["@earendil-works/pi-coding-agent","@earendil-works/pi-tui","@earendil-works/pi-ai","@earendil-works/pi-agent-core","@earendil-works/pi-web-ui","@mariozechner/pi-coding-agent","@mariozechner/pi-tui","@mariozechner/pi-ai","@mariozechner/pi-agent-core","@mariozechner/pi-web-ui"]'
+
+# --- mutable state ---
+
+declare APPLY=true
+declare PKG_JSON="package.json"
+declare PKG_DIR=""
+declare WORKSPACE_ROOT=""
+
+declare CURRENT_VERSION=""
+declare CURRENT_SOURCE=""
+declare DEP_NAME=""
+declare DEP_RANGE=""
+declare DEP_FIELD=""
+
+declare LATEST=""
+declare LATEST_NO_V=""
+
+declare -a ALL_PKG_FILES=()
+declare -a BUMPED_FILES=()
+declare -a UPDATE_PACKAGES=()
+declare BUMP_CHANGES="[]"
+
+declare INSTALL_CMD=""
+declare INSTALL_OUTPUT=""
+declare -i INSTALL_EXIT=0
+
+# --- helpers ---
+
+die() {
+  printf '%s\n' "{\"error\":\"$1\"}" >&2
+  exit 1
+}
+
+capture_stderr() {
+  local -n _var="$1"
+  shift
+  local _errfile; _errfile=$(mktemp)
+  local _rc=0
+  local _out
+
+  _out=$("$@" 2>"$_errfile") || _rc=$?
+  _var=$(<"$_errfile")
+  rm -f "$_errfile"
+
+  printf '%s' "$_out"
+  return "$_rc"
+}
+
+detect_package_manager() {
+  local root="$1"
+  declare -A lockfiles=(
+    [pnpm-lock.yaml]="pnpm"
+    [yarn.lock]="yarn"
+    [package-lock.json]="npm"
+    [bun.lockb]="bun"
+    [bun.lock]="bun"
+  )
+  for lock in "${!lockfiles[@]}"; do
+    [[ -f "$root/$lock" ]] && { printf '%s' "${lockfiles[$lock]}"; return; }
+  done
+  printf '%s' "npm"
+}
+
+find_workspace_packages() {
+  local root="$1"
+  local -n _out="$2"
+  local -a found=("$root/package.json")
+
+  # pnpm workspace
+  if [[ -f "$root/pnpm-workspace.yaml" ]]; then
+    while IFS= read -r -d '' f; do
+      found+=("$f")
+    done < <(find "$root" -name 'package.json' -not -path '*/node_modules/*' -print0 2>/dev/null || true)
+  fi
+
+  # npm/yarn workspaces
+  local has_ws
+  has_ws=$(node -e "
+    try {
+      const ws = require('$root/package.json').workspaces || [];
+      console.log(ws.length > 0 ? 'yes' : 'no');
+    } catch { console.log('no'); }
+  " 2>/dev/null || echo "no")
+
+  if [[ "$has_ws" == "yes" ]]; then
+    while IFS= read -r -d '' f; do
+      found+=("$f")
+    done < <(find "$root" -name 'package.json' -not -path '*/node_modules/*' -print0 2>/dev/null || true)
+  fi
+
+  # De-duplicate and sort
+  mapfile -t _out < <(printf '%s\n' "${found[@]}" | sort -u)
+}
+
+# --- arg parsing ---
+
+parse_args() {
+  while (($# > 0)); do
+    case "$1" in
+      --dry-run) APPLY=false; shift ;;
+      --help|-h)
+        cat <<-'EOF'
+Usage: check-pi-version [--dry-run] [path/to/package.json]
+
+  Detects @earendil-works/pi-* or legacy @mariozechner/pi-* version in package.json, compares against
+  earendil-works/pi releases. Bumps versions and installs by default.
+
+  --dry-run   Only report what would be changed without modifying files
+EOF
+        exit 0
+        ;;
+      -*) die "Unknown flag: $1" ;;
+      *) PKG_JSON="$1"; shift ;;
+    esac
+  done
+}
+
+# --- version detection ---
+
+detect_current_version() {
+  local raw
+  raw=$(PKG_JSON="$PKG_JSON" WORKSPACE_ROOT="$WORKSPACE_ROOT" PI_UPGRADE_PREFERRED_PACKAGES_JSON="$PI_PREFERRED_PACKAGES_JSON" node <<'NODE'
+const fs = require("fs");
+const path = require("path");
+
+const pkgPath = path.resolve(process.env.PKG_JSON);
+const workspaceRoot = path.resolve(process.env.WORKSPACE_ROOT || path.dirname(pkgPath));
+const preferred = JSON.parse(process.env.PI_UPGRADE_PREFERRED_PACKAGES_JSON);
+const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+const fields = ["dependencies", "peerDependencies", "devDependencies"];
+
+function semverCompare(a, b) {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] > pb[i]) return 1;
+    if (pa[i] < pb[i]) return -1;
+  }
+  return 0;
+}
+
+function maxVersion(versions) {
+  return versions.filter(Boolean).sort(semverCompare).at(-1);
+}
+
+function packageLockVersion(name) {
+  const lockPath = path.join(workspaceRoot, "package-lock.json");
+  if (!fs.existsSync(lockPath)) return undefined;
+  const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+  return lock.packages?.[`node_modules/${name}`]?.version || lock.dependencies?.[name]?.version;
+}
+
+function textLockVersion(name, fileName) {
+  const lockPath = path.join(workspaceRoot, fileName);
+  if (!fs.existsSync(lockPath)) return undefined;
+  const text = fs.readFileSync(lockPath, "utf8");
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const versions = [];
+  for (const re of [
+    new RegExp(`["]?${escaped}@(\\d+\\.\\d+\\.\\d+)["]?:`, "g"),
+    new RegExp(`${escaped}:\\n(?:\\s+[^\\n]+\\n)*?\\s+version:\\s+(\\d+\\.\\d+\\.\\d+)`, "g"),
+  ]) {
+    for (const match of text.matchAll(re)) versions.push(match[1]);
+  }
+  return maxVersion(versions);
+}
+
+function findLockfileVersion(name) {
+  return (
+    textLockVersion(name, "pnpm-lock.yaml") ||
+    packageLockVersion(name) ||
+    textLockVersion(name, "yarn.lock") ||
+    textLockVersion(name, "bun.lock")
+  );
+}
+
+function findInstalledVersion(name) {
+  const parts = name.split("/");
+  const starts = [path.dirname(pkgPath), workspaceRoot, process.cwd()];
+  for (const start of starts) {
+    let dir = path.resolve(start);
+    while (true) {
+      const candidate = path.join(dir, "node_modules", ...parts, "package.json");
+      if (fs.existsSync(candidate)) {
+        return JSON.parse(fs.readFileSync(candidate, "utf8")).version;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return undefined;
+}
+
+for (const field of fields) {
+  const deps = pkg[field] || {};
+  const key = preferred.find((name) => Object.prototype.hasOwnProperty.call(deps, name));
+  if (!key) continue;
+
+  const range = deps[key];
+  const versionFromRange = String(range).match(/([0-9]+\.[0-9]+\.[0-9]+)/)?.[1];
+  let version = versionFromRange;
+  let source = "package-range";
+
+  if (!version) {
+    version = findLockfileVersion(key);
+    source = "lockfile";
+  }
+  if (!version) {
+    version = findInstalledVersion(key);
+    source = "node_modules";
+  }
+
+  console.log([key, range, version || "", field, source].join("|"));
+  process.exit(0);
+}
+NODE
+  )
+
+  [[ -n "$raw" ]] || return 1
+
+  DEP_NAME="${raw%%|*}"
+  local rest="${raw#*|}"
+  DEP_RANGE="${rest%%|*}"
+  rest="${rest#*|}"
+  CURRENT_VERSION="${rest%%|*}"
+  rest="${rest#*|}"
+  DEP_FIELD="${rest%%|*}"
+  CURRENT_SOURCE="${raw##*|}"
+
+  if [[ -z "$CURRENT_VERSION" ]]; then
+    die "Found $DEP_NAME in $PKG_JSON with range $DEP_RANGE, but could not determine the tested version from a package range, lockfile, or node_modules. Run your package manager install first."
+  fi
+
+  return 0
+}
+
+# --- release fetching ---
+
+fetch_releases() {
+  local gh_err
+  local releases_json
+
+  if ! releases_json=$(capture_stderr gh_err gh release list \
+      --repo "$REPO" --limit 50 --json tagName,name,publishedAt,isLatest); then
+    die "Failed to fetch releases from $REPO: ${gh_err:-unknown error}. Check gh auth status and network."
+  fi
+
+  printf '%s' "$releases_json"
+}
+
+compute_delta() {
+  local releases_json="$1"
+
+  node -e "
+    const releases = $releases_json;
+    const current = '$CURRENT_VERSION';
+    const semver = (t) => t.replace(/^v/, '').split('.').map(Number);
+    const cmp = (a, b) => {
+      for (let i = 0; i < 3; i++) {
+        if (a[i] > b[i]) return 1;
+        if (a[i] < b[i]) return -1;
+      }
+      return 0;
+    };
+    const cur = semver(current);
+    const newer = releases
+      .filter(r => cmp(semver(r.tagName), cur) > 0)
+      .sort((a, b) => cmp(semver(a.tagName), semver(b.tagName)));
+    console.log(JSON.stringify(newer));
+  "
+}
+
+fetch_release_notes() {
+  local newer_releases="$1"
+
+  node -e "
+    const tags = $newer_releases.map(r => r.tagName);
+    const results = [];
+    for (const tag of tags) {
+      try {
+        const out = require('child_process').execSync(
+          'gh release view ' + tag + ' --repo $REPO --json tagName,name,body,publishedAt',
+          { encoding: 'utf8', timeout: 15000 }
+        );
+        results.push(JSON.parse(out));
+      } catch (e) {
+        results.push({ tagName: tag, name: tag, body: '(failed to fetch notes)', publishedAt: null, error: true });
+      }
+    }
+    console.log(JSON.stringify(results));
+  "
+}
+
+# --- workspace discovery ---
+
+discover_workspace() {
+  PKG_DIR="$(cd "$(dirname "$PKG_JSON")" && pwd)"
+  PKG_JSON="$PKG_DIR/$(basename "$PKG_JSON")"
+  WORKSPACE_ROOT="$PKG_DIR"
+
+  local dir="$PKG_DIR"
+  while true; do
+    if [[ -f "$dir/pnpm-workspace.yaml" ]]; then
+      WORKSPACE_ROOT="$dir"
+      break
+    fi
+
+    local has_ws
+    has_ws=$(node -e "
+      try {
+        const ws = require('$dir/package.json').workspaces || [];
+        console.log(ws.length > 0 ? 'yes' : 'no');
+      } catch { console.log('no'); }
+    " 2>/dev/null || echo "no")
+    if [[ "$has_ws" == "yes" ]]; then
+      WORKSPACE_ROOT="$dir"
+      break
+    fi
+
+    local parent
+    parent="$(dirname "$dir")"
+    [[ "$parent" == "$dir" ]] && break
+    dir="$parent"
+  done
+
+  find_workspace_packages "$WORKSPACE_ROOT" ALL_PKG_FILES
+}
+
+# --- bump preview ---
+
+build_bump_preview() {
+  local -a files_quoted=()
+  for f in "${ALL_PKG_FILES[@]}"; do
+    files_quoted+=("$(printf '%s' "$f" | jq -R .)")
+  done
+  local files_json="[${files_quoted[*]}]"
+  files_json="${files_json// /, }"
+
+  BUMP_CHANGES=$(PI_UPGRADE_PACKAGE_MAP_JSON="$PI_PACKAGE_MAP_JSON" PI_UPGRADE_MANAGED_PACKAGES_JSON="$PI_MANAGED_PACKAGES_JSON" PI_UPGRADE_PROVIDED_PACKAGES_JSON="$PI_PROVIDED_PACKAGES_JSON" node -e "
+    const fs = require('fs');
+    const files = $files_json;
+    const latest = '$LATEST_NO_V';
+    const packageMap = new Map(Object.entries(JSON.parse(process.env.PI_UPGRADE_PACKAGE_MAP_JSON)));
+    const managedPackages = new Set(JSON.parse(process.env.PI_UPGRADE_MANAGED_PACKAGES_JSON));
+    const providedPackages = new Set(JSON.parse(process.env.PI_UPGRADE_PROVIDED_PACKAGES_JSON));
+    const canonicalName = (name) => packageMap.get(name) || name;
+    const bumpValue = (value) => {
+      const match = String(value).match(/^([~^>=]*)([0-9]+\\.[0-9]+\\.[0-9]+)/);
+      return match ? (match[1] || '') + latest : undefined;
+    };
+    const changes = [];
+
+    for (const file of files) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const pkgChanges = [];
+        for (const field of ['dependencies', 'peerDependencies', 'devDependencies']) {
+          const deps = pkg[field];
+          if (!deps) continue;
+          for (const key of Object.keys(deps)) {
+            const isPeerProvided = field === 'peerDependencies' && providedPackages.has(key);
+            if (!managedPackages.has(key) && !isPeerProvided) continue;
+            const packageName = canonicalName(key);
+            const old = deps[key];
+            const newVal = isPeerProvided ? '*' : bumpValue(old);
+            if (!newVal) continue;
+            if (key !== packageName || old !== newVal) {
+              pkgChanges.push({
+                field,
+                package: packageName,
+                packageFrom: key !== packageName ? key : undefined,
+                old,
+                new: newVal,
+              });
+            }
+          }
+        }
+        if (pkgChanges.length > 0) {
+          changes.push({ file, changes: pkgChanges });
+        }
+      } catch {}
+    }
+
+    console.log(JSON.stringify(changes));
+  ")
+
+  mapfile -t BUMPED_FILES < <(node -e "const c = $BUMP_CHANGES; c.forEach(x => console.log(x.file));")
+}
+
+build_update_packages() {
+  local -a files_quoted=()
+  for f in "${ALL_PKG_FILES[@]}"; do
+    files_quoted+=("$(printf '%s' "$f" | jq -R .)")
+  done
+  local files_json="[${files_quoted[*]}]"
+  files_json="${files_json// /, }"
+
+  mapfile -t UPDATE_PACKAGES < <(PI_UPGRADE_PACKAGE_MAP_JSON="$PI_PACKAGE_MAP_JSON" PI_UPGRADE_MANAGED_PACKAGES_JSON="$PI_MANAGED_PACKAGES_JSON" node -e "
+    const fs = require('fs');
+    const files = $files_json;
+    const packageMap = new Map(Object.entries(JSON.parse(process.env.PI_UPGRADE_PACKAGE_MAP_JSON)));
+    const managedPackages = new Set(JSON.parse(process.env.PI_UPGRADE_MANAGED_PACKAGES_JSON));
+    const canonicalName = (name) => packageMap.get(name) || name;
+    const names = new Set();
+
+    for (const file of files) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+        for (const field of ['dependencies', 'peerDependencies', 'devDependencies']) {
+          const deps = pkg[field] || {};
+          for (const name of Object.keys(deps)) {
+            if (managedPackages.has(name)) names.add(canonicalName(name));
+          }
+        }
+      } catch {}
+    }
+
+    if (names.size === 0 && '$DEP_NAME') names.add(canonicalName('$DEP_NAME'));
+    [...names].sort().forEach((name) => console.log(name));
+  ")
+}
+
+# --- apply changes ---
+
+apply_bumps() {
+  ((${#BUMPED_FILES[@]} == 0)) && return 0
+
+  for f in "${BUMPED_FILES[@]}"; do
+    PI_UPGRADE_PACKAGE_MAP_JSON="$PI_PACKAGE_MAP_JSON" PI_UPGRADE_MANAGED_PACKAGES_JSON="$PI_MANAGED_PACKAGES_JSON" PI_UPGRADE_PROVIDED_PACKAGES_JSON="$PI_PROVIDED_PACKAGES_JSON" node -e "
+      const fs = require('fs');
+      const file = '${f//\'/\\\'}';
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const packageMap = new Map(Object.entries(JSON.parse(process.env.PI_UPGRADE_PACKAGE_MAP_JSON)));
+      const managedPackages = new Set(JSON.parse(process.env.PI_UPGRADE_MANAGED_PACKAGES_JSON));
+      const providedPackages = new Set(JSON.parse(process.env.PI_UPGRADE_PROVIDED_PACKAGES_JSON));
+      const canonicalName = (name) => packageMap.get(name) || name;
+      const bumpValue = (value) => {
+        const match = String(value).match(/^([~^>=]*)([0-9]+\.[0-9]+\.[0-9]+)/);
+        return match ? (match[1] || '') + '$LATEST_NO_V' : undefined;
+      };
+
+      for (const field of ['dependencies', 'peerDependencies', 'devDependencies']) {
+        const deps = pkg[field];
+        if (!deps) continue;
+        for (const key of Object.keys({ ...deps })) {
+          const isPeerProvided = field === 'peerDependencies' && providedPackages.has(key);
+          if (!managedPackages.has(key) && !isPeerProvided) continue;
+          const targetKey = canonicalName(key);
+          const newValue = isPeerProvided ? '*' : bumpValue(deps[key]);
+          if (!newValue) continue;
+          if (targetKey !== key) delete deps[key];
+          deps[targetKey] = newValue;
+        }
+      }
+
+      fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
+    " 2>/dev/null || true
+  done
+}
+
+plan_install() {
+  local pm
+  pm=$(detect_package_manager "$WORKSPACE_ROOT")
+
+  case "$pm" in
+    pnpm) INSTALL_CMD="pnpm install" ;;
+    yarn) INSTALL_CMD="yarn install" ;;
+    npm) INSTALL_CMD="npm install" ;;
+    bun) INSTALL_CMD="bun install" ;;
+    *) INSTALL_CMD="npm install" ;;
+  esac
+
+  printf '%s' "$pm"
+}
+
+run_install() {
+  local pm
+  pm=$(plan_install)
+
+  INSTALL_OUTPUT=$(
+    (
+      cd "$WORKSPACE_ROOT" || exit
+      case "$pm" in
+        pnpm) pnpm install ;;
+        yarn) yarn install ;;
+        npm) npm install ;;
+        bun) bun install ;;
+        *) npm install ;;
+      esac
+    ) 2>&1
+  ) || INSTALL_EXIT=$?
+}
+
+# --- output ---
+
+emit_json() {
+  local notes="$1"
+  local tmp_json
+  tmp_json=$(mktemp)
+
+  local bumped_list
+  bumped_list=$(node -e "const c = $BUMP_CHANGES; console.log(JSON.stringify(c.map(x => x.file)));" )
+
+  node -e "
+    const fs = require('fs');
+    const bumpChanges = $BUMP_CHANGES;
+    const installOutput = $(printf '%s' "$INSTALL_OUTPUT" | jq -Rs .);
+    const updatePackages = $(printf '%s\n' "${UPDATE_PACKAGES[@]}" | jq -R . | jq -s .);
+
+    const data = {
+      current: '$CURRENT_VERSION',
+      currentSource: '$CURRENT_SOURCE',
+      depName: '$DEP_NAME',
+      depField: '$DEP_FIELD',
+      depRange: '$DEP_RANGE',
+      latest: '$LATEST',
+      upToDate: false,
+      newerReleases: $notes,
+      applied: $APPLY,
+      bumpedFiles: $bumped_list,
+      bumpChanges: bumpChanges,
+      updatePackages,
+      installCommand: '$INSTALL_CMD',
+      installExitCode: $INSTALL_EXIT,
+      installOutput: installOutput
+    };
+    fs.writeFileSync('$tmp_json', JSON.stringify(data, null, 2));
+  "
+
+  cat "$tmp_json"
+  rm -f "$tmp_json"
+}
+
+# --- main ---
+
+main() {
+  parse_args "$@"
+
+  # Validate env
+  command -v gh &>/dev/null || die "GitHub CLI (gh) is required but not found in PATH"
+  [[ -f "$PKG_JSON" ]] || die "No package.json found at $PKG_JSON"
+
+  # Discover workspace before version detection so wildcard peer ranges can use the lockfile.
+  discover_workspace
+
+  # Detect version
+  detect_current_version || die "No @earendil-works/pi-* or legacy @mariozechner/pi-* dependency found in $PKG_JSON"
+
+  # Fetch releases
+  local releases_json
+  releases_json=$(fetch_releases)
+
+  # Compute delta
+  local newer_releases
+  newer_releases=$(compute_delta "$releases_json")
+
+  # Up to date?
+  if [[ "$newer_releases" == "[]" ]]; then
+    printf '%s\n' "{\"current\":\"$CURRENT_VERSION\",\"currentSource\":\"$CURRENT_SOURCE\",\"depName\":\"$DEP_NAME\",\"depField\":\"$DEP_FIELD\",\"depRange\":\"$DEP_RANGE\",\"latest\":\"$CURRENT_VERSION\",\"newerReleases\":[],\"upToDate\":true}"
+    return 0
+  fi
+
+  # Determine latest
+  LATEST=$(node -e "const r = $newer_releases; console.log(r[r.length - 1].tagName);" )
+  LATEST_NO_V="${LATEST#v}"
+
+  # Fetch notes
+  local notes
+  notes=$(fetch_release_notes "$newer_releases")
+
+  # Build bump preview and install plan
+  build_bump_preview
+  build_update_packages
+  if [[ "$APPLY" == false ]]; then
+    plan_install >/dev/null
+  fi
+
+  # Apply if not dry-run
+  if [[ "$APPLY" == true ]]; then
+    apply_bumps
+    run_install
+  fi
+
+  # Emit result
+  emit_json "$notes"
+}
+
+main "$@"
