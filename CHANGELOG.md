@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0](https://github.com/mrclrchtr/tandem/compare/v0.10.1...v0.11.0) (2026-05-21)
+
+
+### Features
+
+* **supi-flow:** add apply transition tool and flow guards ([7a28409](https://github.com/mrclrchtr/tandem/commit/7a284091eaf23a3f753869ad4d40a0ffc4eb9ddd))
+* **supi-flow:** add single-task task authoring tool ([e298b12](https://github.com/mrclrchtr/tandem/commit/e298b12adaad58219da9dd13bdc62c9ff1c40b18))
+* **tandem:** add task detail docs and overview-first plans ([f9d534d](https://github.com/mrclrchtr/tandem/commit/f9d534de3a537f47b9a119e510b70f9ed6fb630a))
+* **tandem:** structured task management with Vec&lt;Task&gt; in state.toml ([f80b20a](https://github.com/mrclrchtr/tandem/commit/f80b20a2a57fd65f53246927d0f1c84cdee273b0))
+
+
+### Bug Fixes
+
+* **supi-flow:** harden apply and close transitions ([31b622f](https://github.com/mrclrchtr/tandem/commit/31b622f7f11e4917b6842568be51aa162d26f72e))
+* **supi-flow:** parse top-level task envelopes ([43dbbbe](https://github.com/mrclrchtr/tandem/commit/43dbbbe867efd904e7250b55c4836acef0f1d0a9))
+* **tandem-cli:** resolve clippy warnings — duplicated attributes and identity map ([aa3141f](https://github.com/mrclrchtr/tandem/commit/aa3141fa81afb8c3eb4e6e48b7beabe66d742d46))
+
 ## [0.10.1](https://github.com/mrclrchtr/tandem/compare/v0.10.0...v0.10.1) (2026-05-14)
 
 
