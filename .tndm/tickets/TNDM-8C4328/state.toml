@@ -1,0 +1,16 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-21T00:30:50.57562Z"
+revision = 15
+
+[document_fingerprints]
+archive = "sha256:f62bb8610c5c9e22650f0a72e004e09ddfc7d4f0078301addc3fe7ba8c74c768"
+content = "sha256:a88804ca1371ca60398f2497ee16713005a1cfcb92e656bb381dff8d6e2801fa"
+
+[[tasks]]
+number = 1
+title = "Validate headline-only live add (edited)"
+status = "done"
+files = ["plugins/supi-flow/extensions/tools/flow-tools.ts"]
+verification = "Live add should return taskNumber 1 without throwing."
+notes = "Task 1 edited successfully during the live end-to-end validation."

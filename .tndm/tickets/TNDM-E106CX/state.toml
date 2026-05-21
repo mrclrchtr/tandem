@@ -1,0 +1,24 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-21T00:21:01.543034Z"
+revision = 12
+
+[document_fingerprints]
+archive = "sha256:291a599344f6340a6c12da3de7ec25475bbba5aaec09c75b7ccc2f33aef7aeb3"
+content = "sha256:8759fa37e617b8f301e0ac4fa6e3f94e0aa4e25a3420edba72c9d2ca04058c90"
+
+[[tasks]]
+number = 1
+title = "Update task-extraction helpers to support top-level TNDM task envelopes"
+status = "done"
+files = ["plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/extensions/tools/tndm-cli.ts", "plugins/supi-flow/__tests__/flow-tools.test.ts", "plugins/supi-flow/__tests__/tndm-cli-tool.test.ts"]
+verification = "cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/flow-tools.test.ts __tests__/tndm-cli-tool.test.ts"
+notes = "Make helper parsing accept both top-level `tasks` and the older nested mock shape. Update tests to use the real top-level envelope where the bug was observed."
+
+[[tasks]]
+number = 2
+title = "Re-run scratch end-to-end validation of supi_flow_task add after the fix"
+status = "done"
+files = [".tndm/tickets/TNDM-E106CX", "plugins/supi-flow/extensions/tools/flow-tools.ts"]
+verification = 'Use a fresh scratch flow ticket via the reloaded PI tools and confirm `supi_flow_task { operation: "add" }` succeeds without creating a hidden partial failure.'
+notes = "Integration validation task. Capture the actual result in the ticket archive before closing."

@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-8C4328"
+title = "Live E2E validation after reload for supi_flow_task"
+type = "chore"
+priority = "p4"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

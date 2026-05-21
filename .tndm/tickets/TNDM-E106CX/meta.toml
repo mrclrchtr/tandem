@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-E106CX"
+title = "Fix supi-flow task parsing for top-level TNDM JSON envelopes"
+type = "bug"
+priority = "p1"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

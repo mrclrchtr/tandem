@@ -493,6 +493,13 @@ function extractTaskTitle(result: Record<string, unknown>, taskNumber: number): 
 }
 
 function extractTasks(result: Record<string, unknown>): Array<{ number?: number; title?: string }> {
+  if (Array.isArray(result.tasks)) {
+    return result.tasks.filter(
+      (task): task is { number?: number; title?: string } =>
+        typeof task === "object" && task !== null,
+    );
+  }
+
   const ticket = result.ticket;
   if (typeof ticket === "object" && ticket !== null) {
     const state = (ticket as { state?: unknown }).state;

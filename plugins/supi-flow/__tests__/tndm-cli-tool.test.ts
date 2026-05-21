@@ -67,20 +67,16 @@ describe("executeTndmCli task_add", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "tndm-cli-tool-"));
     const docPath = join(tmpDir, "tasks", "task-01.md");
     const finalTicket = {
-      ticket: {
-        state: {
-          tasks: [{ number: 1, title: "Detailed task", status: "todo", detail_path: "tasks/task-01.md" }],
-        },
-      },
+      schema_version: 1,
+      id: "TNDM-DETAIL",
+      tasks: [{ number: 1, title: "Detailed task", status: "todo", detail_path: "tasks/task-01.md" }],
     };
 
     vi.mocked(tndmJson)
       .mockResolvedValueOnce({
-        ticket: {
-          state: {
-            tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
-          },
-        },
+        schema_version: 1,
+        id: "TNDM-DETAIL",
+        tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
       })
       .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-01.md" })
       .mockResolvedValueOnce(finalTicket);
@@ -119,9 +115,59 @@ describe("executeTndmCli task_add", () => {
     expect(result.details.result).toEqual(finalTicket);
     expect(result.content[0].text).toContain("detail_path");
   });
+
 });
 
 describe("executeTndmCli task_edit", () => {
+  it("infers task titles from top-level show envelopes when writing detail", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-cli-tool-edit-"));
+    const docPath = join(tmpDir, "tasks", "task-02.md");
+    const finalTicket = {
+      schema_version: 1,
+      id: "TNDM-EDITDETAIL",
+      tasks: [{ number: 2, title: "Existing task", status: "todo", detail_path: "tasks/task-02.md" }],
+    };
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-02.md" })
+      .mockResolvedValueOnce({
+        schema_version: 1,
+        id: "TNDM-EDITDETAIL",
+        tasks: [{ number: 2, title: "Existing task", status: "todo" }],
+      })
+      .mockResolvedValueOnce(finalTicket);
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const result = await executeTndmCli({
+      action: "task_edit",
+      id: "TNDM-EDITDETAIL",
+      task_number: 2,
+      task_detail: "Updated detail body.",
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "task",
+      "detail",
+      "ensure",
+      "TNDM-EDITDETAIL",
+      "2",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "show",
+      "TNDM-EDITDETAIL",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
+      "ticket",
+      "show",
+      "TNDM-EDITDETAIL",
+    ]);
+    expect(readFileSync(docPath, "utf-8")).toContain("# Task 2: Existing task");
+    expect(readFileSync(docPath, "utf-8")).toContain("Updated detail body.");
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-EDITDETAIL"]);
+    expect(result.details.result).toEqual(finalTicket);
+  });
   it("emits --clear-files when task_files is empty", async () => {
     vi.mocked(tndmJson).mockResolvedValue({ ok: true });
 

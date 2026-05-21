@@ -192,39 +192,35 @@ describe("executeFlowTask", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "flow-task-add-"));
     const docPath = join(tmpDir, "tasks", "task-01.md");
     const finalTicket = {
-      ticket: {
-        state: {
-          tasks: [
-            {
-              number: 1,
-              title: "Detailed task",
-              status: "todo",
-              files: ["src/task.ts", "tests/task.test.ts"],
-              verification: "pnpm exec vitest run",
-              notes: "Needs task detail",
-              detail_path: "tasks/task-01.md",
-            },
-          ],
+      schema_version: 1,
+      id: "TNDM-TASK",
+      tasks: [
+        {
+          number: 1,
+          title: "Detailed task",
+          status: "todo",
+          files: ["src/task.ts", "tests/task.test.ts"],
+          verification: "pnpm exec vitest run",
+          notes: "Needs task detail",
+          detail_path: "tasks/task-01.md",
         },
-      },
+      ],
     };
 
     vi.mocked(tndmJson)
       .mockResolvedValueOnce({
-        ticket: {
-          state: {
-            tasks: [
-              {
-                number: 1,
-                title: "Detailed task",
-                status: "todo",
-                files: ["src/task.ts", "tests/task.test.ts"],
-                verification: "pnpm exec vitest run",
-                notes: "Needs task detail",
-              },
-            ],
+        schema_version: 1,
+        id: "TNDM-TASK",
+        tasks: [
+          {
+            number: 1,
+            title: "Detailed task",
+            status: "todo",
+            files: ["src/task.ts", "tests/task.test.ts"],
+            verification: "pnpm exec vitest run",
+            notes: "Needs task detail",
           },
-        },
+        ],
       })
       .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-01.md" })
       .mockResolvedValueOnce(finalTicket);
@@ -280,25 +276,21 @@ describe("executeFlowTask", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "flow-task-edit-"));
     const docPath = join(tmpDir, "tasks", "task-02.md");
     const existingTicket = {
-      ticket: {
-        state: {
-          tasks: [{ number: 2, title: "Existing task", status: "todo" }],
-        },
-      },
+      schema_version: 1,
+      id: "TNDM-TASK",
+      tasks: [{ number: 2, title: "Existing task", status: "todo" }],
     };
     const finalTicket = {
-      ticket: {
-        state: {
-          tasks: [
-            {
-              number: 2,
-              title: "Existing task",
-              status: "todo",
-              detail_path: "tasks/task-02.md",
-            },
-          ],
+      schema_version: 1,
+      id: "TNDM-TASK",
+      tasks: [
+        {
+          number: 2,
+          title: "Existing task",
+          status: "todo",
+          detail_path: "tasks/task-02.md",
         },
-      },
+      ],
     };
 
     vi.mocked(tndmJson)
