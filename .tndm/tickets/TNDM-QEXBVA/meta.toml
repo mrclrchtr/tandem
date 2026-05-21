@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-QEXBVA"
+title = "Improve supi-flow around TNDM tasks support"
+type = "feature"
+priority = "p2"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

@@ -18,7 +18,7 @@ const { tndm, tndmJson } = await import("../extensions/cli.js");
 const flowTools = await import("../extensions/tools/flow-tools.js");
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 // ─── executeFlowStart ──────────────────────────────────────────
@@ -185,6 +185,181 @@ No tasks yet.`;
   });
 });
 
+// ─── executeFlowTask ───────────────────────────────────────────
+
+describe("executeFlowTask", () => {
+  it("adds one task at a time and auto-writes canonical detail docs", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "flow-task-add-"));
+    const docPath = join(tmpDir, "tasks", "task-01.md");
+    const finalTicket = {
+      ticket: {
+        state: {
+          tasks: [
+            {
+              number: 1,
+              title: "Detailed task",
+              status: "todo",
+              files: ["src/task.ts", "tests/task.test.ts"],
+              verification: "pnpm exec vitest run",
+              notes: "Needs task detail",
+              detail_path: "tasks/task-01.md",
+            },
+          ],
+        },
+      },
+    };
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({
+        ticket: {
+          state: {
+            tasks: [
+              {
+                number: 1,
+                title: "Detailed task",
+                status: "todo",
+                files: ["src/task.ts", "tests/task.test.ts"],
+                verification: "pnpm exec vitest run",
+                notes: "Needs task detail",
+              },
+            ],
+          },
+        },
+      })
+      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-01.md" })
+      .mockResolvedValueOnce(finalTicket);
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const result = await flowTools.executeFlowTask({
+      ticket_id: "TNDM-TASK",
+      operation: "add",
+      title: "Detailed task",
+      files: ["src/task.ts", "tests/task.test.ts"],
+      verification: "pnpm exec vitest run",
+      notes: "Needs task detail",
+      detail: "Implementation notes go here.",
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "task",
+      "add",
+      "TNDM-TASK",
+      "--title",
+      "Detailed task",
+      "--file",
+      "src/task.ts",
+      "--file",
+      "tests/task.test.ts",
+      "--verification",
+      "pnpm exec vitest run",
+      "--notes",
+      "Needs task detail",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "task",
+      "detail",
+      "ensure",
+      "TNDM-TASK",
+      "1",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
+      "ticket",
+      "show",
+      "TNDM-TASK",
+    ]);
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TASK"]);
+    expect(readFileSync(docPath, "utf-8")).toContain("Implementation notes go here.");
+    expect(result.details.taskNumber).toBe(1);
+    expect(result.details.result).toEqual(finalTicket);
+    expect(result.content[0].text).toContain("Task 1 added");
+  });
+
+  it("edits only task detail without issuing a no-op manifest edit", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "flow-task-edit-"));
+    const docPath = join(tmpDir, "tasks", "task-02.md");
+    const existingTicket = {
+      ticket: {
+        state: {
+          tasks: [{ number: 2, title: "Existing task", status: "todo" }],
+        },
+      },
+    };
+    const finalTicket = {
+      ticket: {
+        state: {
+          tasks: [
+            {
+              number: 2,
+              title: "Existing task",
+              status: "todo",
+              detail_path: "tasks/task-02.md",
+            },
+          ],
+        },
+      },
+    };
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-02.md" })
+      .mockResolvedValueOnce(existingTicket)
+      .mockResolvedValueOnce(finalTicket);
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const result = await flowTools.executeFlowTask({
+      ticket_id: "TNDM-TASK",
+      operation: "edit",
+      task_number: 2,
+      detail: "Revised task detail.",
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "task",
+      "detail",
+      "ensure",
+      "TNDM-TASK",
+      "2",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "show",
+      "TNDM-TASK",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
+      "ticket",
+      "show",
+      "TNDM-TASK",
+    ]);
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TASK"]);
+    expect(readFileSync(docPath, "utf-8")).toContain("Revised task detail.");
+    expect(result.details.taskNumber).toBe(2);
+    expect(result.details.result).toEqual(finalTicket);
+    expect(result.content[0].text).toContain("Task 2 updated");
+  });
+
+  it("removes one task at a time", async () => {
+    vi.mocked(tndmJson).mockResolvedValue({ ok: true });
+
+    const result = await flowTools.executeFlowTask({
+      ticket_id: "TNDM-TASK",
+      operation: "remove",
+      task_number: 3,
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+      "ticket",
+      "task",
+      "remove",
+      "TNDM-TASK",
+      "3",
+    ]);
+    expect(result.details.removed).toBe(true);
+    expect(result.content[0].text).toContain("Task 3 removed");
+  });
+});
+
 // ─── executeFlowCompleteTask ───────────────────────────────────
 
 describe("executeFlowCompleteTask", () => {
@@ -235,6 +410,16 @@ describe("executeFlowCompleteTask", () => {
         task_number: 1,
       }),
     ).rejects.toThrow("tndm is not installed");
+  });
+});
+
+describe("supiFlowCloseParams", () => {
+  it("describes verification_results as archive.md content", () => {
+    const schema = flowTools.supiFlowCloseParams.properties
+      .verification_results as { description?: string };
+
+    expect(schema.description).toContain("archive.md");
+    expect(schema.description).not.toContain("ticket content");
   });
 });
 

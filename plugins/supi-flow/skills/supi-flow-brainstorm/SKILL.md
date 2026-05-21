@@ -76,7 +76,7 @@ After approval:
 
 - **Default to conversation-first.** The design can live in the chat for small, single-session work.
 - **Offer saving to a ticket** when the work is larger, likely multi-session, or would benefit from a durable reference.
-- If a ticket exists, save the design to the ticket's canonical `content.md` via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
+- If a ticket exists, save the design to the ticket's canonical `content.md` via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`. During plan phase, keep task authoring separate: the overview stays in `content.md`, and executable tasks are later authored one at a time via `supi_flow_task`.
 - **Retroactive escalation:** if a trivial change grows in scope mid-implementation, stop, create a retroactive ticket via `supi_flow_start`, and store a summary of completed work + new scope.
 
 ## Self-review

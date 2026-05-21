@@ -312,7 +312,7 @@ workflow on top of tandem tickets: **brainstorm → plan → apply → archive**
 
 It ships with:
 
-- 5 custom PI tools: `supi_tndm_cli`, `supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`
+- 6 custom PI tools: `supi_tndm_cli`, `supi_flow_start`, `supi_flow_plan`, `supi_flow_task`, `supi_flow_complete_task`, `supi_flow_close`
 - 5 auto-discovered skills
 - 1 prompt template
 

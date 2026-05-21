@@ -1,0 +1,40 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-20T23:42:00.865298Z"
+revision = 17
+
+[document_fingerprints]
+archive = "sha256:a8c822f05ed72db14a8d77d53f6675b7847cf318e80265505913e5ac562ae12d"
+content = "sha256:68f78e6f563f33f65e1457ca38ce1e5480db2f8f454a037fb6fa5bfeaad262b9"
+
+[[tasks]]
+number = 1
+title = "Add and register the new single-task `supi_flow_task` flow tool"
+status = "done"
+files = ["plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/extensions/index.ts", "plugins/supi-flow/__tests__/flow-tools.test.ts", "plugins/supi-flow/__tests__/resources.test.ts"]
+verification = "cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/flow-tools.test.ts __tests__/resources.test.ts"
+notes = "RED first in flow-tools/resources tests. The new tool should manage one task per call (add|edit|remove) and keep task-detail docs automatic."
+
+[[tasks]]
+number = 2
+title = "Harden direct wrapper behavior against current TNDM task/list contracts"
+status = "done"
+files = ["plugins/supi-flow/extensions/tools/tndm-cli.ts", "plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/extensions/index.ts", "plugins/supi-flow/__tests__/tndm-cli-tool.test.ts", "plugins/supi-flow/__tests__/flow-tools.test.ts"]
+verification = "cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run __tests__/tndm-cli-tool.test.ts __tests__/flow-tools.test.ts"
+notes = "RED first for `ticket list --json` envelope handling and stale archive/tool-description contract checks."
+
+[[tasks]]
+number = 3
+title = "Update supi-flow guidance and package metadata for the 6-tool task-authoring model"
+status = "done"
+files = ["plugins/supi-flow/skills/supi-flow-plan/SKILL.md", "plugins/supi-flow/skills/supi-flow-brainstorm/SKILL.md", "plugins/supi-flow/README.md", "plugins/supi-flow/CLAUDE.md", "README.md", "CLAUDE.md", "plugins/supi-flow/package.json"]
+verification = 'rg -n "6 custom|supi_flow_task|state\.toml|task_json|detail_path|archive\.md" plugins/supi-flow/skills/supi-flow-plan/SKILL.md plugins/supi-flow/skills/supi-flow-brainstorm/SKILL.md plugins/supi-flow/README.md plugins/supi-flow/CLAUDE.md README.md CLAUDE.md'
+notes = "Test-exempt docs/metadata task. Make the new tool the common plan-time path and keep low-level task_* actions as escape hatches."
+
+[[tasks]]
+number = 4
+title = "Run full supi-flow verification after code and docs updates"
+status = "done"
+files = ["plugins/supi-flow"]
+verification = "cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run"
+notes = "Confirm tool registration, wrapper behavior, and the docs-aligned workflow are all green before apply completes."

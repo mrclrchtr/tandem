@@ -1,0 +1,15 @@
+schema_version = 1
+id = "TNDM-WXNVSD"
+title = "Clarify supi-flow replanning guidance for single-task authoring"
+type = "chore"
+priority = "p2"
+depends_on = []
+tags = ["flow:done"]
+
+[[documents]]
+name = "archive"
+path = "archive.md"
+
+[[documents]]
+name = "content"
+path = "content.md"

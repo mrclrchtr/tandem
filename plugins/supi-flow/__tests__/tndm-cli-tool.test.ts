@@ -16,7 +16,29 @@ const { tndm, tndmJson } = await import("../extensions/cli.js");
 const { executeTndmCli } = await import("../extensions/tools/tndm-cli.js");
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+});
+
+describe("executeTndmCli list", () => {
+  it("handles the ticket list envelope returned by current tndm", async () => {
+    const envelope = {
+      schema_version: 1,
+      tickets: [{ id: "TNDM-LIST", title: "List ticket" }],
+    };
+
+    vi.mocked(tndmJson).mockResolvedValue(envelope);
+
+    const result = await executeTndmCli({
+      action: "list",
+    });
+
+    const details = result.details as unknown as { tickets: unknown; envelope: unknown };
+
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith(["ticket", "list"]);
+    expect(result.content[0].text).toContain("\"tickets\"");
+    expect(details.tickets).toEqual(envelope.tickets);
+    expect(details.envelope).toEqual(envelope);
+  });
 });
 
 describe("executeTndmCli task_add", () => {

@@ -32,15 +32,16 @@ describe("supi-flow extension", () => {
     expect(handlers.has("resources_discover")).toBe(false);
   });
 
-  it("registers all 5 tools", () => {
+  it("registers all 6 tools", () => {
     const handlers = setup();
     const tools = getRegisteredTools(handlers);
     expect(tools).toContain("supi_tndm_cli");
     expect(tools).toContain("supi_flow_start");
     expect(tools).toContain("supi_flow_plan");
+    expect(tools).toContain("supi_flow_task");
     expect(tools).toContain("supi_flow_complete_task");
     expect(tools).toContain("supi_flow_close");
-    expect(tools.length).toBe(5);
+    expect(tools.length).toBe(6);
   });
 
   it("registers session_start handler for version check", () => {

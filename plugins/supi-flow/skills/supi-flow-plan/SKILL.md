@@ -37,7 +37,17 @@ Before writing tasks, list which files will be created or modified and what each
 
 The approved overview belongs in `content.md`. It can be pure design / plan prose and may contain zero tasks.
 
-After the overview is approved and persisted, define executable tasks separately in `state.toml`. For each task, include:
+After the overview is approved and persisted, define executable tasks separately in `state.toml`. Start by inspecting the current manifest with `supi_tndm_cli { action: "task_list", id: "<ID>" }`.
+
+For the normal path, use `supi_flow_task` to add, edit, or remove **one task at a time** instead of building raw `task_json` or managing `detail_path` manually:
+
+- **Empty ticket / no tasks yet:** create the manifest with repeated `supi_flow_task { operation: "add", ... }` calls.
+- **Replan / tasks already exist:** reconcile the existing manifest to the new final shape.
+  - same task, new details → `supi_flow_task { operation: "edit", task_number: <N>, ... }`
+  - task no longer belongs in the plan → `supi_flow_task { operation: "remove", task_number: <N> }`
+  - genuinely new task → `supi_flow_task { operation: "add", ... }`
+
+For each task, include:
 
 - the goal
 - exact file paths
@@ -47,9 +57,9 @@ After the overview is approved and persisted, define executable tasks separately
 
 Use enough detail that an agent can execute without guessing, but do not force huge code blocks into every step.
 
-**Task numbering convention**: Tasks must be numbered sequentially starting at 1 when you create them in the task manifest.
+**Task numbering convention**: On an empty ticket, adds through `supi_flow_task` start at 1 and increase sequentially. On a ticket that already has tasks, `add` returns the next available task number. Always use the returned task number for later edits, removals, and completion.
 
-Use headline-only tasks when the title is enough. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task exists in `state.toml`.
+Use headline-only tasks when the title is enough. If a task needs real implementation detail or notices, pass `detail` markdown through `supi_flow_task` so it creates or updates the canonical `tasks/task-XX.md` task doc automatically.
 
 ## TDD by default
 
@@ -105,6 +115,6 @@ Fix issues inline before handing off.
 
 Write the plan in the lightest form that will still survive execution:
 
-- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to store the approved overview in `content.md`. Then create the executable task list separately in `state.toml`.
+- **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to store the approved overview in `content.md`. Then list the current tasks. If the manifest is empty, build it with repeated `supi_flow_task { operation: "add", ... }` calls. If tasks already exist, reconcile them to the new final plan with `supi_flow_task` edit/remove/add operations. Keep `supi_tndm_cli` task_* actions as lower-level escape hatches for advanced/manual repair cases.
 - **If no ticket exists:** default to conversation-first. Offer saving to a ticket or file if the work is larger or likely multi-session.
 - Close with: `Plan ready. Review it and approve before we start. Then run /supi-flow-apply TNDM-XXXXXX.`

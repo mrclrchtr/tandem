@@ -8,10 +8,12 @@ import { supi_tndm_cli_params, executeTndmCli } from "./tools/tndm-cli.js";
 import {
   supiFlowStartParams,
   supiFlowPlanParams,
+  supiFlowTaskParams,
   supiFlowCompleteTaskParams,
   supiFlowCloseParams,
   executeFlowStart,
   executeFlowPlan,
+  executeFlowTask,
   executeFlowCompleteTask,
   executeFlowClose,
 } from "./tools/flow-tools.js";
@@ -61,7 +63,7 @@ export default function (pi: ExtensionAPI) {
       "- task_list: id (required)\n" +
       "- task_complete: id (required), task_number (required)\n" +
       "- task_remove: id (required), task_number (required)\n" +
-      "- task_edit: id (required), task_number (required), task_title, task_files, task_verification, task_notes, task_detail, task_clear_detail\n" +
+      "- task_edit: id (required), task_number (required), task_title, task_files, task_clear_files, task_verification, task_notes, task_detail, task_clear_detail\n" +
       "- task_set: id (required), task_json (required)",
     promptSnippet: "Execute tndm ticket operations via supi_tndm_cli",
     promptGuidelines: [
@@ -106,6 +108,24 @@ export default function (pi: ExtensionAPI) {
     parameters: supiFlowPlanParams,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       return executeFlowPlan(params);
+    },
+  });
+
+  // ── Tool: supi_flow_task ────────────────────────────────────
+  pi.registerTool({
+    name: "supi_flow_task",
+    label: "Flow Task",
+    description:
+      "Manage one structured task in a flow ticket. " +
+      "Operation determines which params apply: add requires title; edit/remove require task_number; optional detail writes or clears the canonical task detail doc.",
+    promptSnippet: "Manage one task at a time in a TNDM flow ticket",
+    promptGuidelines: [
+      "Use supi_flow_task for the common plan-time path to add, edit, or remove one structured task at a time",
+      "Prefer supi_flow_task over raw task_json or detail_path handling when authoring normal flow tasks",
+    ],
+    parameters: supiFlowTaskParams,
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+      return executeFlowTask(params);
     },
   });
 

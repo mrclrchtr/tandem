@@ -6,7 +6,7 @@ Guidance for Claude Code when working on the supi-flow plugin.
 
 `supi-flow` is a **PI-only extension** (not a Claude Code plugin) that implements a spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination for non-trivial changes. Trivial changes can be implemented directly without a ticket. It ships inside the tandem repository under `plugins/supi-flow/`.
 
-It registers 5 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_plan`, `supi_flow_complete_task`, `supi_flow_close`) and auto-discovers 5 flow skills from `skills/`. All `tndm` CLI interactions go through these tools (agents should not shell out to `tndm` directly).
+It registers 6 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_plan`, `supi_flow_task`, `supi_flow_complete_task`, `supi_flow_close`) and auto-discovers 5 flow skills from `skills/`. All `tndm` CLI interactions go through these tools (agents should not shell out to `tndm` directly).
 
 ## PI-specific guardrails
 
@@ -31,7 +31,7 @@ plugins/supi-flow/
 │   ├── cli.ts            # Node.js wrappers around tndm / git via child_process.execFile
 │   └── tools/
 │       ├── tndm-cli.ts   # supi_tndm_cli tool (create, update, show, list, awareness)
-│       └── flow-tools.ts # supi_flow_start, supi_flow_plan, supi_flow_complete_task, supi_flow_close
+│       └── flow-tools.ts # supi_flow_start, supi_flow_plan, supi_flow_task, supi_flow_complete_task, supi_flow_close
 ├── skills/               # 5 flow skills (auto-discovered by pi)
 ├── prompts/              # supi-coding-retro prompt template
 ├── __tests__/
@@ -86,10 +86,12 @@ pnpm exec vitest run __tests__/cli.test.ts
 ## Skill conventions
 
 - Skills live in `skills/<name>/SKILL.md` and are auto-discovered by pi.
-- Skills reference tools (e.g. `supi_tndm_cli`, `supi_flow_start`) with structured parameter examples, never raw `tndm` CLI commands.
+- Skills reference tools (e.g. `supi_tndm_cli`, `supi_flow_start`, `supi_flow_task`) with structured parameter examples, never raw `tndm` CLI commands.
 - `content.md` is the canonical approved overview/design body, structured tasks in `state.toml` are the executable manifest, optional task docs may live under `tasks/`, and `archive.md` stores final verification evidence.
 - Older tickets may still contain a legacy brainstorm sidecar document, but new flow behavior should not create it or depend on it.
-- `supi_flow_plan` persists overview markdown in `content.md`; task authoring happens separately in `state.toml`.
+- `supi_flow_plan` persists overview markdown in `content.md`; normal plan-time task authoring happens separately in `state.toml` via `supi_flow_task` one task at a time.
+- When revising a plan on a ticket that already has tasks, start with `task_list` and reconcile the manifest via `supi_flow_task` edit/remove/add operations instead of assuming repeated add calls restart numbering at 1.
+- Keep `supi_tndm_cli` task_* actions as lower-level escape hatches for advanced/manual repair work.
 - Use headline-only tasks when possible. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task already exists.
 
 ## When changing this plugin

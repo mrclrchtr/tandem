@@ -27,10 +27,11 @@ Trivial changes can still be implemented directly without a ticket.
 
 Current package contents:
 
-- **5 custom tools**
+- **6 custom tools**
   - `supi_tndm_cli`
   - `supi_flow_start`
   - `supi_flow_plan`
+  - `supi_flow_task`
   - `supi_flow_complete_task`
   - `supi_flow_close`
 - **5 skills**
@@ -111,7 +112,8 @@ There is no custom `/supi-flow` slash command registered by the extension.
 
 2. **Plan** — `/skill:supi-flow-plan TNDM-XXXXXX`
    - store the approved overview in `content.md`
-   - define executable tasks separately in `state.toml`
+   - author executable tasks one at a time in `state.toml` via `supi_flow_task`
+   - when revising an existing ticket, list the current tasks first and reconcile them with edit/remove/add instead of blindly appending new ones
    - keep tasks concrete, ordered, and verifiable
 
 3. **Apply** — `/skill:supi-flow-apply TNDM-XXXXXX`
@@ -132,7 +134,7 @@ There is no custom `/supi-flow` slash command registered by the extension.
 | Phase | Main skill | Ticket behavior |
 |---|---|---|
 | Brainstorm | `supi-flow-brainstorm` | creates or refines the change definition; non-trivial work starts with `supi_flow_start` |
-| Plan | `supi-flow-plan` | stores the approved overview in `content.md` and moves the ticket to `flow:planned` |
+| Plan | `supi-flow-plan` | stores the approved overview in `content.md`, then authors structured tasks one at a time via `supi_flow_task` |
 | Apply | `supi-flow-apply` | executes tasks, verifies each step fresh, and marks tasks done |
 | Archive | `supi-flow-archive` | verifies the final result, writes `archive.md`, and closes the ticket |
 
@@ -161,36 +163,39 @@ Key rules from the current implementation:
 - `content.md` is **overview-first** and may contain zero tasks.
 - Executable tasks live in `state.toml`, not in checklist blocks parsed from markdown.
 - Headline-only tasks are preferred when they are clear enough.
+- The common plan-time task-authoring path is `supi_flow_task`; low-level `task_*` actions remain available as escape hatches.
+- When revising a ticket that already has tasks, list the current manifest first and reconcile it with `edit` / `remove` / `add` operations instead of treating replanning as repeated append-only adds.
 - Task detail docs are optional and attached only when a task needs extra implementation detail.
 - Older tickets may still contain a legacy brainstorm sidecar document, but new flow work should not depend on it.
 
 ## Tools
 
-The extension registers five custom tools.
+The extension registers six custom tools.
 
 | Tool | What it does |
 |---|---|
-| `supi_tndm_cli` | Structured wrapper around `tndm` for ticket create/update/show/list/awareness plus task add/list/complete/remove/edit/set |
+| `supi_tndm_cli` | Structured wrapper around `tndm` for ticket create/update/show/list/awareness plus lower-level task add/list/complete/remove/edit/set actions |
 | `supi_flow_start` | Creates a ticket with `status=todo` and tag `flow:brainstorm`, optionally persisting initial context into `content.md` |
 | `supi_flow_plan` | Stores the approved overview in `content.md` and replaces flow-state tags with `flow:planned` |
+| `supi_flow_task` | Adds, edits, or removes one structured task at a time and optionally manages the canonical `tasks/task-XX.md` detail doc; use it to reconcile existing task manifests during replans as well as to create new ones |
 | `supi_flow_complete_task` | Marks one numbered task as done in the structured task manifest |
 | `supi_flow_close` | Writes verification evidence to `archive.md`, syncs documents, and closes the ticket with `status=done` and `flow:done` |
 
 ### `supi_tndm_cli` at a glance
 
-`supi_tndm_cli` is intentionally thinner than the flow skills. Use it for direct ticket operations when
-a skill is not the right abstraction.
+`supi_tndm_cli` is intentionally thinner than the flow skills. Use `supi_flow_task` for the normal plan-time path to author tasks one at a time. Reach for `supi_tndm_cli` when you need direct ticket operations or lower-level task repair.
 
 Current action groups:
 
 - **ticket actions** — `create`, `update`, `show`, `list`, `awareness`
 - **task actions** — `task_add`, `task_list`, `task_complete`, `task_remove`, `task_edit`, `task_set`
+  - these are lower-level escape hatches; normal plan-time task authoring should prefer `supi_flow_task`
 
 Task-detail behavior worth knowing:
 
 - `task_add` can stay manifest-only for headline tasks
 - when `task_detail` is provided, the tool ensures the canonical task detail doc, writes the markdown body, and runs `tndm ticket sync`
-- `task_edit` can also write or clear linked task detail docs
+- `task_edit` can also write or clear linked task detail docs and clear file lists
 
 ## Skills
 

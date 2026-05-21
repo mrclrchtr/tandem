@@ -1,5 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { writeFileSync } from "node:fs";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { tndm, tndmJson } from "../cli.js";
@@ -122,6 +122,248 @@ export async function executeFlowPlan(params: FlowPlanParams) {
   };
 }
 
+// ─── supi_flow_task ────────────────────────────────────────────
+
+export const supiFlowTaskParams = Type.Object({
+  ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
+  operation: StringEnum(["add", "edit", "remove"] as const, {
+    description: "Single-task mutation to apply",
+  }),
+  task_number: Type.Optional(
+    Type.Number({ description: "Task number for edit/remove operations" }),
+  ),
+  title: Type.Optional(
+    Type.String({ description: "Task title (required for add)" }),
+  ),
+  files: Type.Optional(
+    Type.Array(Type.String(), { description: "File paths for the task" }),
+  ),
+  clear_files: Type.Optional(
+    Type.Boolean({ description: "Clear all file paths during edit" }),
+  ),
+  verification: Type.Optional(
+    Type.String({ description: "Verification command for the task" }),
+  ),
+  clear_verification: Type.Optional(
+    Type.Boolean({ description: "Clear the verification command during edit" }),
+  ),
+  notes: Type.Optional(
+    Type.String({ description: "Extra notes for the task" }),
+  ),
+  clear_notes: Type.Optional(
+    Type.Boolean({ description: "Clear task notes during edit" }),
+  ),
+  detail: Type.Optional(
+    Type.String({ description: "Optional markdown body for the canonical task detail doc" }),
+  ),
+  clear_detail: Type.Optional(
+    Type.Boolean({ description: "Clear the linked canonical task detail doc reference during edit" }),
+  ),
+});
+
+export type FlowTaskParams = Static<typeof supiFlowTaskParams>;
+
+export async function executeFlowTask(params: FlowTaskParams) {
+  if (params.files !== undefined && params.clear_files) {
+    throw new Error("supi_flow_task: files and clear_files cannot be used together");
+  }
+  if (params.verification !== undefined && params.clear_verification) {
+    throw new Error("supi_flow_task: verification and clear_verification cannot be used together");
+  }
+  if (params.notes !== undefined && params.clear_notes) {
+    throw new Error("supi_flow_task: notes and clear_notes cannot be used together");
+  }
+  if (params.detail !== undefined && params.clear_detail) {
+    throw new Error("supi_flow_task: detail and clear_detail cannot be used together");
+  }
+
+  switch (params.operation) {
+    case "add": {
+      if (params.task_number !== undefined) {
+        throw new Error("supi_flow_task: task_number is not used for add");
+      }
+      if (!params.title || !params.title.trim()) {
+        throw new Error("supi_flow_task: title is required for add");
+      }
+
+      const args: string[] = [
+        "ticket",
+        "task",
+        "add",
+        params.ticket_id,
+        "--title",
+        params.title,
+      ];
+      for (const file of params.files ?? []) {
+        args.push("--file", file);
+      }
+      if (params.verification && params.verification.trim()) {
+        args.push("--verification", params.verification);
+      }
+      if (params.notes && params.notes.trim()) {
+        args.push("--notes", params.notes);
+      }
+
+      const result = await tndmJson<Record<string, unknown>>(args);
+      const taskNumber = extractLatestTaskNumber(result);
+      let finalResult = result;
+
+      if (params.detail !== undefined) {
+        const detailResult = await ensureTaskDetailDoc(params.ticket_id, taskNumber);
+        writeTaskDetailDoc(detailResult.path, taskNumber, params.title, params.detail);
+        await tndm(["ticket", "sync", params.ticket_id]);
+        finalResult = await loadTicket(params.ticket_id);
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Task ${taskNumber} added to ${params.ticket_id}.`,
+          },
+        ],
+        details: {
+          action: "flow_task",
+          operation: "add",
+          ticketId: params.ticket_id,
+          taskNumber,
+          result: finalResult,
+        },
+      };
+    }
+
+    case "edit": {
+      if (params.task_number === undefined) {
+        throw new Error("supi_flow_task: task_number is required for edit");
+      }
+      if (params.title !== undefined && !params.title.trim()) {
+        throw new Error("supi_flow_task: title must not be blank when provided");
+      }
+      const hasRequestedChange =
+        params.title !== undefined ||
+        params.files !== undefined ||
+        Boolean(params.clear_files) ||
+        params.verification !== undefined ||
+        Boolean(params.clear_verification) ||
+        params.notes !== undefined ||
+        Boolean(params.clear_notes) ||
+        params.detail !== undefined ||
+        Boolean(params.clear_detail);
+      if (!hasRequestedChange) {
+        throw new Error("supi_flow_task: edit requires at least one field change");
+      }
+
+      const args: string[] = [
+        "ticket",
+        "task",
+        "edit",
+        params.ticket_id,
+        String(params.task_number),
+      ];
+      if (params.title !== undefined) args.push("--title", params.title);
+      if (params.files !== undefined) {
+        if (params.files.length === 0) {
+          args.push("--clear-files");
+        } else {
+          for (const file of params.files) args.push("--file", file);
+        }
+      } else if (params.clear_files) {
+        args.push("--clear-files");
+      }
+      if (params.verification !== undefined) {
+        args.push("--verification", params.verification);
+      } else if (params.clear_verification) {
+        args.push("--verification", "");
+      }
+      if (params.notes !== undefined) {
+        args.push("--notes", params.notes);
+      } else if (params.clear_notes) {
+        args.push("--notes", "");
+      }
+
+      const hasManifestFieldChanges = args.length > 5;
+      const result = hasManifestFieldChanges
+        ? await tndmJson<Record<string, unknown>>(args)
+        : undefined;
+      let finalResult = result;
+
+      if (params.detail !== undefined) {
+        const detailResult = await ensureTaskDetailDoc(params.ticket_id, params.task_number);
+        const taskSnapshot = result ?? await loadTicket(params.ticket_id);
+        const taskTitle =
+          params.title ??
+          extractTaskTitle(taskSnapshot, params.task_number) ??
+          `Task ${params.task_number}`;
+        writeTaskDetailDoc(
+          detailResult.path,
+          params.task_number,
+          taskTitle,
+          params.detail,
+        );
+        await tndm(["ticket", "sync", params.ticket_id]);
+        finalResult = await loadTicket(params.ticket_id);
+      } else if (params.clear_detail) {
+        await tndmJson([
+          "ticket",
+          "task",
+          "detail",
+          "clear",
+          params.ticket_id,
+          String(params.task_number),
+        ]);
+        finalResult = await loadTicket(params.ticket_id);
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Task ${params.task_number} updated in ${params.ticket_id}.`,
+          },
+        ],
+        details: {
+          action: "flow_task",
+          operation: "edit",
+          ticketId: params.ticket_id,
+          taskNumber: params.task_number,
+          result: finalResult,
+        },
+      };
+    }
+
+    case "remove": {
+      if (params.task_number === undefined) {
+        throw new Error("supi_flow_task: task_number is required for remove");
+      }
+
+      const result = await tndmJson<Record<string, unknown>>([
+        "ticket",
+        "task",
+        "remove",
+        params.ticket_id,
+        String(params.task_number),
+      ]);
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Task ${params.task_number} removed from ${params.ticket_id}.`,
+          },
+        ],
+        details: {
+          action: "flow_task",
+          operation: "remove",
+          ticketId: params.ticket_id,
+          taskNumber: params.task_number,
+          removed: true,
+          result,
+        },
+      };
+    }
+  }
+}
+
 // ─── supi_flow_complete_task ───────────────────────────────────
 
 export const supiFlowCompleteTaskParams = Type.Object({
@@ -178,7 +420,7 @@ export const supiFlowCloseParams = Type.Object({
   verification_results: Type.Optional(
     Type.String({
       description:
-        "Verification results / evidence from the agent. Appended to the ticket content under ## Verification Results.",
+        "Verification results / evidence from the agent to write into archive.md before closing the ticket.",
     }),
   ),
 });
@@ -231,4 +473,60 @@ export async function executeFlowClose(params: FlowCloseParams) {
       tags: "flow:done",
     },
   };
+}
+
+function extractLatestTaskNumber(result: Record<string, unknown>): number {
+  const tasks = extractTasks(result);
+  const numbers = tasks
+    .map((task) => task.number)
+    .filter((value): value is number => typeof value === "number");
+
+  if (numbers.length === 0) {
+    throw new Error("supi_flow_task: task_add did not return a task list");
+  }
+
+  return Math.max(...numbers);
+}
+
+function extractTaskTitle(result: Record<string, unknown>, taskNumber: number): string | undefined {
+  return extractTasks(result).find((task) => task.number === taskNumber)?.title;
+}
+
+function extractTasks(result: Record<string, unknown>): Array<{ number?: number; title?: string }> {
+  const ticket = result.ticket;
+  if (typeof ticket === "object" && ticket !== null) {
+    const state = (ticket as { state?: unknown }).state;
+    if (
+      typeof state === "object" &&
+      state !== null &&
+      Array.isArray((state as { tasks?: unknown }).tasks)
+    ) {
+      return ((state as { tasks: unknown[] }).tasks).filter(
+        (task): task is { number?: number; title?: string } =>
+          typeof task === "object" && task !== null,
+      );
+    }
+  }
+
+  return [];
+}
+
+async function loadTicket(id: string): Promise<Record<string, unknown>> {
+  return tndmJson<Record<string, unknown>>(["ticket", "show", id]);
+}
+
+async function ensureTaskDetailDoc(id: string, taskNumber: number): Promise<{ path: string }> {
+  return tndmJson<{ path: string }>([
+    "ticket",
+    "task",
+    "detail",
+    "ensure",
+    id,
+    String(taskNumber),
+  ]);
+}
+
+function writeTaskDetailDoc(path: string, taskNumber: number, title: string, detail: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `# Task ${taskNumber}: ${title}\n\n${detail}\n`, "utf-8");
 }

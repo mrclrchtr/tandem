@@ -200,18 +200,24 @@ export async function executeTndmCli(params: TndmCliParams) {
       if (params.all) args.push("--all");
       if (params.definition) args.push("--definition", params.definition);
 
-      const result = await tndmJson<Record<string, unknown>[]>(args);
+      const rawResult = await tndmJson<
+        Record<string, unknown>[] | { schema_version?: number; tickets?: Record<string, unknown>[] }
+      >(args);
+      const envelope = Array.isArray(rawResult)
+        ? { schema_version: 1, tickets: rawResult }
+        : rawResult;
+      const tickets = Array.isArray(envelope.tickets) ? envelope.tickets : [];
       return {
         content: [
           {
             type: "text" as const,
             text:
-              result.length > 0
-                ? JSON.stringify(result, null, 2)
+              tickets.length > 0
+                ? JSON.stringify(envelope, null, 2)
                 : "No tickets found.",
           },
         ],
-        details: { action: "list", tickets: result },
+        details: { action: "list", tickets, envelope },
       };
     }
 
