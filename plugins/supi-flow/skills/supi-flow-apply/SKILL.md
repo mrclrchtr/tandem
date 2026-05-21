@@ -15,16 +15,16 @@ If you haven't run the verification command for this task, you cannot check it o
 
 ## Step 1: Find the plan
 
-- A TNDM-ID was set during plan phase. Read the ticket tasks first:
-  `supi_tndm_cli { action: "task_list", id: "<ID>" }` — returns the structured task list with status, title, files, verification, and an optional linked task doc reference for each task.
-  If a task has a linked task doc (`detail_path`), read that task doc before implementing so you do not miss task detail captured outside the manifest.
-  Then mark the ticket as in progress and move the flow tag:
-  `supi_tndm_cli { action: "update", id: "<ID>", status: "in_progress", add_tags: "flow:applying", remove_tags: "flow:planned" }`
+- A TNDM-ID was set during plan phase. Start apply with:
+  `supi_flow_apply { ticket_id: "<ID>" }`
+  This loads the approved overview from `content.md`, returns the structured task list with status, title, files, verification, and any linked `detail_path`, and moves `flow:planned` tickets into `status=in_progress` with `flow:applying`.
+- Read the returned overview before starting work. If a task has a linked task doc (`detail_path`), read that task doc before implementing so you do not miss task detail captured outside the manifest.
+- If `supi_flow_apply` reports a missing overview, empty task manifest, or invalid lifecycle state, stop and resolve that gap before editing.
 - If no plan is available: ask which change to implement.
 
 ## Step 2: Review the plan critically
 
-Read the whole plan before starting.
+Read the whole plan before starting, including the approved overview loaded by `supi_flow_apply`.
 
 Raise questions before editing if:
 

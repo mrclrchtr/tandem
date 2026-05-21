@@ -27,10 +27,11 @@ Trivial changes can still be implemented directly without a ticket.
 
 Current package contents:
 
-- **6 custom tools**
+- **7 custom tools**
   - `supi_tndm_cli`
   - `supi_flow_start`
   - `supi_flow_plan`
+  - `supi_flow_apply`
   - `supi_flow_task`
   - `supi_flow_complete_task`
   - `supi_flow_close`
@@ -117,6 +118,8 @@ There is no custom `/supi-flow` slash command registered by the extension.
    - keep tasks concrete, ordered, and verifiable
 
 3. **Apply** — `/skill:supi-flow-apply TNDM-XXXXXX`
+   - start with `supi_flow_apply` to load the approved overview and task manifest
+   - transition planned tickets into `flow:applying`
    - execute tasks in order
    - run fresh verification for each task
    - check off tasks with `supi_flow_complete_task`
@@ -127,7 +130,7 @@ There is no custom `/supi-flow` slash command registered by the extension.
 5. **Archive** — `/skill:supi-flow-archive TNDM-XXXXXX`
    - re-verify the completed change
    - update living docs if needed
-   - close the ticket with archived verification evidence
+   - close the ticket with required archived verification evidence
 
 ## Flow phases
 
@@ -135,7 +138,7 @@ There is no custom `/supi-flow` slash command registered by the extension.
 |---|---|---|
 | Brainstorm | `supi-flow-brainstorm` | creates or refines the change definition; non-trivial work starts with `supi_flow_start` |
 | Plan | `supi-flow-plan` | stores the approved overview in `content.md`, then authors structured tasks one at a time via `supi_flow_task` |
-| Apply | `supi-flow-apply` | executes tasks, verifies each step fresh, and marks tasks done |
+| Apply | `supi-flow-apply` | starts with `supi_flow_apply`, loads the approved overview plus task manifest, transitions to `flow:applying` when needed, then executes tasks and verifies each step fresh |
 | Archive | `supi-flow-archive` | verifies the final result, writes `archive.md`, and closes the ticket |
 
 Flow state is tracked with TNDM status/tag combinations:
@@ -170,16 +173,17 @@ Key rules from the current implementation:
 
 ## Tools
 
-The extension registers six custom tools.
+The extension registers seven custom tools.
 
 | Tool | What it does |
 |---|---|
 | `supi_tndm_cli` | Structured wrapper around `tndm` for ticket create/update/show/list/awareness plus lower-level task add/list/complete/remove/edit/set actions |
 | `supi_flow_start` | Creates a ticket with `status=todo` and tag `flow:brainstorm`, optionally persisting initial context into `content.md` |
 | `supi_flow_plan` | Stores the approved overview in `content.md` and replaces flow-state tags with `flow:planned` |
+| `supi_flow_apply` | Loads the approved overview from `content.md`, returns the structured task manifest, and transitions `flow:planned` tickets into `status=in_progress` with `flow:applying` |
 | `supi_flow_task` | Adds, edits, or removes one structured task at a time and optionally manages the canonical `tasks/task-XX.md` detail doc; use it to reconcile existing task manifests during replans as well as to create new ones |
 | `supi_flow_complete_task` | Marks one numbered task as done in the structured task manifest |
-| `supi_flow_close` | Writes verification evidence to `archive.md`, syncs documents, and closes the ticket with `status=done` and `flow:done` |
+| `supi_flow_close` | Requires verification evidence, refuses to close while tasks remain incomplete, writes `archive.md`, syncs documents, and closes the ticket with `status=done` and `flow:done` |
 
 ### `supi_tndm_cli` at a glance
 

@@ -1,18 +1,20 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ToolExecutionMode } from "@earendil-works/pi-coding-agent";
 
 import { tndmVersion } from "./cli.js";
 import { supi_tndm_cli_params, executeTndmCli } from "./tools/tndm-cli.js";
 import {
   supiFlowStartParams,
   supiFlowPlanParams,
+  supiFlowApplyParams,
   supiFlowTaskParams,
   supiFlowCompleteTaskParams,
   supiFlowCloseParams,
   executeFlowStart,
   executeFlowPlan,
+  executeFlowApply,
   executeFlowTask,
   executeFlowCompleteTask,
   executeFlowClose,
@@ -84,9 +86,10 @@ export default function (pi: ExtensionAPI) {
       "Stores known design context in content.md and returns the ticket ID.",
     promptSnippet: "Begin a new flow by creating a TNDM ticket",
     promptGuidelines: [
-      "Use supi_flow_start at the beginning of every brainstorm to create the required ticket",
+      "Use supi_flow_start when a brainstorm becomes non-trivial and needs a durable ticket",
       "Always include context (design intent/summary) when known",
     ],
+    executionMode: "sequential" as ToolExecutionMode,
     parameters: supiFlowStartParams,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       return executeFlowStart(params);
@@ -105,9 +108,28 @@ export default function (pi: ExtensionAPI) {
       "Use supi_flow_plan after creating a plan to persist the approved overview in content.md",
       "Create execution tasks separately after the overview exists; do not rely on supi_flow_plan to parse task blocks into state.toml",
     ],
+    executionMode: "sequential" as ToolExecutionMode,
     parameters: supiFlowPlanParams,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       return executeFlowPlan(params);
+    },
+  });
+
+  // ── Tool: supi_flow_apply ───────────────────────────────────
+  pi.registerTool({
+    name: "supi_flow_apply",
+    label: "Flow Apply",
+    description:
+      "Start the apply phase for a planned ticket. " +
+      "Loads the approved content.md overview, returns the structured task manifest, and transitions flow:planned tickets to status=in_progress with flow:applying.",
+    promptSnippet: "Start the apply phase for a TNDM flow ticket",
+    promptGuidelines: [
+      "Use supi_flow_apply at the beginning of implementation to load the approved overview and task manifest, and to move a planned ticket into flow:applying when needed.",
+    ],
+    executionMode: "sequential" as ToolExecutionMode,
+    parameters: supiFlowApplyParams,
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+      return executeFlowApply(params);
     },
   });
 
@@ -123,6 +145,7 @@ export default function (pi: ExtensionAPI) {
       "Use supi_flow_task for the common plan-time path to add, edit, or remove one structured task at a time",
       "Prefer supi_flow_task over raw task_json or detail_path handling when authoring normal flow tasks",
     ],
+    executionMode: "sequential" as ToolExecutionMode,
     parameters: supiFlowTaskParams,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       return executeFlowTask(params);
@@ -141,6 +164,7 @@ export default function (pi: ExtensionAPI) {
       "Use supi_flow_complete_task after each task's verification passes during apply",
       "Call this with the task number, not the description text",
     ],
+    executionMode: "sequential" as ToolExecutionMode,
     parameters: supiFlowCompleteTaskParams,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       return executeFlowCompleteTask(params);
@@ -159,6 +183,7 @@ export default function (pi: ExtensionAPI) {
       "Use supi_flow_close at the end of the archive phase after all verification is complete",
       "Pass the full verification evidence as verification_results",
     ],
+    executionMode: "sequential" as ToolExecutionMode,
     parameters: supiFlowCloseParams,
     async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       return executeFlowClose(params);

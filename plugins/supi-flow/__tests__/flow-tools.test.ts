@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -182,6 +181,112 @@ No tasks yet.`;
     ).rejects.toThrow("plan_content must not be blank");
 
     expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+  });
+});
+
+// ─── executeFlowApply ──────────────────────────────────────────
+
+describe("executeFlowApply", () => {
+  it("transitions a planned ticket to applying and returns overview/task context", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "flow-apply-"));
+    const contentPath = join(tmpDir, "content.md");
+    writeFileSync(contentPath, "## Approved Overview\n\nShip it.", "utf-8");
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({
+        schema_version: 1,
+        id: "TNDM-APPLY",
+        status: "todo",
+        tags: ["flow:planned"],
+        content_path: contentPath,
+      })
+      .mockResolvedValueOnce([
+        {
+          number: 1,
+          title: "Implement apply",
+          status: "todo",
+          files: ["extensions/tools/flow-tools.ts"],
+          verification: "pnpm exec vitest run __tests__/flow-tools.test.ts",
+          detail_path: "tasks/task-01.md",
+        },
+      ]);
+    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+
+    const result = await flowTools.executeFlowApply({
+      ticket_id: "TNDM-APPLY",
+    });
+
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "show",
+      "TNDM-APPLY",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
+      "ticket",
+      "task",
+      "list",
+      "TNDM-APPLY",
+    ]);
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith([
+      "ticket",
+      "update",
+      "TNDM-APPLY",
+      "--status",
+      "in_progress",
+      "--remove-tags",
+      "flow:planned",
+      "--add-tags",
+      "flow:applying",
+    ]);
+    expect(result.content[0].text).toContain("flow:applying");
+    expect(result.details).toMatchObject({
+      action: "flow_apply",
+      ticketId: "TNDM-APPLY",
+      transitioned: true,
+      contentPath,
+      overview: "## Approved Overview\n\nShip it.",
+      tasks: [
+        expect.objectContaining({
+          number: 1,
+          title: "Implement apply",
+          detail_path: "tasks/task-01.md",
+        }),
+      ],
+    });
+  });
+
+  it("treats already-applying tickets as idempotent re-entry", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "flow-apply-existing-"));
+    const contentPath = join(tmpDir, "content.md");
+    writeFileSync(contentPath, "## Approved Overview\n\nResume work.", "utf-8");
+
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({
+        schema_version: 1,
+        id: "TNDM-APPLYING",
+        status: "in_progress",
+        tags: ["flow:applying"],
+        content_path: contentPath,
+      })
+      .mockResolvedValueOnce([
+        {
+          number: 1,
+          title: "Resume apply",
+          status: "todo",
+        },
+      ]);
+
+    const result = await flowTools.executeFlowApply({
+      ticket_id: "TNDM-APPLYING",
+    });
+
+    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+    expect(result.details).toMatchObject({
+      action: "flow_apply",
+      ticketId: "TNDM-APPLYING",
+      transitioned: false,
+      overview: "## Approved Overview\n\nResume work.",
+    });
   });
 });
 
@@ -422,15 +527,46 @@ describe("executeFlowClose", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "tndm-close-"));
     const archivePath = join(tmpDir, "archive.md");
 
-    vi.mocked(tndmJson).mockResolvedValue({ path: archivePath });
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce([
+        { number: 1, title: "Done task", status: "done" },
+      ])
+      .mockResolvedValueOnce({ path: archivePath });
     return archivePath;
   }
+
+  it("requires nonblank verification results before mutating the ticket", async () => {
+    await expect(
+      flowTools.executeFlowClose({
+        ticket_id: "TNDM-TEST",
+      } as never),
+    ).rejects.toThrow("verification_results is required");
+
+    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+    expect(vi.mocked(tndmJson)).not.toHaveBeenCalled();
+  });
+
+  it("refuses to close when structured tasks are still incomplete", async () => {
+    vi.mocked(tndmJson).mockResolvedValue([
+      { number: 1, title: "Incomplete task", status: "todo" },
+    ]);
+
+    await expect(
+      flowTools.executeFlowClose({
+        ticket_id: "TNDM-TEST",
+        verification_results: "Ran checks.",
+      }),
+    ).rejects.toThrow("incomplete tasks");
+
+    expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+  });
 
   it("updates status and tags in a single atomic call", async () => {
     setup();
 
     await flowTools.executeFlowClose({
       ticket_id: "TNDM-TEST",
+      verification_results: "All tests pass.",
     });
 
     // Should remove all flow-state tags, set status, and add flow:done in one call
@@ -455,8 +591,13 @@ describe("executeFlowClose", () => {
       verification_results: "All tests pass.",
     });
 
-    // Should have called doc create for archive via tndmJson
-    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
+      "ticket",
+      "task",
+      "list",
+      "TNDM-TEST",
+    ]);
+    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
       "ticket",
       "doc",
       "create",

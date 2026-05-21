@@ -66,7 +66,7 @@ Do not assume documentation is correct just because it sounds right.
 ## Step 5: Close out
 
 - Call `supi_flow_close { ticket_id: "<ID>", verification_results: "..." }` with the full verification evidence.
-  This will set status=done, tags=flow:done, and store verification results in archive.md.
+  `supi_flow_close` requires nonblank `verification_results`, refuses to close while structured tasks remain incomplete, then sets `status=done`, tags=`flow:done`, and stores the evidence in `archive.md`.
 - There is no ticket-less closeout.
 
 ## Step 6: Commit or finish

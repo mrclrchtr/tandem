@@ -1,8 +1,18 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { tndm, tndmJson } from "../cli.js";
+
+type FlowTaskListEntry = {
+  number?: number;
+  title?: string;
+  status?: string;
+  files?: string[];
+  verification?: string;
+  notes?: string;
+  detail_path?: string;
+};
 
 // ─── supi_flow_start ───────────────────────────────────────────
 
@@ -118,6 +128,81 @@ export async function executeFlowPlan(params: FlowPlanParams) {
       ticketId: params.ticket_id,
       tags: "flow:planned",
       contentStored: true,
+    },
+  };
+}
+
+// ─── supi_flow_apply ───────────────────────────────────────────
+
+export const supiFlowApplyParams = Type.Object({
+  ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
+});
+
+export type FlowApplyParams = Static<typeof supiFlowApplyParams>;
+
+export async function executeFlowApply(params: FlowApplyParams) {
+  const ticket = await loadTicket(params.ticket_id);
+  const status = extractTicketStatus(ticket);
+  const tags = extractTicketTags(ticket);
+
+  if (status === "done" || tags.includes("flow:done")) {
+    throw new Error(`supi_flow_apply: ticket ${params.ticket_id} is already closed`);
+  }
+
+  const overview = readRequiredTicketContent(
+    params.ticket_id,
+    extractContentPath(ticket),
+    "supi_flow_apply",
+  );
+  const tasks = await loadTaskList(params.ticket_id);
+
+  if (tasks.length === 0) {
+    throw new Error(`supi_flow_apply: ticket ${params.ticket_id} has no structured tasks`);
+  }
+
+  let transitioned = false;
+
+  if (tags.includes("flow:planned")) {
+    await tndm([
+      "ticket",
+      "update",
+      params.ticket_id,
+      "--status",
+      "in_progress",
+      "--remove-tags",
+      "flow:planned",
+      "--add-tags",
+      "flow:applying",
+    ]);
+    transitioned = true;
+  } else if (!tags.includes("flow:applying")) {
+    throw new Error(
+      `supi_flow_apply: ticket ${params.ticket_id} must be in flow:planned or flow:applying`,
+    );
+  }
+
+  const contentPath = extractContentPath(ticket) ?? "";
+  const taskCount = tasks.length;
+  const transitionText = transitioned
+    ? `Ticket ${params.ticket_id} moved to flow:applying.`
+    : `Ticket ${params.ticket_id} is already in flow:applying.`;
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: `${transitionText} Loaded approved overview and ${taskCount} task${taskCount === 1 ? "" : "s"}.`,
+      },
+    ],
+    details: {
+      action: "flow_apply",
+      ticketId: params.ticket_id,
+      transitioned,
+      status: "in_progress",
+      tags: "flow:applying",
+      contentPath,
+      overview,
+      tasks,
     },
   };
 }
@@ -417,32 +502,41 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
 
 export const supiFlowCloseParams = Type.Object({
   ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
-  verification_results: Type.Optional(
-    Type.String({
-      description:
-        "Verification results / evidence from the agent to write into archive.md before closing the ticket.",
-    }),
-  ),
+  verification_results: Type.String({
+    description:
+      "Verification results / evidence from the agent to write into archive.md before closing the ticket.",
+  }),
 });
 
 export type FlowCloseParams = Static<typeof supiFlowCloseParams>;
 
 export async function executeFlowClose(params: FlowCloseParams) {
-  let archivePath = "";
-
-  if (params.verification_results) {
-    // Create/register archive.md via document registry, then write results
-    const docResult = await tndmJson<{ path: string }>([
-      "ticket",
-      "doc",
-      "create",
-      params.ticket_id,
-      "archive",
-    ]);
-    archivePath = docResult.path;
-    writeFileSync(archivePath, `# Archive\n\n${params.verification_results}\n`, "utf-8");
-    await tndm(["ticket", "sync", params.ticket_id]);
+  const verificationResults = params.verification_results?.trim() ?? "";
+  if (!verificationResults) {
+    throw new Error("supi_flow_close: verification_results is required");
   }
+
+  const tasks = await loadTaskList(params.ticket_id);
+  const incompleteTasks = tasks.filter((task) => task.status !== "done");
+  if (incompleteTasks.length > 0) {
+    const taskList = incompleteTasks
+      .map((task) => `#${task.number ?? "?"}${task.title ? ` ${task.title}` : ""}`)
+      .join(", ");
+    throw new Error(
+      `supi_flow_close: ticket ${params.ticket_id} has incomplete tasks: ${taskList}`,
+    );
+  }
+
+  // Create/register archive.md via document registry, then write results
+  const docResult = await tndmJson<{ path: string }>([
+    "ticket",
+    "doc",
+    "create",
+    params.ticket_id,
+    "archive",
+  ]);
+  writeFileSync(docResult.path, `# Archive\n\n${verificationResults}\n`, "utf-8");
+  await tndm(["ticket", "sync", params.ticket_id]);
 
   // Replace any flow-state tag with flow:done — remove all possible flow-state tags,
   // set status, and add flow:done in one atomic call, to work correctly regardless of
@@ -492,34 +586,92 @@ function extractTaskTitle(result: Record<string, unknown>, taskNumber: number): 
   return extractTasks(result).find((task) => task.number === taskNumber)?.title;
 }
 
-function extractTasks(result: Record<string, unknown>): Array<{ number?: number; title?: string }> {
-  if (Array.isArray(result.tasks)) {
-    return result.tasks.filter(
-      (task): task is { number?: number; title?: string } =>
-        typeof task === "object" && task !== null,
-    );
+function extractTasks(result: Record<string, unknown>): FlowTaskListEntry[] {
+  const ticket = unwrapTicket(result);
+
+  if (Array.isArray(ticket.tasks)) {
+    return filterFlowTasks(ticket.tasks);
   }
 
-  const ticket = result.ticket;
-  if (typeof ticket === "object" && ticket !== null) {
-    const state = (ticket as { state?: unknown }).state;
-    if (
-      typeof state === "object" &&
-      state !== null &&
-      Array.isArray((state as { tasks?: unknown }).tasks)
-    ) {
-      return ((state as { tasks: unknown[] }).tasks).filter(
-        (task): task is { number?: number; title?: string } =>
-          typeof task === "object" && task !== null,
-      );
-    }
+  const state = ticket.state;
+  if (
+    typeof state === "object" &&
+    state !== null &&
+    Array.isArray((state as { tasks?: unknown }).tasks)
+  ) {
+    return filterFlowTasks((state as { tasks: unknown[] }).tasks);
   }
 
   return [];
 }
 
+function filterFlowTasks(tasks: unknown[]): FlowTaskListEntry[] {
+  return tasks.filter(
+    (task): task is FlowTaskListEntry => typeof task === "object" && task !== null,
+  );
+}
+
+function unwrapTicket(result: Record<string, unknown>): Record<string, unknown> {
+  const ticket = result.ticket;
+  if (typeof ticket === "object" && ticket !== null) {
+    return ticket as Record<string, unknown>;
+  }
+  return result;
+}
+
+function extractTicketTags(result: Record<string, unknown>): string[] {
+  const ticket = unwrapTicket(result);
+  if (!Array.isArray(ticket.tags)) {
+    return [];
+  }
+
+  return ticket.tags.filter((tag): tag is string => typeof tag === "string");
+}
+
+function extractTicketStatus(result: Record<string, unknown>): string | undefined {
+  const ticket = unwrapTicket(result);
+  return typeof ticket.status === "string" ? ticket.status : undefined;
+}
+
+function extractContentPath(result: Record<string, unknown>): string | undefined {
+  const ticket = unwrapTicket(result);
+  return typeof ticket.content_path === "string" ? ticket.content_path : undefined;
+}
+
+function readRequiredTicketContent(
+  ticketId: string,
+  contentPath: string | undefined,
+  toolName: string,
+): string {
+  if (!contentPath) {
+    throw new Error(`${toolName}: ticket ${ticketId} is missing content_path`);
+  }
+
+  let overview: string;
+  try {
+    overview = readFileSync(resolve(contentPath), "utf-8");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${toolName}: failed to read content.md for ticket ${ticketId}: ${message}`);
+  }
+
+  if (!overview.trim()) {
+    throw new Error(`${toolName}: approved overview in content.md must not be blank`);
+  }
+
+  return overview;
+}
+
 async function loadTicket(id: string): Promise<Record<string, unknown>> {
   return tndmJson<Record<string, unknown>>(["ticket", "show", id]);
+}
+
+async function loadTaskList(id: string): Promise<FlowTaskListEntry[]> {
+  const tasks = await tndmJson<unknown>(["ticket", "task", "list", id]);
+  if (!Array.isArray(tasks)) {
+    throw new Error(`supi_flow: task list for ticket ${id} did not return an array`);
+  }
+  return filterFlowTasks(tasks);
 }
 
 async function ensureTaskDetailDoc(id: string, taskNumber: number): Promise<{ path: string }> {

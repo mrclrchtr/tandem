@@ -22,7 +22,7 @@ Start with:
 - `crates/xtask` — dev tooling, including `cargo xtask check-arch`.
 - `docs/` — product and architecture docs; start with `docs/vision.md`, `docs/decisions.md`, and `docs/architecture.md`.
 - `target/` — local build output; do not commit.
-- `plugins/supi-flow` — PI-only extension using conventional directory layout (`extensions/`, `skills/`, `prompts/`). Spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. Registers 6 custom tools (`supi_tndm_cli` plus 5 `supi_flow_*` tools) and auto-discovers 5 flow skills + 1 prompt template. Not a Claude Code plugin.
+- `plugins/supi-flow` — PI-only extension using conventional directory layout (`extensions/`, `skills/`, `prompts/`). Spec-driven workflow (brainstorm → plan → apply → archive) coupled to TNDM ticket coordination. Registers 7 custom tools (`supi_tndm_cli` plus 6 `supi_flow_*` tools, including `supi_flow_apply`) and auto-discovers 5 flow skills + 1 prompt template. Not a Claude Code plugin.
   See `plugins/supi-flow/CLAUDE.md` for detailed guidance.
 
 ## Workspace invariants (Rust)
