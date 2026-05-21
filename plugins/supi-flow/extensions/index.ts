@@ -121,7 +121,7 @@ export default function (pi: ExtensionAPI) {
     label: "Flow Apply",
     description:
       "Start the apply phase for a planned ticket. " +
-      "Loads the approved content.md overview, returns the structured task manifest, and transitions flow:planned tickets to status=in_progress with flow:applying.",
+      "Loads the approved content.md overview, returns the structured task manifest, transitions flow:planned tickets to status=in_progress with flow:applying, and preserves the current in_progress/blocked status for already-applying tickets.",
     promptSnippet: "Start the apply phase for a TNDM flow ticket",
     promptGuidelines: [
       "Use supi_flow_apply at the beginning of implementation to load the approved overview and task manifest, and to move a planned ticket into flow:applying when needed.",
@@ -177,7 +177,7 @@ export default function (pi: ExtensionAPI) {
     label: "Flow Close",
     description:
       "Close a ticket and finalize the flow. " +
-      "Writes verification results to archive.md, sets status=done, and tags=flow:done.",
+      "Requires flow:applying with a non-empty all-done task list, writes verification results to archive.md, sets status=done, and tags=flow:done.",
     promptSnippet: "Close a TNDM ticket after implementation and verification",
     promptGuidelines: [
       "Use supi_flow_close at the end of the archive phase after all verification is complete",

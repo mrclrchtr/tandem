@@ -91,8 +91,8 @@ pnpm exec vitest run __tests__/cli.test.ts
 - Older tickets may still contain a legacy brainstorm sidecar document, but new flow behavior should not create it or depend on it.
 - Tickets are created for non-trivial flow work. Trivial changes can stay ticketless and close out directly in conversation.
 - `supi_flow_plan` persists overview markdown in `content.md`; normal plan-time task authoring happens separately in `state.toml` via `supi_flow_task` one task at a time.
-- `supi_flow_apply` is the apply-start entrypoint: it loads `content.md`, returns the structured task manifest, and transitions `flow:planned` tickets into `flow:applying`.
-- `supi_flow_close` requires nonblank `verification_results` and refuses to close tickets that still have incomplete structured tasks.
+- `supi_flow_apply` is the apply-start entrypoint: it loads `content.md`, returns the structured task manifest, transitions `flow:planned` tickets into `flow:applying`, and preserves the current `in_progress` or `blocked` status for already-applying tickets.
+- `supi_flow_close` requires nonblank `verification_results` and refuses to close tickets unless they are in `flow:applying` with a non-empty all-done structured task list.
 - When revising a plan on a ticket that already has tasks, start with `task_list` and reconcile the manifest via `supi_flow_task` edit/remove/add operations instead of assuming repeated add calls restart numbering at 1.
 - Keep `supi_tndm_cli` task_* actions as lower-level escape hatches for advanced/manual repair work.
 - Use headline-only tasks when possible. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task already exists.

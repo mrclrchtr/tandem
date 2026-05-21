@@ -17,9 +17,10 @@ If you haven't run the verification command for this task, you cannot check it o
 
 - A TNDM-ID was set during plan phase. Start apply with:
   `supi_flow_apply { ticket_id: "<ID>" }`
-  This loads the approved overview from `content.md`, returns the structured task list with status, title, files, verification, and any linked `detail_path`, and moves `flow:planned` tickets into `status=in_progress` with `flow:applying`.
+  This loads the approved overview from `content.md`, returns the structured task list with status, title, files, verification, and any linked `detail_path`, moves `flow:planned` tickets into `status=in_progress` with `flow:applying`, and preserves the current `in_progress` or `blocked` status for already-applying tickets.
 - Read the returned overview before starting work. If a task has a linked task doc (`detail_path`), read that task doc before implementing so you do not miss task detail captured outside the manifest.
 - If `supi_flow_apply` reports a missing overview, empty task manifest, or invalid lifecycle state, stop and resolve that gap before editing.
+- If `supi_flow_apply` returns `status: "blocked"`, stop and resolve the blocker before resuming implementation.
 - If no plan is available: ask which change to implement.
 
 ## Step 2: Review the plan critically

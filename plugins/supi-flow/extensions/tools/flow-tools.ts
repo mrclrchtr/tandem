@@ -1,5 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { tndm, tndmJson } from "../cli.js";
@@ -149,6 +149,21 @@ export async function executeFlowApply(params: FlowApplyParams) {
     throw new Error(`supi_flow_apply: ticket ${params.ticket_id} is already closed`);
   }
 
+  if (!tags.includes("flow:planned") && !tags.includes("flow:applying")) {
+    throw new Error(
+      `supi_flow_apply: ticket ${params.ticket_id} must be in flow:planned or flow:applying`,
+    );
+  }
+  if (
+    tags.includes("flow:applying") &&
+    status !== "in_progress" &&
+    status !== "blocked"
+  ) {
+    throw new Error(
+      `supi_flow_apply: ticket ${params.ticket_id} must have status in_progress or blocked when tagged flow:applying`,
+    );
+  }
+
   const overview = readRequiredTicketContent(
     params.ticket_id,
     extractContentPath(ticket),
@@ -161,6 +176,7 @@ export async function executeFlowApply(params: FlowApplyParams) {
   }
 
   let transitioned = false;
+  let applyStatus = status ?? "in_progress";
 
   if (tags.includes("flow:planned")) {
     await tndm([
@@ -175,17 +191,16 @@ export async function executeFlowApply(params: FlowApplyParams) {
       "flow:applying",
     ]);
     transitioned = true;
-  } else if (!tags.includes("flow:applying")) {
-    throw new Error(
-      `supi_flow_apply: ticket ${params.ticket_id} must be in flow:planned or flow:applying`,
-    );
+    applyStatus = "in_progress";
   }
 
   const contentPath = extractContentPath(ticket) ?? "";
   const taskCount = tasks.length;
   const transitionText = transitioned
     ? `Ticket ${params.ticket_id} moved to flow:applying.`
-    : `Ticket ${params.ticket_id} is already in flow:applying.`;
+    : applyStatus === "blocked"
+      ? `Ticket ${params.ticket_id} is already in flow:applying and currently blocked.`
+      : `Ticket ${params.ticket_id} is already in flow:applying.`;
 
   return {
     content: [
@@ -198,7 +213,7 @@ export async function executeFlowApply(params: FlowApplyParams) {
       action: "flow_apply",
       ticketId: params.ticket_id,
       transitioned,
-      status: "in_progress",
+      status: applyStatus,
       tags: "flow:applying",
       contentPath,
       overview,
@@ -516,7 +531,29 @@ export async function executeFlowClose(params: FlowCloseParams) {
     throw new Error("supi_flow_close: verification_results is required");
   }
 
+  const ticket = await loadTicket(params.ticket_id);
+  const status = extractTicketStatus(ticket);
+  const tags = extractTicketTags(ticket);
+
+  if (status === "done" || tags.includes("flow:done")) {
+    throw new Error(`supi_flow_close: ticket ${params.ticket_id} is already closed`);
+  }
+  if (!tags.includes("flow:applying")) {
+    throw new Error(
+      `supi_flow_close: ticket ${params.ticket_id} must be in flow:applying before close`,
+    );
+  }
+  if (status !== "in_progress" && status !== "blocked") {
+    throw new Error(
+      `supi_flow_close: ticket ${params.ticket_id} must have status in_progress or blocked before close`,
+    );
+  }
+
   const tasks = await loadTaskList(params.ticket_id);
+  if (tasks.length === 0) {
+    throw new Error(`supi_flow_close: ticket ${params.ticket_id} has no structured tasks`);
+  }
+
   const incompleteTasks = tasks.filter((task) => task.status !== "done");
   if (incompleteTasks.length > 0) {
     const taskList = incompleteTasks
@@ -649,7 +686,7 @@ function readRequiredTicketContent(
 
   let overview: string;
   try {
-    overview = readFileSync(resolve(contentPath), "utf-8");
+    overview = readFileSync(resolveTicketPath(contentPath), "utf-8");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${toolName}: failed to read content.md for ticket ${ticketId}: ${message}`);
@@ -660,6 +697,30 @@ function readRequiredTicketContent(
   }
 
   return overview;
+}
+
+function resolveTicketPath(ticketPath: string): string {
+  if (isAbsolute(ticketPath)) {
+    return ticketPath;
+  }
+
+  return resolve(findRepoRoot(), ticketPath);
+}
+
+function findRepoRoot(startDir = process.cwd()): string {
+  let current = resolve(startDir);
+
+  while (true) {
+    if (existsSync(join(current, ".git")) || existsSync(join(current, ".tndm"))) {
+      return current;
+    }
+
+    const parent = dirname(current);
+    if (parent === current) {
+      throw new Error(`failed to locate repository root from ${startDir}`);
+    }
+    current = parent;
+  }
 }
 
 async function loadTicket(id: string): Promise<Record<string, unknown>> {
