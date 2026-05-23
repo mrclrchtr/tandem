@@ -42,13 +42,13 @@ describe("executeTndmCli list", () => {
 });
 
 describe("executeTndmCli task_add", () => {
-  it("keeps headline-only tasks manifest-only", async () => {
+  it("task_add delegates to Rust CLI without extra detail calls when no detail provided", async () => {
     vi.mocked(tndmJson).mockResolvedValue({ ok: true });
 
     await executeTndmCli({
       action: "task_add",
-      id: "TNDM-HEAD",
-      task_title: "Headline only",
+      id: "TNDM-ADD",
+      task_title: "Simple task",
     });
 
     expect(vi.mocked(tndmJson)).toHaveBeenCalledTimes(1);
@@ -56,9 +56,9 @@ describe("executeTndmCli task_add", () => {
       "ticket",
       "task",
       "add",
-      "TNDM-HEAD",
+      "TNDM-ADD",
       "--title",
-      "Headline only",
+      "Simple task",
     ]);
     expect(vi.mocked(tndm)).not.toHaveBeenCalled();
   });
@@ -185,89 +185,6 @@ describe("executeTndmCli task_edit", () => {
       "TNDM-CLEAR",
       "2",
       "--clear-files",
-    ]);
-  });
-
-  it("clears linked task detail without issuing a no-op task edit", async () => {
-    const finalTicket = {
-      ticket: {
-        state: {
-          tasks: [{ number: 3, title: "Existing task", status: "todo" }],
-        },
-      },
-    };
-
-    vi.mocked(tndmJson)
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce(finalTicket);
-
-    const result = await executeTndmCli({
-      action: "task_edit",
-      id: "TNDM-CLEAR",
-      task_number: 3,
-      task_clear_detail: true,
-    });
-
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket",
-      "task",
-      "detail",
-      "clear",
-      "TNDM-CLEAR",
-      "3",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket",
-      "show",
-      "TNDM-CLEAR",
-    ]);
-    expect(result.details.result).toEqual(finalTicket);
-    expect(result.content[0].text).not.toContain("detail_path");
-  });
-
-  it("still edits manifest fields before clearing linked task detail", async () => {
-    const finalTicket = {
-      ticket: {
-        state: {
-          tasks: [{ number: 3, title: "Renamed task", status: "todo" }],
-        },
-      },
-    };
-
-    vi.mocked(tndmJson)
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce(finalTicket);
-
-    await executeTndmCli({
-      action: "task_edit",
-      id: "TNDM-CLEAR",
-      task_number: 3,
-      task_title: "Renamed task",
-      task_clear_detail: true,
-    });
-
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket",
-      "task",
-      "edit",
-      "TNDM-CLEAR",
-      "3",
-      "--title",
-      "Renamed task",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket",
-      "task",
-      "detail",
-      "clear",
-      "TNDM-CLEAR",
-      "3",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
-      "ticket",
-      "show",
-      "TNDM-CLEAR",
     ]);
   });
 });

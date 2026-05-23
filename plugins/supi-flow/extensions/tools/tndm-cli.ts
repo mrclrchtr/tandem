@@ -102,9 +102,6 @@ export const supi_tndm_cli_params = Type.Object({
   task_detail: Type.Optional(
     Type.String({ description: "Optional markdown body for a task detail doc" }),
   ),
-  task_clear_detail: Type.Optional(
-    Type.Boolean({ description: "Explicitly detach a task detail doc link" }),
-  ),
   task_json: Type.Optional(
     Type.String({ description: "JSON array of tasks (required for task_set)" }),
   ),
@@ -302,9 +299,6 @@ export async function executeTndmCli(params: TndmCliParams) {
     case "task_edit": {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_edit");
       if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_edit");
-      if (params.task_detail !== undefined && params.task_clear_detail) {
-        throw new Error("supi_tndm_cli: task_detail and task_clear_detail cannot be used together");
-      }
       const args: string[] = ["ticket", "task", "edit", params.id, String(params.task_number)];
       if (params.task_title !== undefined) args.push("--title", params.task_title);
       if (params.task_files !== undefined) {
@@ -339,16 +333,6 @@ export async function executeTndmCli(params: TndmCliParams) {
           params.task_detail,
         );
         await tndm(["ticket", "sync", params.id]);
-        finalResult = await loadTicket(params.id);
-      } else if (params.task_clear_detail) {
-        await tndmJson([
-          "ticket",
-          "task",
-          "detail",
-          "clear",
-          params.id,
-          String(params.task_number),
-        ]);
         finalResult = await loadTicket(params.id);
       } else if (!finalResult) {
         finalResult = await tndmJson<Record<string, unknown>>(args);

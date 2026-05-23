@@ -256,9 +256,6 @@ export const supiFlowTaskParams = Type.Object({
   detail: Type.Optional(
     Type.String({ description: "Optional markdown body for the canonical task detail doc" }),
   ),
-  clear_detail: Type.Optional(
-    Type.Boolean({ description: "Clear the linked canonical task detail doc reference during edit" }),
-  ),
 });
 
 export type FlowTaskParams = Static<typeof supiFlowTaskParams>;
@@ -272,9 +269,6 @@ export async function executeFlowTask(params: FlowTaskParams) {
   }
   if (params.notes !== undefined && params.clear_notes) {
     throw new Error("supi_flow_task: notes and clear_notes cannot be used together");
-  }
-  if (params.detail !== undefined && params.clear_detail) {
-    throw new Error("supi_flow_task: detail and clear_detail cannot be used together");
   }
 
   switch (params.operation) {
@@ -347,8 +341,7 @@ export async function executeFlowTask(params: FlowTaskParams) {
         Boolean(params.clear_verification) ||
         params.notes !== undefined ||
         Boolean(params.clear_notes) ||
-        params.detail !== undefined ||
-        Boolean(params.clear_detail);
+        params.detail !== undefined;
       if (!hasRequestedChange) {
         throw new Error("supi_flow_task: edit requires at least one field change");
       }
@@ -401,16 +394,6 @@ export async function executeFlowTask(params: FlowTaskParams) {
           params.detail,
         );
         await tndm(["ticket", "sync", params.ticket_id]);
-        finalResult = await loadTicket(params.ticket_id);
-      } else if (params.clear_detail) {
-        await tndmJson([
-          "ticket",
-          "task",
-          "detail",
-          "clear",
-          params.ticket_id,
-          String(params.task_number),
-        ]);
         finalResult = await loadTicket(params.ticket_id);
       }
 

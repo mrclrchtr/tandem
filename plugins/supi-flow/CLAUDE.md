@@ -95,7 +95,7 @@ pnpm exec vitest run __tests__/cli.test.ts
 - `supi_flow_close` requires nonblank `verification_results` and refuses to close tickets unless they are in `flow:applying` with a non-empty all-done structured task list.
 - When revising a plan on a ticket that already has tasks, start with `task_list` and reconcile the manifest via `supi_flow_task` edit/remove/add operations instead of assuming repeated add calls restart numbering at 1.
 - Keep `supi_tndm_cli` task_* actions as lower-level escape hatches for advanced/manual repair work.
-- Use headline-only tasks when possible. If a task needs real implementation detail or notices, attach an optional `tasks/task-XX.md` task doc after the task already exists.
+- Every task gets a canonical `tasks/task-XX.md` detail doc automatically at creation time. Use `detail` in `supi_flow_task` to write full implementation detail; omit it for a minimal template.
 
 ## When changing this plugin
 

@@ -160,17 +160,16 @@ Flow state is tracked with TNDM status/tag combinations:
 |---|---|
 | `content.md` | Canonical approved overview / design / plan prose |
 | `state.toml` tasks | Structured execution manifest used during apply |
-| `tasks/task-XX.md` | Optional task detail attachment for tasks that need more than a headline/files/verification/notes |
+| `tasks/task-XX.md` | Canonical task detail doc — every task gets one automatically at creation time |
 | `archive.md` | Final verification evidence written during archive/closeout |
 
 Key rules from the current implementation:
 
 - `content.md` is **overview-first** and may contain zero tasks.
 - Executable tasks live in `state.toml`, not in checklist blocks parsed from markdown.
-- Headline-only tasks are preferred when they are clear enough.
+- Every task gets a canonical `tasks/task-XX.md` detail doc automatically at creation time.
 - The common plan-time task-authoring path is `supi_flow_task`; low-level `task_*` actions remain available as escape hatches.
 - When revising a ticket that already has tasks, list the current manifest first and reconcile it with `edit` / `remove` / `add` operations instead of treating replanning as repeated append-only adds.
-- Task detail docs are optional and attached only when a task needs extra implementation detail.
 - Older tickets may still contain a legacy brainstorm sidecar document, but new flow work should not depend on it.
 
 ## Tools
@@ -199,9 +198,9 @@ Current action groups:
 
 Task-detail behavior worth knowing:
 
-- `task_add` can stay manifest-only for headline tasks
-- when `task_detail` is provided, the tool ensures the canonical task detail doc, writes the markdown body, and runs `tndm ticket sync`
-- `task_edit` can also write or clear linked task detail docs and clear file lists
+- every `task_add` automatically creates the canonical `tasks/task-XX.md` detail doc via the Rust CLI
+- when `task_detail` is provided, the tool writes the full markdown body and runs `tndm ticket sync`
+- `task_edit` can also write updated task detail docs and clear file lists
 
 ## Skills
 

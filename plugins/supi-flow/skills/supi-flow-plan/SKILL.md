@@ -59,7 +59,7 @@ Use enough detail that an agent can execute without guessing, but do not force h
 
 **Task numbering convention**: On an empty ticket, adds through `supi_flow_task` start at 1 and increase sequentially. On a ticket that already has tasks, `add` returns the next available task number. Always use the returned task number for later edits, removals, and completion.
 
-Use headline-only tasks when the title is enough. If a task needs real implementation detail or notices, pass `detail` markdown through `supi_flow_task` so it creates or updates the canonical `tasks/task-XX.md` task doc automatically.
+Every task gets a canonical `tasks/task-XX.md` detail doc automatically at creation time. When a task needs real implementation detail or notices, pass `detail` markdown through `supi_flow_task` to write the full content; omit `detail` to keep the minimal template.
 
 ## TDD by default
 
