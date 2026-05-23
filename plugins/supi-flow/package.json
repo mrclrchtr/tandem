@@ -33,6 +33,6 @@
     "@earendil-works/pi-ai": "0.75.4",
     "@earendil-works/pi-coding-agent": "0.75.4",
     "@types/node": "25.9.1",
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   }
 }
