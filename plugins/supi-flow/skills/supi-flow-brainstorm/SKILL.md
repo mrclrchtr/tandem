@@ -11,22 +11,18 @@ Turn an idea into an approved design through focused collaboration. Default to a
 Do NOT write code, scaffold anything, or take implementation action until you have presented a design and the user has approved it. This applies even to changes that seem simple.
 </HARD-GATE>
 
-## Core flow
+## Checklist
 
-1. **Explore context:** check relevant files, docs, recent commits, and existing tickets.
-2. **Check scope:** if the request really contains multiple independent changes, decompose it before going deeper.
-3. **Ask clarifying questions:** one at a time. Focus on purpose, constraints, and success criteria.
-4. **Propose 2-3 approaches:** include trade-offs and a recommendation.
-5. **Present the design:** scale detail to complexity and get approval.
-6. **Classify and decide:** propose whether this change is trivial or non-trivial.
-   - **Trivial:** single file, no tests/docs needed, one verification step, or user says "just do it".
-     → "This looks trivial — skip ticket and implement directly?"
-     If user agrees: implement directly, verify, done. No ticket.
-   - **Non-trivial:** multi-file, needs tests or docs, multi-step, or likely multi-session.
-     → Call `supi_flow_start` to create a TNDM ticket, then store the approved design in `content.md` via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
-7. **Recommend next step:**
-   - If trivial: implement directly by following the approved design.
-   - If non-trivial: `/supi-flow-plan <ID>`
+You MUST complete these items in order. Each step is expanded in the sections below.
+
+1. **Explore context** — check relevant files, docs, recent commits, and existing tickets.
+2. **Ask clarifying questions** — one at a time. Focus on purpose, constraints, and success criteria.
+3. **Propose 2-3 approaches** — include trade-offs and a recommendation.
+4. **Present the design** — scale detail to complexity, get approval per section.
+5. **Classify and persist** — decide trivial vs non-trivial, then store the design (see [Classify and persist](#classify-and-persist)).
+6. **Self-review** — run the four checks in [Self-review](#self-review), fix issues inline.
+7. **User review gate** — pause and ask the user to review the written design before proceeding.
+8. **Handoff** — present the outcome and recommend the next step.
 
 ## Understanding the idea
 
@@ -34,16 +30,6 @@ Do NOT write code, scaffold anything, or take implementation action until you ha
 - Assess scope early. If the user is really asking for several subsystems, say so and help break the work into smaller changes.
 - Ask one question per message. Multiple choice is great when it makes the decision easier.
 - Keep refining until you understand the goal, non-goals, constraints, and what success looks like.
-
-## Visual Companion
-
-If upcoming questions would be easier with mockups, diagrams, or visual comparisons, offer a visual companion once:
-
-> "Some of what we're working on could be easier to explain if I can show it to you visually. I can put together mockups, diagrams, comparisons, and other visuals as we go. Want to try it?"
-
-That offer MUST be its own message. Do not combine it with any other content. If the user declines, continue in text.
-
-Even if they accept, use visuals only when seeing the idea would help more than reading it.
 
 ## Exploring approaches
 
@@ -70,14 +56,20 @@ Keep each section proportional to the complexity. A small change may only need a
 - Include targeted cleanup when it directly helps the work.
 - Do not propose unrelated refactors.
 
-## Persistence and tracking
+## Classify and persist
 
-After approval:
+After the design is approved, decide how to store it.
 
-- **Default to conversation-first for trivial work.** Small single-session changes can keep the design in chat and implement directly without a ticket.
-- **Create a ticket for non-trivial work.** When the change is multi-file, needs tests/docs, spans multiple steps, or is likely multi-session, call `supi_flow_start` and persist the approved design in `content.md`.
-- If a ticket exists, save the design to the ticket's canonical `content.md` via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`. During plan phase, keep task authoring separate: the overview stays in `content.md`, and executable tasks are later authored one at a time via `supi_flow_task`.
-- **Retroactive escalation:** if a trivial change grows in scope mid-implementation, stop, create a retroactive ticket via `supi_flow_start`, and store a summary of completed work + new scope.
+**Trivial** — single file, no tests/docs needed, one verification step, or the user says "just do it":
+- Keep the design in chat.
+- Implement directly, verify, done. No ticket.
+
+**Non-trivial** — multi-file, needs tests or docs, multi-step, or likely multi-session:
+- Call `supi_flow_start` to create a TNDM ticket.
+- Store the approved design in `content.md` via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
+- During plan phase, keep task authoring separate: the overview stays in `content.md`, and executable tasks are later authored one at a time via `supi_flow_task`.
+
+**Retroactive escalation:** if a trivial change grows in scope mid-implementation, stop, create a retroactive ticket via `supi_flow_start`, and store a summary of completed work + new scope.
 
 ## Self-review
 
