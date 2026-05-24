@@ -1,0 +1,41 @@
+# Auto-update mise.lock on Renovate PRs. Renovate's native mise lock file
+# support (updateArtifacts) should handle this, but while the hosted GitHub
+# App catches up to the change, this workflow ensures mise.lock stays in
+# sync with mise.toml dependency bumps.
+#
+# We also run mise install so mise caches the tool binaries; this avoids a
+# separate download in each subsequent CI job.
+
+name: mise-lock
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - mise.toml
+
+jobs:
+  update-lock:
+    # Only run on renovate PRs — manual PRs are caught by the CI check
+    if: startsWith(github.head_ref, 'renovate/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          experimental: true
+
+      - name: Regenerate mise.lock
+        run: mise lock
+
+      - name: Commit updated mise.lock
+        uses: stefanzweifel/git-auto-commit-action@9c7b446b0e7e8c08e1b0c0bfc29aeccfeab5dd3d # v6.2.1
+        with:
+          commit_message: "chore: update mise.lock"
+          file_pattern: "mise.lock"
