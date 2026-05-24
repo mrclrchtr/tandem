@@ -66,8 +66,8 @@ After the design is approved, decide how to store it.
 
 **Non-trivial** — multi-file, needs tests or docs, multi-step, or likely multi-session:
 - Call `supi_flow_start` to create a TNDM ticket.
-- Store the approved design in `content.md` via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
-- During plan phase, keep task authoring separate: the overview stays in `content.md`, and executable tasks are later authored one at a time via `supi_flow_task`.
+- Store the approved design in the ticket via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
+- During plan phase, keep task authoring separate: the overview stays in the ticket, and executable tasks are later authored one at a time via `supi_flow_task`.
 
 **Retroactive escalation:** if a trivial change grows in scope mid-implementation, stop, create a retroactive ticket via `supi_flow_start`, and store a summary of completed work + new scope.
 
