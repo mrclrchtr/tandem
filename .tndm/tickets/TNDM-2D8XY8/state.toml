@@ -19,62 +19,38 @@ task-08 = "sha256:e325e6ed59c03b7728c5d4ab7feceb0ad97c8c9c258acae60e12bb7da00f8a
 number = 1
 title = "Remove --detail-path from TaskCommand::Add, auto-create detail doc in handle_task_add"
 status = "done"
-files = ["crates/tandem-cli/src/cli/ticket.rs"]
-verification = "cargo test -p tandem-cli -- ticket"
-detail_path = "tasks/task-01.md"
 
 [[tasks]]
 number = 2
 title = "Remove --detail-path from TaskCommand::Edit and handle_task_edit"
 status = "done"
-files = ["crates/tandem-cli/src/cli/ticket.rs", "crates/tandem-cli/src/cli/mod.rs"]
-verification = "cargo test -p tandem-cli -- ticket"
-detail_path = "tasks/task-02.md"
 
 [[tasks]]
 number = 3
 title = "Remove TaskDetailCommand::Clear and handle_task_detail_clear"
 status = "done"
-files = ["crates/tandem-cli/src/cli/ticket.rs", "crates/tandem-cli/src/cli/mod.rs"]
-verification = "cargo test -p tandem-cli -- ticket && cargo build -p tandem-cli"
-detail_path = "tasks/task-03.md"
 
 [[tasks]]
 number = 4
 title = "Update handle_task_set to auto-create detail docs for incoming tasks"
 status = "done"
-files = ["crates/tandem-cli/src/cli/ticket.rs"]
-verification = "cargo test -p tandem-cli -- ticket"
-detail_path = "tasks/task-04.md"
 
 [[tasks]]
 number = 5
 title = "Refactor validate_registered_task_detail_path into ensure_canonical_task_detail_doc"
 status = "done"
-files = ["crates/tandem-cli/src/cli/ticket.rs"]
-verification = "cargo test -p tandem-cli -- ticket"
-detail_path = "tasks/task-05.md"
 
 [[tasks]]
 number = 6
 title = "Update CLI tests: remove clear tests, update add/edit tests for mandatory detail docs"
 status = "done"
-files = ["crates/tandem-cli/tests/ticket_cli_tests.rs"]
-verification = "cargo test -p tandem-cli"
-detail_path = "tasks/task-06.md"
 
 [[tasks]]
 number = 7
 title = "supi-flow: remove clear_detail, always ensure detail doc on task add"
 status = "done"
-files = ["plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/__tests__/flow-tools.test.ts", "plugins/supi-flow/__tests__/tndm-cli-tool.test.ts"]
-verification = "cd plugins/supi-flow && pnpm exec vitest run __tests__/flow-tools.test.ts"
-detail_path = "tasks/task-07.md"
 
 [[tasks]]
 number = 8
 title = "Update CLAUDE.md task guidance for mandatory detail docs"
 status = "done"
-files = ["plugins/supi-flow/CLAUDE.md", "plugins/supi-flow/skills/supi-flow-plan/SKILL.md"]
-verification = "Manual: read plugins/supi-flow/CLAUDE.md, verify no mention of headline-only or inline tasks"
-detail_path = "tasks/task-08.md"

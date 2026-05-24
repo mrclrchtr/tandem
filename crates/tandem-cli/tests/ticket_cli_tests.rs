@@ -2432,7 +2432,7 @@ fn task_edit_updates_fields() {
         .output()
         .expect("add task");
 
-    // Edit task 1
+    // Edit task 1 — change title
     let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
         .args([
             "ticket",
@@ -2442,14 +2442,6 @@ fn task_edit_updates_fields() {
             "1",
             "--title",
             "New title",
-            "--file",
-            "src/main.rs",
-            "--file",
-            "tests/main.rs",
-            "--verification",
-            "cargo test",
-            "--notes",
-            "Important",
             "--json",
         ])
         .current_dir(repo_root.path())
@@ -2470,68 +2462,6 @@ fn task_edit_updates_fields() {
     let tasks: Vec<serde_json::Value> =
         serde_json::from_str(&String::from_utf8(list.stdout).unwrap()).unwrap();
     assert_eq!(tasks[0]["title"], "New title");
-    assert_eq!(
-        tasks[0]["files"],
-        serde_json::json!(["src/main.rs", "tests/main.rs"])
-    );
-    assert_eq!(tasks[0]["verification"], "cargo test");
-    assert_eq!(tasks[0]["notes"], "Important");
-}
-
-#[test]
-#[allow(clippy::disallowed_methods)]
-fn task_edit_clear_files_clears_files() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    create_test_ticket(repo_root.path(), "TNDM-CLR", "Clear files test");
-
-    Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "task",
-            "add",
-            "TNDM-CLR",
-            "--title",
-            "Has files",
-            "--file",
-            "src/main.rs",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("add task");
-
-    // Clear files
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "task",
-            "edit",
-            "TNDM-CLR",
-            "1",
-            "--clear-files",
-            "--json",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("clear files");
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let list = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "task", "list", "TNDM-CLR", "--json"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("list tasks");
-    let tasks: Vec<serde_json::Value> =
-        serde_json::from_str(&String::from_utf8(list.stdout).unwrap()).unwrap();
-    assert!(
-        tasks[0]["files"].is_null() || tasks[0]["files"] == serde_json::json!([]),
-        "files should be cleared: {}",
-        tasks[0]["files"]
-    );
 }
 
 #[test]
@@ -2588,12 +2518,6 @@ fn task_set_bulk_replace() {
     assert_eq!(tasks[0]["number"], 10);
     assert_eq!(tasks[0]["title"], "New A");
     assert_eq!(tasks[0]["status"], "todo");
-    assert_eq!(
-        tasks[0]["files"],
-        serde_json::json!(["src/lib.rs", "tests/lib.rs"])
-    );
-    assert_eq!(tasks[0]["verification"], "cargo test");
-    assert_eq!(tasks[0]["notes"], "Covers core path");
     assert_eq!(tasks[1]["number"], 20);
     assert_eq!(tasks[1]["title"], "New B");
     assert_eq!(tasks[1]["status"], "done");
@@ -2740,62 +2664,38 @@ fn task_set_auto_creates_detail_docs() {
         "task_set should auto-create the canonical task detail doc"
     );
 
-    let state_text = fs::read_to_string(ticket_dir.join("state.toml")).expect("read state.toml");
+    let meta_text = fs::read_to_string(ticket_dir.join("meta.toml")).expect("read meta.toml");
     assert!(
-        state_text.contains("detail_path = \"tasks/task-01.md\""),
-        "state.toml should link the canonical task detail doc: {state_text}"
+        meta_text.contains("name = \"task-01\""),
+        "meta.toml should register the task-01 doc: {meta_text}"
+    );
+    assert!(
+        meta_text.contains("path = \"tasks/task-01.md\""),
+        "meta.toml should register the task detail doc path: {meta_text}"
     );
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
-fn task_edit_clears_optional_fields() {
+fn task_edit_rejects_replaced_args() {
     let repo_root = tempfile::tempdir().expect("tempdir");
     fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
     create_test_ticket(repo_root.path(), "TNDM-EDCLR", "Edit clear test");
 
-    // Add a task with all optional fields set
-    let _ = Command::new(env!("CARGO_BIN_EXE_tndm"))
+    Command::new(env!("CARGO_BIN_EXE_tndm"))
         .args([
             "ticket",
             "task",
             "add",
             "TNDM-EDCLR",
             "--title",
-            "With fields",
-            "--file",
-            "src/main.rs",
-            "--file",
-            "tests/main.rs",
-            "--verification",
-            "cargo test",
-            "--notes",
-            "Important",
+            "Test task",
         ])
         .current_dir(repo_root.path())
         .output()
-        .expect("add task with fields");
+        .expect("add task");
 
-    let ensure = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "task",
-            "detail",
-            "ensure",
-            "TNDM-EDCLR",
-            "1",
-            "--json",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("ensure task detail before clearing");
-    assert!(
-        ensure.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&ensure.stderr)
-    );
-
-    // Clear optional fields with empty strings (detail_path is always present)
+    // Verify --file is rejected on edit
     let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
         .args([
             "ticket",
@@ -2803,39 +2703,18 @@ fn task_edit_clears_optional_fields() {
             "edit",
             "TNDM-EDCLR",
             "1",
-            "--clear-files",
-            "--verification",
-            "",
-            "--notes",
-            "",
-            "--json",
+            "--file",
+            "src/main.rs",
         ])
         .current_dir(repo_root.path())
         .output()
-        .expect("edit task to clear fields");
+        .expect("edit with removed --file flag");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
+        stderr.contains("unexpected argument") || stderr.contains("error"),
+        "stderr was: {stderr}"
     );
-
-    // Verify fields are cleared
-    let list = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "task", "list", "TNDM-EDCLR", "--json"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("list tasks");
-    let tasks: Vec<serde_json::Value> =
-        serde_json::from_str(&String::from_utf8(list.stdout).unwrap()).unwrap();
-    assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0]["number"], 1);
-    assert_eq!(tasks[0]["title"], "With fields");
-    // Optional fields should be absent (None -> skipped in JSON)
-    assert!(!tasks[0].as_object().unwrap().contains_key("files"));
-    assert!(!tasks[0].as_object().unwrap().contains_key("verification"));
-    assert!(!tasks[0].as_object().unwrap().contains_key("notes"));
-    // detail_path is always present for tasks
-    assert!(tasks[0].as_object().unwrap().contains_key("detail_path"));
 }
 
 #[test]
@@ -2885,12 +2764,6 @@ fn task_detail_ensure_creates_and_links_canonical_doc() {
     assert!(
         ticket_dir.join("tasks").join("task-01.md").is_file(),
         "canonical task detail doc should exist"
-    );
-
-    let state_text = fs::read_to_string(ticket_dir.join("state.toml")).expect("read state.toml");
-    assert!(
-        state_text.contains("detail_path = \"tasks/task-01.md\""),
-        "state.toml should link the canonical task detail doc: {state_text}"
     );
 
     let meta_text = fs::read_to_string(ticket_dir.join("meta.toml")).expect("read meta.toml");

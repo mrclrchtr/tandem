@@ -11,19 +11,13 @@ content = "sha256:2b0fb8fe4bcad87f48bf800df3d979e71193fa95c0f71ab1bd58acdd702631
 number = 1
 title = "Normalize empty optional strings to `None` in `handle_task_add`"
 status = "done"
-file = "crates/tandem-cli/src/cli/ticket.rs"
-verification = "`cargo test --workspace` (all existing tests pass; no regressions)"
 
 [[tasks]]
 number = 2
 title = "Add idempotent `task complete` test"
 status = "done"
-file = "crates/tandem-cli/tests/ticket_cli_tests.rs"
-verification = "cargo test task_complete_twice_is_idempotent"
 
 [[tasks]]
 number = 3
 title = "Swap `show --json` → `task list --json` in three task-verification tests"
 status = "done"
-file = "crates/tandem-cli/tests/ticket_cli_tests.rs"
-verification = "`cargo test --workspace` (all tests still pass; no behavioral change)"

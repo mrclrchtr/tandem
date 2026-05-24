@@ -886,26 +886,9 @@ fn load_ticket_with_tasks() {
     assert_eq!(loaded.state.tasks[0].number, 1);
     assert_eq!(loaded.state.tasks[0].title, "Do thing");
     assert_eq!(loaded.state.tasks[0].status, TaskStatus::Todo);
-    assert_eq!(loaded.state.tasks[0].files, vec!["src/main.rs".to_string()]);
-    assert_eq!(
-        loaded.state.tasks[0].verification.as_deref(),
-        Some("cargo test")
-    );
-    assert_eq!(loaded.state.tasks[0].notes.as_deref(), Some("Important"));
-    assert_eq!(loaded.state.tasks[0].detail_path, None);
     assert_eq!(loaded.state.tasks[1].number, 2);
     assert_eq!(loaded.state.tasks[1].title, "Another task");
     assert_eq!(loaded.state.tasks[1].status, TaskStatus::Done);
-    assert_eq!(
-        loaded.state.tasks[1].files,
-        vec!["src/lib.rs".to_string(), "tests/lib.rs".to_string()]
-    );
-    assert!(loaded.state.tasks[1].verification.is_none());
-    assert!(loaded.state.tasks[1].notes.is_none());
-    assert_eq!(
-        loaded.state.tasks[1].detail_path.as_deref(),
-        Some("tasks/task-02.md")
-    );
 }
 
 #[test]

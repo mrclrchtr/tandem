@@ -11,14 +11,8 @@ content = "sha256:0060b3f2f3f3a0f1dfb713874ffc335b615a221c4e2d70c66131b1da4668d8
 number = 1
 title = "Rewrite plugins/supi-flow/README.md as a user-first PI package README grounded in the current plugin source and PI docs"
 status = "done"
-files = ["plugins/supi-flow/README.md"]
-verification = "Manual check: README.md clearly covers package purpose, shipped resources, install/load paths, workflow/document model, tool/skill summaries, version-check behavior, and development guidance."
-notes = "Test-exempt docs task. Keep the README user-facing and package-centric instead of turning it into a full reference."
 
 [[tasks]]
 number = 2
 title = "Validate the rewritten plugin README against source files, tests, and PI package/extension docs"
 status = "done"
-files = ["plugins/supi-flow/README.md", "plugins/supi-flow/package.json", "plugins/supi-flow/extensions/index.ts", "plugins/supi-flow/extensions/tools/tndm-cli.ts", "plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/extensions/cli.ts", "plugins/supi-flow/__tests__/resources.test.ts", "plugins/supi-flow/__tests__/index.test.ts"]
-verification = "Manual/source validation: confirm the final README matches the current plugin behavior and PI docs for package install, conventional directories, skills, and extensions."
-notes = "Test-exempt validation task. Use the installed PI docs and the local plugin source as the source of truth."

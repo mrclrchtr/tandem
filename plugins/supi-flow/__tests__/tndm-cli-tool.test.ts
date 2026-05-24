@@ -168,23 +168,4 @@ describe("executeTndmCli task_edit", () => {
     expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-EDITDETAIL"]);
     expect(result.details.result).toEqual(finalTicket);
   });
-  it("emits --clear-files when task_files is empty", async () => {
-    vi.mocked(tndmJson).mockResolvedValue({ ok: true });
-
-    await executeTndmCli({
-      action: "task_edit",
-      id: "TNDM-CLEAR",
-      task_number: 2,
-      task_files: [],
-    });
-
-    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
-      "ticket",
-      "task",
-      "edit",
-      "TNDM-CLEAR",
-      "2",
-      "--clear-files",
-    ]);
-  });
 });

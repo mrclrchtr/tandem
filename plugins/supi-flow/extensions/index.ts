@@ -61,11 +61,11 @@ export default function (pi: ExtensionAPI) {
       "- show: id (required)\n" +
       "- list: all (boolean), definition (ready|questions|unknown)\n" +
       "- awareness: against (git ref, required)\n" +
-      "- task_add: id (required), task_title (required), task_files, task_verification, task_notes, task_detail\n" +
+      "- task_add: id (required), task_title (required), task_detail\n" +
       "- task_list: id (required)\n" +
       "- task_complete: id (required), task_number (required)\n" +
       "- task_remove: id (required), task_number (required)\n" +
-      "- task_edit: id (required), task_number (required), task_title, task_files, task_clear_files, task_verification, task_notes, task_detail\n" +
+      "- task_edit: id (required), task_number (required), task_title, task_detail\n" +
       "- task_set: id (required), task_json (required)",
     promptSnippet: "Execute tndm ticket operations via supi_tndm_cli",
     promptGuidelines: [

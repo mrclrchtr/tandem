@@ -11,14 +11,8 @@ content = "sha256:4e3812ca2a9cd2c4409d284d0c3a1deaed5bcc7c43342ad8e5386d6958920d
 number = 1
 title = "Rewrite README.md with a capability-first overview of tandem's current feature set and CLI/API design"
 status = "done"
-files = ["README.md"]
-verification = "Manual check: README.md contains sections covering capabilities, CLI hierarchy, on-disk ticket model, document registry + fingerprints, JSON/API behavior, and PI extension positioning."
-notes = "Test-exempt docs task. Use the source inspection already completed; do not change tandem behavior or other docs."
 
 [[tasks]]
 number = 2
 title = "Validate README.md examples and terminology against live CLI help and the current source files"
 status = "done"
-files = ["README.md", "crates/tandem-core/src/ticket/meta.rs", "crates/tandem-core/src/ticket/state.rs", "crates/tandem-core/src/awareness.rs", "crates/tandem-cli/src/cli/ticket.rs", "crates/tandem-cli/src/cli/doc.rs", "crates/tandem-cli/src/cli/render.rs", "crates/tandem-cli/src/cli/util.rs"]
-verification = "./tndm-dev --help && ./tndm-dev ticket --help && ./tndm-dev ticket create --help && ./tndm-dev ticket update --help && ./tndm-dev ticket doc create --help && ./tndm-dev ticket task --help && ./tndm-dev ticket task add --help && ./tndm-dev ticket task edit --help && ./tndm-dev ticket task set --help && ./tndm-dev ticket task detail --help && ./tndm-dev awareness --help"
-notes = "Test-exempt validation task. Confirm the README's command hierarchy, storage model, and JSON/API descriptions still match the source and help text before finishing."

@@ -202,18 +202,6 @@ pub(crate) enum TaskCommand {
         #[arg(long, short = 't')]
         title: String,
 
-        /// File paths (optional; repeat --file for multiple entries).
-        #[arg(long, short = 'f')]
-        file: Vec<String>,
-
-        /// Verification command (optional).
-        #[arg(long, short = 'v')]
-        verification: Option<String>,
-
-        /// Extra notes (optional).
-        #[arg(long, short = 'n')]
-        notes: Option<String>,
-
         #[command(flatten)]
         output: OutputArgs,
     },
@@ -247,7 +235,7 @@ pub(crate) enum TaskCommand {
         #[command(flatten)]
         output: OutputArgs,
     },
-    /// Edit a task's fields.
+    /// Edit a task's title.
     Edit {
         /// Ticket ID.
         id: String,
@@ -258,22 +246,6 @@ pub(crate) enum TaskCommand {
         /// New title (optional).
         #[arg(long, short = 't')]
         title: Option<String>,
-
-        /// New file paths (optional; repeat --file for multiple entries).
-        #[arg(long, short = 'f')]
-        file: Option<Vec<String>>,
-
-        /// Clear all file paths.
-        #[arg(long, conflicts_with = "file")]
-        clear_files: bool,
-
-        /// New verification command (optional).
-        #[arg(long, short = 'v')]
-        verification: Option<String>,
-
-        /// New notes (optional).
-        #[arg(long, short = 'n')]
-        notes: Option<String>,
 
         #[command(flatten)]
         output: OutputArgs,
@@ -756,16 +728,6 @@ fn find_task(tasks: &[Task], number: u32) -> Result<(usize, &Task), anyhow::Erro
         .ok_or_else(|| anyhow::anyhow!("task {number} not found"))
 }
 
-fn normalize_task_files(files: Vec<String>) -> Vec<String> {
-    files
-        .into_iter()
-        .filter_map(|file| {
-            let trimmed = file.trim();
-            (!trimmed.is_empty()).then(|| trimmed.to_string())
-        })
-        .collect()
-}
-
 fn canonical_task_detail_doc(number: u32) -> (String, String) {
     let name = format!("task-{:02}", number);
     let path = format!("tasks/{name}.md");
@@ -793,7 +755,7 @@ fn prune_unlinked_canonical_task_detail_docs(
         .state
         .tasks
         .iter()
-        .filter_map(|task| task.detail_path.clone())
+        .map(|task| canonical_task_detail_doc(task.number).1)
         .collect::<std::collections::BTreeSet<_>>();
 
     let original_len = ticket.meta.documents.len();
@@ -873,14 +835,7 @@ fn ensure_canonical_task_detail_doc(
     Ok(rel_path)
 }
 
-pub(crate) fn handle_task_add(
-    id: String,
-    title: String,
-    file: Vec<String>,
-    verification: Option<String>,
-    notes: Option<String>,
-    json: bool,
-) -> anyhow::Result<()> {
+pub(crate) fn handle_task_add(id: String, title: String, json: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
     let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
     let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -902,20 +857,13 @@ pub(crate) fn handle_task_add(
         .unwrap_or(0)
         + 1;
 
-    let files = normalize_task_files(file);
-    let verification = verification.and_then(|v| if v.trim().is_empty() { None } else { Some(v) });
-    let notes = notes.and_then(|n| if n.trim().is_empty() { None } else { Some(n) });
-    let detail_path =
+    let _ =
         ensure_canonical_task_detail_doc(&repo_root, &ticket_id, &mut ticket, next_number, &title)?;
 
     ticket.state.tasks.push(Task {
         number: next_number,
         title,
         status: TaskStatus::Todo,
-        files,
-        verification,
-        notes,
-        detail_path: Some(detail_path),
     });
 
     recompute_ticket_document_fingerprints(&repo_root, &ticket_id, &mut ticket)?;
@@ -983,15 +931,10 @@ pub(crate) fn handle_task_remove(id: String, number: u32, json: bool) -> anyhow:
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn handle_task_edit(
     id: String,
     number: u32,
     title: Option<String>,
-    file: Option<Vec<String>>,
-    clear_files: bool,
-    verification: Option<String>,
-    notes: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -1010,26 +953,6 @@ pub(crate) fn handle_task_edit(
         }
         task.title = value;
     }
-    if let Some(value) = file {
-        task.files = normalize_task_files(value);
-    }
-    if clear_files {
-        task.files = Vec::new();
-    }
-    if let Some(value) = verification {
-        task.verification = if value.trim().is_empty() {
-            None
-        } else {
-            Some(value)
-        };
-    }
-    if let Some(value) = notes {
-        task.notes = if value.trim().is_empty() {
-            None
-        } else {
-            Some(value)
-        };
-    }
 
     persist_and_output(&store, &ticket, json)?;
     Ok(())
@@ -1043,7 +966,7 @@ pub(crate) fn handle_task_detail_ensure(id: String, number: u32, json: bool) -> 
     let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
 
     let mut ticket = load_and_bump(&store, &ticket_id)?;
-    let (idx, _) = find_task(&ticket.state.tasks, number)?;
+    let (_idx, _) = find_task(&ticket.state.tasks, number)?;
     let (doc_name, rel_path) = canonical_task_detail_doc(number);
     let ticket_path = ticket_dir(&repo_root, &ticket_id);
     let abs_path = ticket_path.join(&rel_path);
@@ -1096,7 +1019,6 @@ pub(crate) fn handle_task_detail_ensure(id: String, number: u32, json: bool) -> 
                 path: rel_path.clone(),
             });
     }
-    ticket.state.tasks[idx].detail_path = Some(rel_path.clone());
     recompute_ticket_document_fingerprints(&repo_root, &ticket_id, &mut ticket)?;
 
     if let Err(error) = store
@@ -1152,13 +1074,13 @@ pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> any
         anyhow::bail!("task title must not be empty");
     }
     for task in &mut new_tasks {
-        task.detail_path = Some(ensure_canonical_task_detail_doc(
+        let _ = ensure_canonical_task_detail_doc(
             &repo_root,
             &ticket_id,
             &mut ticket,
             task.number,
             &task.title,
-        )?);
+        )?;
     }
 
     ticket.state.tasks = new_tasks;

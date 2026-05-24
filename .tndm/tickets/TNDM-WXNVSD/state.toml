@@ -11,6 +11,3 @@ content = "sha256:2a864fb666c18bb6c3c5079843dd231a1e1b67ac4f7b21d9185e0e471736bc
 number = 1
 title = "Update supi-flow plan/replan guidance to reconcile existing task manifests"
 status = "done"
-files = ["plugins/supi-flow/skills/supi-flow-plan/SKILL.md", "plugins/supi-flow/README.md", "plugins/supi-flow/CLAUDE.md"]
-verification = 'rg -n "task_list|replan|reconcile|edit matching|remove stale|next available number|empty ticket" plugins/supi-flow/skills/supi-flow-plan/SKILL.md plugins/supi-flow/README.md plugins/supi-flow/CLAUDE.md'
-notes = "Docs-only follow-up. Explain the fresh-plan path versus the replan/reconcile path so repeated add calls are not presented as the only workflow."

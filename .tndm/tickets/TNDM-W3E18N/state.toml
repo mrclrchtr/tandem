@@ -1,0 +1,48 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-24T12:05:42.872435Z"
+revision = 24
+
+[document_fingerprints]
+archive = "sha256:769708f5b3eb94b0a0c65f9f6c3f04d21de42edb28458df110f257e42b925c20"
+content = "sha256:ed330df50e9b6a177f9e5823bde07eb352fcc634a5b31c4bcfc60906b3ac784e"
+
+[[tasks]]
+number = 1
+title = "Shrink Task struct in tandem-core mod.rs"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Update state.rs tests for removed task fields"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Shrink TaskSnapshotEntry in awareness.rs and update awareness tests"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Shrink RawTask in tandem-storage; ensure backward-compat for old state files"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Remove --file, --verification, --notes, --clear-files from CLI task add/edit; stop setting detail_path on task struct"
+status = "done"
+
+[[tasks]]
+number = 6
+title = "Wire changed CLI args in cli/mod.rs (remove file/verification/notes from task commands)"
+status = "done"
+
+[[tasks]]
+number = 7
+title = "Update CLI integration tests for changed task commands"
+status = "done"
+
+[[tasks]]
+number = 8
+title = "Full verification: mise run check (fmt, compile, arch, clippy, test)"
+status = "done"

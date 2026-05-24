@@ -133,14 +133,9 @@ pub(crate) fn run() -> anyhow::Result<()> {
                 ticket::handle_ticket_sync(id, output.json)
             }
             ticket::TicketCommand::Task { command } => match command {
-                ticket::TaskCommand::Add {
-                    id,
-                    title,
-                    file,
-                    verification,
-                    notes,
-                    output,
-                } => ticket::handle_task_add(id, title, file, verification, notes, output.json),
+                ticket::TaskCommand::Add { id, title, output } => {
+                    ticket::handle_task_add(id, title, output.json)
+                }
                 ticket::TaskCommand::List { id, output } => {
                     ticket::handle_task_list(id, output.json)
                 }
@@ -154,21 +149,8 @@ pub(crate) fn run() -> anyhow::Result<()> {
                     id,
                     number,
                     title,
-                    file,
-                    clear_files,
-                    verification,
-                    notes,
                     output,
-                } => ticket::handle_task_edit(
-                    id,
-                    number,
-                    title,
-                    file,
-                    clear_files,
-                    verification,
-                    notes,
-                    output.json,
-                ),
+                } => ticket::handle_task_edit(id, number, title, output.json),
                 ticket::TaskCommand::Detail { command } => match command {
                     ticket::TaskDetailCommand::Ensure { id, number, output } => {
                         ticket::handle_task_detail_ensure(id, number, output.json)

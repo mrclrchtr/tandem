@@ -408,10 +408,6 @@ describe("executeFlowTask", () => {
           number: 1,
           title: "Detailed task",
           status: "todo",
-          files: ["src/task.ts", "tests/task.test.ts"],
-          verification: "pnpm exec vitest run",
-          notes: "Needs task detail",
-          detail_path: "tasks/task-01.md",
         },
       ],
     };
@@ -425,9 +421,6 @@ describe("executeFlowTask", () => {
             number: 1,
             title: "Detailed task",
             status: "todo",
-            files: ["src/task.ts", "tests/task.test.ts"],
-            verification: "pnpm exec vitest run",
-            notes: "Needs task detail",
           },
         ],
       })
@@ -439,9 +432,6 @@ describe("executeFlowTask", () => {
       ticket_id: "TNDM-TASK",
       operation: "add",
       title: "Detailed task",
-      files: ["src/task.ts", "tests/task.test.ts"],
-      verification: "pnpm exec vitest run",
-      notes: "Needs task detail",
       detail: "Implementation notes go here.",
     });
 
@@ -452,14 +442,6 @@ describe("executeFlowTask", () => {
       "TNDM-TASK",
       "--title",
       "Detailed task",
-      "--file",
-      "src/task.ts",
-      "--file",
-      "tests/task.test.ts",
-      "--verification",
-      "pnpm exec vitest run",
-      "--notes",
-      "Needs task detail",
     ]);
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
       "ticket",

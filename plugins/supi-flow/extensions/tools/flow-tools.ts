@@ -8,9 +8,6 @@ type FlowTaskListEntry = {
   number?: number;
   title?: string;
   status?: string;
-  files?: string[];
-  verification?: string;
-  notes?: string;
   detail_path?: string;
 };
 
@@ -235,24 +232,7 @@ export const supiFlowTaskParams = Type.Object({
   title: Type.Optional(
     Type.String({ description: "Task title (required for add)" }),
   ),
-  files: Type.Optional(
-    Type.Array(Type.String(), { description: "File paths for the task" }),
-  ),
-  clear_files: Type.Optional(
-    Type.Boolean({ description: "Clear all file paths during edit" }),
-  ),
-  verification: Type.Optional(
-    Type.String({ description: "Verification command for the task" }),
-  ),
-  clear_verification: Type.Optional(
-    Type.Boolean({ description: "Clear the verification command during edit" }),
-  ),
-  notes: Type.Optional(
-    Type.String({ description: "Extra notes for the task" }),
-  ),
-  clear_notes: Type.Optional(
-    Type.Boolean({ description: "Clear task notes during edit" }),
-  ),
+
   detail: Type.Optional(
     Type.String({ description: "Optional markdown body for the canonical task detail doc" }),
   ),
@@ -261,15 +241,7 @@ export const supiFlowTaskParams = Type.Object({
 export type FlowTaskParams = Static<typeof supiFlowTaskParams>;
 
 export async function executeFlowTask(params: FlowTaskParams) {
-  if (params.files !== undefined && params.clear_files) {
-    throw new Error("supi_flow_task: files and clear_files cannot be used together");
-  }
-  if (params.verification !== undefined && params.clear_verification) {
-    throw new Error("supi_flow_task: verification and clear_verification cannot be used together");
-  }
-  if (params.notes !== undefined && params.clear_notes) {
-    throw new Error("supi_flow_task: notes and clear_notes cannot be used together");
-  }
+
 
   switch (params.operation) {
     case "add": {
@@ -280,23 +252,7 @@ export async function executeFlowTask(params: FlowTaskParams) {
         throw new Error("supi_flow_task: title is required for add");
       }
 
-      const args: string[] = [
-        "ticket",
-        "task",
-        "add",
-        params.ticket_id,
-        "--title",
-        params.title,
-      ];
-      for (const file of params.files ?? []) {
-        args.push("--file", file);
-      }
-      if (params.verification && params.verification.trim()) {
-        args.push("--verification", params.verification);
-      }
-      if (params.notes && params.notes.trim()) {
-        args.push("--notes", params.notes);
-      }
+      const args: string[] = ["ticket", "task", "add", params.ticket_id, "--title", params.title];
 
       const result = await tndmJson<Record<string, unknown>>(args);
       const taskNumber = extractLatestTaskNumber(result);
@@ -335,66 +291,33 @@ export async function executeFlowTask(params: FlowTaskParams) {
       }
       const hasRequestedChange =
         params.title !== undefined ||
-        params.files !== undefined ||
-        Boolean(params.clear_files) ||
-        params.verification !== undefined ||
-        Boolean(params.clear_verification) ||
-        params.notes !== undefined ||
-        Boolean(params.clear_notes) ||
         params.detail !== undefined;
       if (!hasRequestedChange) {
         throw new Error("supi_flow_task: edit requires at least one field change");
       }
 
-      const args: string[] = [
-        "ticket",
-        "task",
-        "edit",
-        params.ticket_id,
-        String(params.task_number),
-      ];
+      const args: string[] = ["ticket", "task", "edit", params.ticket_id, String(params.task_number)];
       if (params.title !== undefined) args.push("--title", params.title);
-      if (params.files !== undefined) {
-        if (params.files.length === 0) {
-          args.push("--clear-files");
-        } else {
-          for (const file of params.files) args.push("--file", file);
-        }
-      } else if (params.clear_files) {
-        args.push("--clear-files");
-      }
-      if (params.verification !== undefined) {
-        args.push("--verification", params.verification);
-      } else if (params.clear_verification) {
-        args.push("--verification", "");
-      }
-      if (params.notes !== undefined) {
-        args.push("--notes", params.notes);
-      } else if (params.clear_notes) {
-        args.push("--notes", "");
-      }
 
       const hasManifestFieldChanges = args.length > 5;
-      const result = hasManifestFieldChanges
-        ? await tndmJson<Record<string, unknown>>(args)
-        : undefined;
-      let finalResult = result;
+      let finalResult: Record<string, unknown> | undefined;
 
       if (params.detail !== undefined) {
         const detailResult = await ensureTaskDetailDoc(params.ticket_id, params.task_number);
-        const taskSnapshot = result ?? await loadTicket(params.ticket_id);
+        const taskSnapshot = hasManifestFieldChanges
+          ? await tndmJson<Record<string, unknown>>(args)
+          : await loadTicket(params.ticket_id);
         const taskTitle =
           params.title ??
           extractTaskTitle(taskSnapshot, params.task_number) ??
           `Task ${params.task_number}`;
-        writeTaskDetailDoc(
-          detailResult.path,
-          params.task_number,
-          taskTitle,
-          params.detail,
-        );
+        writeTaskDetailDoc(detailResult.path, params.task_number, taskTitle, params.detail);
         await tndm(["ticket", "sync", params.ticket_id]);
         finalResult = await loadTicket(params.ticket_id);
+      } else if (hasManifestFieldChanges) {
+        finalResult = await tndmJson<Record<string, unknown>>(args);
+      } else {
+        finalResult = await tndmJson<Record<string, unknown>>(args);
       }
 
       return {
@@ -626,9 +549,18 @@ function extractTasks(result: Record<string, unknown>): FlowTaskListEntry[] {
 }
 
 function filterFlowTasks(tasks: unknown[]): FlowTaskListEntry[] {
-  return tasks.filter(
-    (task): task is FlowTaskListEntry => typeof task === "object" && task !== null,
-  );
+  return tasks
+    .filter(
+      (task): task is FlowTaskListEntry => typeof task === "object" && task !== null,
+    )
+    .map((task) => {
+      // Derive detail_path from canonical naming convention
+      if (task.number !== undefined && !task.detail_path) {
+        const num = String(task.number).padStart(2, "0");
+        return { ...task, detail_path: `tasks/task-${num}.md` };
+      }
+      return task;
+    });
 }
 
 function unwrapTicket(result: Record<string, unknown>): Record<string, unknown> {

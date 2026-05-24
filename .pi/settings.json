@@ -1,5 +1,11 @@
 {
   "packages": [
-    "../plugins/supi-flow"
+    "../plugins/supi-flow",
+    "npm:@mrclrchtr/supi",
+    "npm:@mrclrchtr/supi-web",
+    "npm:@mrclrchtr/supi-cache",
+    "npm:@mrclrchtr/supi-insights",
+    "npm:@mrclrchtr/supi-review",
+    "npm:@mrclrchtr/supi-rtk"
   ]
 }

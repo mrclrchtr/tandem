@@ -92,14 +92,13 @@ Task subcommands:
 
 | Command | Purpose |
 |---|---|
-| `tndm ticket task add` | Add a numbered task with optional files, verification command, notes, and linked detail path |
+| `tndm ticket task add` | Add a numbered task with optional linked detail doc |
 | `tndm ticket task list` | List tasks in table form or as JSON |
 | `tndm ticket task complete` | Mark a task as done |
 | `tndm ticket task remove` | Remove a task |
-| `tndm ticket task edit` | Change task title, files, verification, notes, or detail linkage |
+| `tndm ticket task edit` | Change task title or detail linkage |
 | `tndm ticket task set` | Bulk-replace the entire task list from a JSON array |
 | `tndm ticket task detail ensure` | Ensure the canonical `tasks/task-XX.md` detail doc exists and is linked |
-| `tndm ticket task detail clear` | Detach a task detail doc reference without deleting the file |
 
 Design notes from the current source:
 
@@ -169,11 +168,9 @@ tndm ticket create "Refresh README overview" \
 tndm ticket doc create TNDM-A1B2C3 plan
 # → .tndm/tickets/TNDM-A1B2C3/plan.md
 
-# Add an executable task manifest entry
+# Add an executable task manifest entry (rich metadata goes in the detail doc)
 tndm ticket task add TNDM-A1B2C3 \
-  --title "Rewrite README capabilities section" \
-  --file README.md \
-  --verification "manual review against --help output"
+  --title "Rewrite README capabilities section"
 
 # If the task needs its own attachment, ensure the canonical detail doc exists
 tndm ticket task detail ensure TNDM-A1B2C3 1
@@ -232,10 +229,7 @@ Example `ticket show --json` shape:
     {
       "number": 1,
       "title": "Rewrite README capabilities section",
-      "status": "todo",
-      "files": ["README.md"],
-      "verification": "manual review against --help output",
-      "detail_path": "tasks/task-01.md"
+      "status": "todo"
     }
   ],
   "content_path": ".tndm/tickets/TNDM-A1B2C3/content.md"
@@ -266,10 +260,7 @@ Example awareness diff shape:
             {
               "number": 1,
               "title": "Rewrite README capabilities section",
-              "status": "todo",
-              "files": ["README.md"],
-              "verification": "manual review against --help output",
-              "detail_path": "tasks/task-01.md"
+              "status": "todo"
             }
           ],
           "against": []

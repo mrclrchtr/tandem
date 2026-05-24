@@ -87,18 +87,7 @@ export const supi_tndm_cli_params = Type.Object({
   task_number: Type.Optional(
     Type.Number({ description: "Task number (required for task_complete, task_remove, task_edit)" }),
   ),
-  task_files: Type.Optional(
-    Type.Array(Type.String(), { description: "File paths for the task" }),
-  ),
-  task_clear_files: Type.Optional(
-    Type.Boolean({ description: "Clear all file paths for the task" }),
-  ),
-  task_verification: Type.Optional(
-    Type.String({ description: "Verification command for the task" }),
-  ),
-  task_notes: Type.Optional(
-    Type.String({ description: "Extra notes for the task" }),
-  ),
+
   task_detail: Type.Optional(
     Type.String({ description: "Optional markdown body for a task detail doc" }),
   ),
@@ -116,11 +105,11 @@ export const supi_tndm_cli_params = Type.Object({
  *   show       → tndm ticket show <id> --json
  *   list       → tndm ticket list [--all] [--definition <state>] --json
  *   awareness  → tndm awareness --against <ref> --json
- *   task_add       → tndm ticket task add <id> --title <title> [--file <path> ...] [--verification] [--notes] --json, optionally followed by task detail ensure + sync when task_detail is provided
+ *   task_add       → tndm ticket task add <id> --title <title> --json, optionally followed by task detail ensure + sync when task_detail is provided
  *   task_list      → tndm ticket task list <id> --json
  *   task_complete  → tndm ticket task complete <id> <number> --json
  *   task_remove    → tndm ticket task remove <id> <number> --json
- *   task_edit      → tndm ticket task edit <id> <number> [--title] [--file <path> ...] [--verification] [--notes] --json, optionally followed by task detail ensure/clear
+ *   task_edit      → tndm ticket task edit <id> <number> [--title] --json, optionally followed by task detail ensure/clear
  *   task_set       → tndm ticket task set <id> --tasks <json> --json
  *   doc_create and sync are internal operations used by flow tools, not exposed here.
  */
@@ -239,11 +228,6 @@ export async function executeTndmCli(params: TndmCliParams) {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_add");
       if (!params.task_title) throw new Error("supi_tndm_cli: task_title is required for task_add");
       const args: string[] = ["ticket", "task", "add", params.id, "--title", params.task_title];
-      for (const file of params.task_files ?? []) {
-        args.push("--file", file);
-      }
-      if (params.task_verification) args.push("--verification", params.task_verification);
-      if (params.task_notes) args.push("--notes", params.task_notes);
       const result = await tndmJson<Record<string, unknown>>(args);
       let finalResult = result;
 
@@ -301,27 +285,15 @@ export async function executeTndmCli(params: TndmCliParams) {
       if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_edit");
       const args: string[] = ["ticket", "task", "edit", params.id, String(params.task_number)];
       if (params.task_title !== undefined) args.push("--title", params.task_title);
-      if (params.task_files !== undefined) {
-        if (params.task_files.length === 0) {
-          args.push("--clear-files");
-        } else {
-          for (const file of params.task_files) args.push("--file", file);
-        }
-      } else if (params.task_clear_files) {
-        args.push("--clear-files");
-      }
-      if (params.task_verification !== undefined) args.push("--verification", params.task_verification);
-      if (params.task_notes !== undefined) args.push("--notes", params.task_notes);
 
       const hasManifestFieldChanges = args.length > 5;
-      const result = hasManifestFieldChanges
-        ? await tndmJson<Record<string, unknown>>(args)
-        : undefined;
-      let finalResult = result;
+      let finalResult: Record<string, unknown> | undefined;
 
       if (params.task_detail !== undefined) {
         const detailResult = await ensureTaskDetailDoc(params.id, params.task_number);
-        const taskSnapshot = result ?? await loadTicket(params.id);
+        const taskSnapshot = hasManifestFieldChanges
+          ? await tndmJson<Record<string, unknown>>(args)
+          : await loadTicket(params.id);
         const taskTitle =
           params.task_title ??
           extractTaskTitle(taskSnapshot, params.task_number) ??
@@ -334,7 +306,9 @@ export async function executeTndmCli(params: TndmCliParams) {
         );
         await tndm(["ticket", "sync", params.id]);
         finalResult = await loadTicket(params.id);
-      } else if (!finalResult) {
+      } else if (hasManifestFieldChanges) {
+        finalResult = await tndmJson<Record<string, unknown>>(args);
+      } else {
         finalResult = await tndmJson<Record<string, unknown>>(args);
       }
 

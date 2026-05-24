@@ -13,32 +13,18 @@ task-02 = "sha256:65a0926cde0e391e55f1ab5e0535ca4d233838c1f368dc4e3702a82beebf83
 number = 1
 title = "Add `supi_flow_apply` and register it as the apply-phase entrypoint"
 status = "done"
-files = ["plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/extensions/index.ts", "plugins/supi-flow/__tests__/flow-tools.test.ts", "plugins/supi-flow/__tests__/resources.test.ts"]
-verification = "cd plugins/supi-flow && pnpm exec vitest run __tests__/flow-tools.test.ts __tests__/resources.test.ts"
-notes = "TDD task: add failing tests for apply transition/context loading and seventh-tool registration before implementation."
-detail_path = "tasks/task-01.md"
 
 [[tasks]]
 number = 2
 title = "Enforce closeout evidence and incomplete-task lifecycle guards"
 status = "done"
-files = ["plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/__tests__/flow-tools.test.ts"]
-verification = "cd plugins/supi-flow && pnpm exec vitest run __tests__/flow-tools.test.ts"
-notes = "TDD task: add failing tests for missing archive evidence and unfinished task manifests before tightening `supi_flow_close`."
-detail_path = "tasks/task-02.md"
 
 [[tasks]]
 number = 3
 title = "Align docs and skills with the new apply tool and non-trivial ticket policy"
 status = "done"
-files = ["plugins/supi-flow/README.md", "plugins/supi-flow/CLAUDE.md", "plugins/supi-flow/skills/supi-flow-brainstorm/SKILL.md", "plugins/supi-flow/skills/supi-flow-apply/SKILL.md", "plugins/supi-flow/skills/supi-flow-archive/SKILL.md", "CLAUDE.md"]
-verification = 'cd /Users/mrclrchtr/Development/mrclrchtr/tandem-wt3 && rg -n "supi_flow_apply|7 custom|non-trivial|verification evidence|flow:applying" plugins/supi-flow/README.md plugins/supi-flow/CLAUDE.md plugins/supi-flow/skills/supi-flow-brainstorm/SKILL.md plugins/supi-flow/skills/supi-flow-apply/SKILL.md plugins/supi-flow/skills/supi-flow-archive/SKILL.md CLAUDE.md'
-notes = "Test-exempt docs task: verify that every updated document consistently describes non-trivial ticket creation, `supi_flow_apply` as the apply-start tool, and required archive evidence."
 
 [[tasks]]
 number = 4
 title = "Run full supi-flow verification after the lifecycle update"
 status = "done"
-files = ["plugins/supi-flow/extensions/index.ts", "plugins/supi-flow/extensions/tools/flow-tools.ts", "plugins/supi-flow/__tests__/flow-tools.test.ts", "plugins/supi-flow/__tests__/resources.test.ts", "plugins/supi-flow/README.md", "plugins/supi-flow/CLAUDE.md", "plugins/supi-flow/skills/supi-flow-brainstorm/SKILL.md", "plugins/supi-flow/skills/supi-flow-apply/SKILL.md", "plugins/supi-flow/skills/supi-flow-archive/SKILL.md", "CLAUDE.md"]
-verification = "cd plugins/supi-flow && pnpm exec tsc --noEmit && pnpm exec vitest run"
-notes = "Verification-only task: confirm the final typecheck and full plugin test suite after the behavior and documentation changes."

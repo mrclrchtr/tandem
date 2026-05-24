@@ -11,6 +11,3 @@ content = "sha256:a88804ca1371ca60398f2497ee16713005a1cfcb92e656bb381dff8d6e2801
 number = 1
 title = "Validate headline-only live add (edited)"
 status = "done"
-files = ["plugins/supi-flow/extensions/tools/flow-tools.ts"]
-verification = "Live add should return taskNumber 1 without throwing."
-notes = "Task 1 edited successfully during the live end-to-end validation."
