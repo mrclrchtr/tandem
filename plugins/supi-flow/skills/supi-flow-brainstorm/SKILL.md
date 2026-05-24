@@ -30,10 +30,11 @@ You MUST complete these items in order. Each step is expanded in the sections be
 
 ## Understanding the idea
 
-- Check the current project state first. Follow existing patterns before proposing new ones.
-- **Assess scope before asking detailed questions.** If the request describes multiple independent changes, flag this immediately — don't spend questions refining details of work that needs decomposition first. Help the user break it into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal flow. Each sub-project gets its own spec → plan → implementation cycle.
-- Ask one question per message. Multiple choice is great when it makes the decision easier.
-- Keep refining until you understand the goal, non-goals, constraints, and what success looks like.
+- **Check the current project state first.** Follow existing patterns before proposing new ones.
+- **Assess scope before asking detailed questions.** If the request spans multiple independent changes, flag it immediately. Help the user decompose into sub-projects, then brainstorm the first one.
+- **Explore the codebase before asking the user.** Read code, docs, or history first. Only ask when the answer requires judgment or intent.
+- **Ask one question per message, with a recommended answer.** Guide — don't just interrogate. The user can override, but they shouldn't have to invent answers from scratch.
+- **Walk every branch of the decision tree.** Resolve dependencies between decisions one-by-one. Don't stop at the first plausible answer — keep refining until goals, non-goals, constraints, and success criteria are clear.
 
 ## Exploring approaches
 
