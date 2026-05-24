@@ -5,11 +5,27 @@ import { tmpdir } from "node:os";
 
 // Mock cli.ts modules used by flow-tools
 vi.mock("../extensions/cli.js", () => {
-  const mockTndm = vi.fn();
-  const mockTndmJson = vi.fn();
+  const _mockTndm = vi.fn();
+  const _mockTndmJson = vi.fn();
+  // Strip trailing undefined args so existing toHaveBeenCalledWith assertions
+  // keep working after signal parameter was added.
+  const stripTrailingUndefined = (args: unknown[]) => {
+    while (args.length > 0 && args[args.length - 1] === undefined) {
+      args.pop();
+    }
+    return args;
+  };
   return {
-    tndm: mockTndm,
-    tndmJson: mockTndmJson,
+    tndm: new Proxy(_mockTndm, {
+      apply(target, _thisArg, args: unknown[]) {
+        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
+      },
+    }),
+    tndmJson: new Proxy(_mockTndmJson, {
+      apply(target, _thisArg, args: unknown[]) {
+        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
+      },
+    }),
   };
 });
 

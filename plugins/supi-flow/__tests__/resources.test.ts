@@ -5,6 +5,7 @@ import flowExtension from "../extensions/index";
 type RegisteredTool = {
   name: string;
   promptGuidelines?: string[];
+  executionMode?: string;
 };
 
 function setup(): Map<string, (...args: unknown[]) => unknown> {
@@ -48,6 +49,13 @@ describe("supi-flow extension", () => {
   it("does not register a resources_discover handler (resources are discovered via conventional directory discovery)", () => {
     const handlers = setup();
     expect(handlers.has("resources_discover")).toBe(false);
+  });
+
+  it("registers supi_tndm_cli with sequential execution mode", () => {
+    const handlers = setup();
+    const tool = getRegisteredTool(handlers, "supi_tndm_cli");
+    expect(tool).toBeDefined();
+    expect(tool!.executionMode).toBe("sequential");
   });
 
   it("registers all 7 tools", () => {

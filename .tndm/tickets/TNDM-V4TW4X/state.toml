@@ -1,0 +1,36 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-24T18:19:06.400207Z"
+revision = 25
+
+[document_fingerprints]
+archive = "sha256:60f95734090e1cd12888af6eb09279706c3d4beb490c57bcb78dd6ced9e15708"
+content = "sha256:a77cdbebc964cb5c8da638bac395553c75d34ccf3a2189de4373a8fe55a6a7c9"
+task-01 = "sha256:1041cce75fcaa1d751750c30a06e8f60c31c3b0a9d10b4fd0591875f8f2800d0"
+task-02 = "sha256:0d67df463231513f892ff537e4555ace057102286359816a6e5cf6fc2ce58c1a"
+task-03 = "sha256:a9c70ed36dc0cbe73fed24f800060fa8adc6ecf96a8710d49881f48caaa916d7"
+task-04 = "sha256:6220c81db80bc5d9dc69437f20c29dd393f8bcabb42402fc4b437458097c9fd9"
+
+[[tasks]]
+number = 1
+title = "Centralize supi-flow tool specs and registration"
+status = "done"
+detail_path = "tasks/task-01.md"
+
+[[tasks]]
+number = 2
+title = "Make tndm wrapper calls abort-aware"
+status = "done"
+detail_path = "tasks/task-02.md"
+
+[[tasks]]
+number = 3
+title = "Truncate large supi_tndm_cli model-facing output"
+status = "done"
+detail_path = "tasks/task-03.md"
+
+[[tasks]]
+number = 4
+title = "Queue task-detail and archive markdown writes"
+status = "done"
+detail_path = "tasks/task-04.md"

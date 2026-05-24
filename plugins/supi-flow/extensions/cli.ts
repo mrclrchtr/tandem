@@ -6,17 +6,22 @@ function toString(data: string | Buffer): string {
   return typeof data === "string" ? data : data.toString("utf-8");
 }
 
+interface RunOptions {
+  maxBuffer?: number;
+  timeout?: number;
+  signal?: AbortSignal;
+}
+
 async function run(
   file: string,
   args: string[],
-  options?: { maxBuffer?: number; timeout?: number },
+  options?: RunOptions,
 ): Promise<ExecResult> {
   return new Promise<ExecResult>((resolve, reject) => {
     const child = execFile(file, args, options, (error, stdout, stderr) => {
       if (error) {
         const msg = toString(stderr).trim() || error.message;
         const wrapped = new Error(`"${file} ${args.join(" ")}" failed: ${msg}`);
-        // Preserve ENOENT and similar system error codes for callers
         const errno = error as NodeJS.ErrnoException;
         if (errno.code) {
           (wrapped as NodeJS.ErrnoException).code = errno.code;
@@ -34,11 +39,14 @@ async function run(
 
 /**
  * Run a tndm subcommand and return stdout/stderr.
- * Throws on non-zero exit, timeout, or other exec error.
+ * Throws on non-zero exit, timeout, abort, or other exec error.
  */
-export async function tndm(args: string[]): Promise<ExecResult> {
+export async function tndm(
+  args: string[],
+  signal?: AbortSignal,
+): Promise<ExecResult> {
   try {
-    return await run("tndm", args, { timeout: 30_000 });
+    return await run("tndm", args, { timeout: 30_000, signal });
   } catch (error) {
     if (
       error instanceof Error &&
@@ -60,9 +68,12 @@ export async function tndm(args: string[]): Promise<ExecResult> {
  * Run tndm --version and return the parsed semver string, or null if unavailable.
  * Never throws — callers handle absence gracefully.
  */
-export async function tndmVersion(): Promise<string | null> {
+export async function tndmVersion(signal?: AbortSignal): Promise<string | null> {
   try {
-    const { stdout } = await run("tndm", ["--version"], { timeout: 5_000 });
+    const { stdout } = await run("tndm", ["--version"], {
+      timeout: 5_000,
+      signal,
+    });
     const match = stdout.match(/tndm\s+(\d+\.\d+\.\d+)/);
     return match ? match[1] : null;
   } catch {
@@ -76,8 +87,9 @@ export async function tndmVersion(): Promise<string | null> {
  */
 export async function tndmJson<T = Record<string, unknown>>(
   args: string[],
+  signal?: AbortSignal,
 ): Promise<T> {
-  const { stdout } = await tndm([...args, "--json"]);
+  const { stdout } = await tndm([...args, "--json"], signal);
   if (!stdout) {
     throw new Error(`tndm returned empty output for: ${args.join(" ")}`);
   }

@@ -1,7 +1,12 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { writeTaskDetailDoc } from "./doc-writes.js";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
+import {
+  DEFAULT_MAX_BYTES,
+  DEFAULT_MAX_LINES,
+  formatSize,
+  truncateHead,
+} from "@earendil-works/pi-coding-agent";
 import { tndm, tndmJson } from "../cli.js";
 
 export const actionEnum = StringEnum([
@@ -97,6 +102,26 @@ export const supi_tndm_cli_params = Type.Object({
 });
 
 /**
+ * Truncate tool output text that exceeds PI's built-in limits
+ * and append a notice so the model knows when output is partial.
+ */
+function formatContent(raw: string): string {
+  const truncation = truncateHead(raw, {
+    maxLines: DEFAULT_MAX_LINES,
+    maxBytes: DEFAULT_MAX_BYTES,
+  });
+
+  if (!truncation.truncated) return raw;
+
+  return (
+    truncation.content +
+    `\n\n[Output truncated: showing ${truncation.outputLines} of ${truncation.totalLines} lines` +
+    ` (${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)}).` +
+    ` Full output available in details.]`
+  );
+}
+
+/**
  * supi_tndm_cli — thin wrapper around the tndm CLI.
  *
  * Actions map to tndm subcommands:
@@ -115,7 +140,10 @@ export const supi_tndm_cli_params = Type.Object({
  */
 export type TndmCliParams = Static<typeof supi_tndm_cli_params>;
 
-export async function executeTndmCli(params: TndmCliParams) {
+export async function executeTndmCli(
+  params: TndmCliParams,
+  signal?: AbortSignal,
+) {
   const { action } = params;
 
   switch (action) {
@@ -134,7 +162,7 @@ export async function executeTndmCli(params: TndmCliParams) {
         "content",
       ]);
 
-      const result = await tndm(args);
+      const result = await tndm(args, signal);
       return {
         content: [{ type: "text" as const, text: result.stdout || result.stderr }],
         details: { action: "create", ticketId: result.stdout.trim() },
@@ -159,7 +187,7 @@ export async function executeTndmCli(params: TndmCliParams) {
         "content",
       ]);
 
-      const result = await tndm(args);
+      const result = await tndm(args, signal);
       return {
         content: [{ type: "text" as const, text: result.stdout || "Ticket updated" }],
         details: { action: "update", ticketId: params.id },
@@ -170,13 +198,12 @@ export async function executeTndmCli(params: TndmCliParams) {
       if (!params.id) {
         throw new Error("supi_tndm_cli: id is required for show");
       }
-      const result = await tndmJson<Record<string, unknown>>([
-        "ticket",
-        "show",
-        params.id,
-      ]);
+      const result = await tndmJson<Record<string, unknown>>(
+        ["ticket", "show", params.id],
+        signal,
+      );
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
         details: { action: "show", ticket: result },
       };
     }
@@ -188,7 +215,7 @@ export async function executeTndmCli(params: TndmCliParams) {
 
       const rawResult = await tndmJson<
         Record<string, unknown>[] | { schema_version?: number; tickets?: Record<string, unknown>[] }
-      >(args);
+      >(args, signal);
       const envelope = Array.isArray(rawResult)
         ? { schema_version: 1, tickets: rawResult }
         : rawResult;
@@ -199,7 +226,7 @@ export async function executeTndmCli(params: TndmCliParams) {
             type: "text" as const,
             text:
               tickets.length > 0
-                ? JSON.stringify(envelope, null, 2)
+                ? formatContent(JSON.stringify(envelope, null, 2))
                 : "No tickets found.",
           },
         ],
@@ -211,13 +238,12 @@ export async function executeTndmCli(params: TndmCliParams) {
       if (!params.against) {
         throw new Error("supi_tndm_cli: --against is required for awareness");
       }
-      const result = await tndmJson<Record<string, unknown>>([
-        "awareness",
-        "--against",
-        params.against,
-      ]);
+      const result = await tndmJson<Record<string, unknown>>(
+        ["awareness", "--against", params.against],
+        signal,
+      );
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
         details: { action: "awareness", awareness: result },
       };
     }
@@ -228,15 +254,15 @@ export async function executeTndmCli(params: TndmCliParams) {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_add");
       if (!params.task_title) throw new Error("supi_tndm_cli: task_title is required for task_add");
       const args: string[] = ["ticket", "task", "add", params.id, "--title", params.task_title];
-      const result = await tndmJson<Record<string, unknown>>(args);
+      const result = await tndmJson<Record<string, unknown>>(args, signal);
       let finalResult = result;
 
       if (params.task_detail !== undefined) {
         const taskNumber = extractLatestTaskNumber(result);
-        const detailResult = await ensureTaskDetailDoc(params.id, taskNumber);
-        writeTaskDetailDoc(detailResult.path, taskNumber, params.task_title, params.task_detail);
-        await tndm(["ticket", "sync", params.id]);
-        finalResult = await loadTicket(params.id);
+        const detailResult = await ensureTaskDetailDoc(params.id, taskNumber, signal);
+        await writeTaskDetailDoc(detailResult.path, taskNumber, params.task_title, params.task_detail);
+        await tndm(["ticket", "sync", params.id], signal);
+        finalResult = await loadTicket(params.id, signal);
       }
 
       return {
@@ -247,11 +273,12 @@ export async function executeTndmCli(params: TndmCliParams) {
 
     case "task_list": {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_list");
-      const result = await tndmJson<Record<string, unknown>[]>([
-        "ticket", "task", "list", params.id,
-      ]);
+      const result = await tndmJson<Record<string, unknown>[]>(
+        ["ticket", "task", "list", params.id],
+        signal,
+      );
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
         details: { action: "task_list", ticketId: params.id, tasks: result },
       };
     }
@@ -259,11 +286,12 @@ export async function executeTndmCli(params: TndmCliParams) {
     case "task_complete": {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_complete");
       if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_complete");
-      const result = await tndmJson<Record<string, unknown>>([
-        "ticket", "task", "complete", params.id, String(params.task_number),
-      ]);
+      const result = await tndmJson<Record<string, unknown>>(
+        ["ticket", "task", "complete", params.id, String(params.task_number)],
+        signal,
+      );
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
         details: { action: "task_complete", ticketId: params.id, taskNumber: params.task_number, result },
       };
     }
@@ -271,11 +299,12 @@ export async function executeTndmCli(params: TndmCliParams) {
     case "task_remove": {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_remove");
       if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_remove");
-      const result = await tndmJson<Record<string, unknown>>([
-        "ticket", "task", "remove", params.id, String(params.task_number),
-      ]);
+      const result = await tndmJson<Record<string, unknown>>(
+        ["ticket", "task", "remove", params.id, String(params.task_number)],
+        signal,
+      );
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
         details: { action: "task_remove", ticketId: params.id, taskNumber: params.task_number, result },
       };
     }
@@ -290,30 +319,30 @@ export async function executeTndmCli(params: TndmCliParams) {
       let finalResult: Record<string, unknown> | undefined;
 
       if (params.task_detail !== undefined) {
-        const detailResult = await ensureTaskDetailDoc(params.id, params.task_number);
+        const detailResult = await ensureTaskDetailDoc(params.id, params.task_number, signal);
         const taskSnapshot = hasManifestFieldChanges
-          ? await tndmJson<Record<string, unknown>>(args)
-          : await loadTicket(params.id);
+          ? await tndmJson<Record<string, unknown>>(args, signal)
+          : await loadTicket(params.id, signal);
         const taskTitle =
           params.task_title ??
           extractTaskTitle(taskSnapshot, params.task_number) ??
           `Task ${params.task_number}`;
-        writeTaskDetailDoc(
+        await writeTaskDetailDoc(
           detailResult.path,
           params.task_number,
           taskTitle,
           params.task_detail,
         );
-        await tndm(["ticket", "sync", params.id]);
-        finalResult = await loadTicket(params.id);
+        await tndm(["ticket", "sync", params.id], signal);
+        finalResult = await loadTicket(params.id, signal);
       } else if (hasManifestFieldChanges) {
-        finalResult = await tndmJson<Record<string, unknown>>(args);
+        finalResult = await tndmJson<Record<string, unknown>>(args, signal);
       } else {
-        finalResult = await tndmJson<Record<string, unknown>>(args);
+        finalResult = await tndmJson<Record<string, unknown>>(args, signal);
       }
 
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(finalResult, null, 2) }],
+        content: [{ type: "text" as const, text: formatContent(JSON.stringify(finalResult, null, 2)) }],
         details: { action: "task_edit", ticketId: params.id, taskNumber: params.task_number, result: finalResult },
       };
     }
@@ -321,11 +350,12 @@ export async function executeTndmCli(params: TndmCliParams) {
     case "task_set": {
       if (!params.id) throw new Error("supi_tndm_cli: id is required for task_set");
       if (!params.task_json) throw new Error("supi_tndm_cli: task_json is required for task_set");
-      const result = await tndmJson<Record<string, unknown>>([
-        "ticket", "task", "set", params.id, "--tasks", params.task_json,
-      ]);
+      const result = await tndmJson<Record<string, unknown>>(
+        ["ticket", "task", "set", params.id, "--tasks", params.task_json],
+        signal,
+      );
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
         details: { action: "task_set", ticketId: params.id, result },
       };
     }
@@ -385,22 +415,20 @@ function extractTasks(result: Record<string, unknown>): Array<{ number?: number;
   return [];
 }
 
-async function loadTicket(id: string): Promise<Record<string, unknown>> {
-  return tndmJson<Record<string, unknown>>(["ticket", "show", id]);
+async function loadTicket(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+  return tndmJson<Record<string, unknown>>(["ticket", "show", id], signal);
 }
 
-async function ensureTaskDetailDoc(id: string, taskNumber: number): Promise<{ path: string }> {
-  return tndmJson<{ path: string }>([
-    "ticket",
-    "task",
-    "detail",
-    "ensure",
-    id,
-    String(taskNumber),
-  ]);
-}
-
-function writeTaskDetailDoc(path: string, taskNumber: number, title: string, detail: string): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `# Task ${taskNumber}: ${title}\n\n${detail}\n`, "utf-8");
+async function ensureTaskDetailDoc(
+  id: string,
+  taskNumber: number,
+  signal?: AbortSignal,
+): Promise<{ path: string }> {
+  return tndmJson<{ path: string }>(
+    ["ticket", "task", "detail", "ensure", id, String(taskNumber)],
+    signal,
+  );
 }

@@ -4,11 +4,27 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 vi.mock("../extensions/cli.js", () => {
-  const mockTndm = vi.fn();
-  const mockTndmJson = vi.fn();
+  const _mockTndm = vi.fn();
+  const _mockTndmJson = vi.fn();
+  // Strip trailing undefined args so existing toHaveBeenCalledWith assertions
+  // keep working after signal parameter was added.
+  const stripTrailingUndefined = (args: unknown[]) => {
+    while (args.length > 0 && args[args.length - 1] === undefined) {
+      args.pop();
+    }
+    return args;
+  };
   return {
-    tndm: mockTndm,
-    tndmJson: mockTndmJson,
+    tndm: new Proxy(_mockTndm, {
+      apply(target, _thisArg, args: unknown[]) {
+        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
+      },
+    }),
+    tndmJson: new Proxy(_mockTndmJson, {
+      apply(target, _thisArg, args: unknown[]) {
+        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
+      },
+    }),
   };
 });
 
@@ -167,5 +183,35 @@ describe("executeTndmCli task_edit", () => {
     expect(readFileSync(docPath, "utf-8")).toContain("Updated detail body.");
     expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-EDITDETAIL"]);
     expect(result.details.result).toEqual(finalTicket);
+  });
+});
+
+describe("executeTndmCli truncation", () => {
+  it("truncates large model-facing output while keeping full details", async () => {
+    const largeTasks = Array.from({ length: 2000 }, (_, i) => ({
+      number: i + 1,
+      title: `Task ${i + 1}` + " x".repeat(30),
+      status: "todo",
+    }));
+    const largePayload = {
+      schema_version: 1,
+      id: "TNDM-LARGE",
+      tasks: largeTasks,
+    };
+
+    vi.mocked(tndmJson).mockResolvedValueOnce(largePayload);
+
+    const result = await executeTndmCli({
+      action: "show",
+      id: "TNDM-LARGE",
+    });
+
+    // Content should be truncated
+    expect(result.content[0].text).toContain("[Output truncated");
+
+    // Details must keep the full untruncated object
+    const details = result.details as Record<string, unknown>;
+    expect(details.action).toBe("show");
+    expect(details.ticket).toBe(largePayload);
   });
 });

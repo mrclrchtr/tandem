@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeArchiveDoc, writeTaskDetailDoc } from "./doc-writes.js";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
@@ -36,7 +37,7 @@ export const supiFlowStartParams = Type.Object({
 
 export type FlowStartParams = Static<typeof supiFlowStartParams>;
 
-export async function executeFlowStart(params: FlowStartParams) {
+export async function executeFlowStart(params: FlowStartParams, signal?: AbortSignal) {
   const args: string[] = [
     "ticket",
     "create",
@@ -51,14 +52,14 @@ export async function executeFlowStart(params: FlowStartParams) {
   if (params.type) args.push("--type", params.type);
 
   // Use --json on create to get id + content_path in one call
-  const createResult = await tndmJson<{ id: string; content_path?: string }>(args);
+  const createResult = await tndmJson<{ id: string; content_path?: string }>(args, signal);
   const ticketId = createResult.id;
   const contentPath = createResult.content_path ?? "";
   const ticketDir = contentPath ? dirname(contentPath) : "";
   const pathInfo = ticketDir ? ` at ${ticketDir}` : "";
 
   if (params.context) {
-    await tndm(["ticket", "update", ticketId, "--content", params.context]);
+    await tndm(["ticket", "update", ticketId, "--content", params.context], signal);
   }
 
   return {
@@ -90,7 +91,7 @@ export const supiFlowPlanParams = Type.Object({
 
 export type FlowPlanParams = Static<typeof supiFlowPlanParams>;
 
-export async function executeFlowPlan(params: FlowPlanParams) {
+export async function executeFlowPlan(params: FlowPlanParams, signal?: AbortSignal) {
   if (!params.plan_content.trim()) {
     throw new Error("supi_flow_plan: plan_content must not be blank");
   }
@@ -101,7 +102,7 @@ export async function executeFlowPlan(params: FlowPlanParams) {
     params.ticket_id,
     "--content",
     params.plan_content,
-  ]);
+  ], signal);
 
   await tndm([
     "ticket",
@@ -111,7 +112,7 @@ export async function executeFlowPlan(params: FlowPlanParams) {
     "flow:brainstorm,flow:planned,flow:applying,flow:done",
     "--add-tags",
     "flow:planned",
-  ]);
+  ], signal);
 
   return {
     content: [
@@ -137,8 +138,8 @@ export const supiFlowApplyParams = Type.Object({
 
 export type FlowApplyParams = Static<typeof supiFlowApplyParams>;
 
-export async function executeFlowApply(params: FlowApplyParams) {
-  const ticket = await loadTicket(params.ticket_id);
+export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSignal) {
+  const ticket = await loadTicket(params.ticket_id, signal);
   const status = extractTicketStatus(ticket);
   const tags = extractTicketTags(ticket);
 
@@ -166,7 +167,7 @@ export async function executeFlowApply(params: FlowApplyParams) {
     extractContentPath(ticket),
     "supi_flow_apply",
   );
-  const tasks = await loadTaskList(params.ticket_id);
+  const tasks = await loadTaskList(params.ticket_id, signal);
 
   if (tasks.length === 0) {
     throw new Error(`supi_flow_apply: ticket ${params.ticket_id} has no structured tasks`);
@@ -186,7 +187,7 @@ export async function executeFlowApply(params: FlowApplyParams) {
       "flow:planned",
       "--add-tags",
       "flow:applying",
-    ]);
+    ], signal);
     transitioned = true;
     applyStatus = "in_progress";
   }
@@ -240,7 +241,7 @@ export const supiFlowTaskParams = Type.Object({
 
 export type FlowTaskParams = Static<typeof supiFlowTaskParams>;
 
-export async function executeFlowTask(params: FlowTaskParams) {
+export async function executeFlowTask(params: FlowTaskParams, signal?: AbortSignal) {
 
 
   switch (params.operation) {
@@ -254,15 +255,15 @@ export async function executeFlowTask(params: FlowTaskParams) {
 
       const args: string[] = ["ticket", "task", "add", params.ticket_id, "--title", params.title];
 
-      const result = await tndmJson<Record<string, unknown>>(args);
+      const result = await tndmJson<Record<string, unknown>>(args, signal);
       const taskNumber = extractLatestTaskNumber(result);
       let finalResult = result;
 
       if (params.detail !== undefined) {
-        const detailResult = await ensureTaskDetailDoc(params.ticket_id, taskNumber);
-        writeTaskDetailDoc(detailResult.path, taskNumber, params.title, params.detail);
-        await tndm(["ticket", "sync", params.ticket_id]);
-        finalResult = await loadTicket(params.ticket_id);
+        const detailResult = await ensureTaskDetailDoc(params.ticket_id, taskNumber, signal);
+        await writeTaskDetailDoc(detailResult.path, taskNumber, params.title, params.detail);
+        await tndm(["ticket", "sync", params.ticket_id], signal);
+        finalResult = await loadTicket(params.ticket_id, signal);
       }
 
       return {
@@ -303,17 +304,17 @@ export async function executeFlowTask(params: FlowTaskParams) {
       let finalResult: Record<string, unknown> | undefined;
 
       if (params.detail !== undefined) {
-        const detailResult = await ensureTaskDetailDoc(params.ticket_id, params.task_number);
+        const detailResult = await ensureTaskDetailDoc(params.ticket_id, params.task_number, signal);
         const taskSnapshot = hasManifestFieldChanges
-          ? await tndmJson<Record<string, unknown>>(args)
-          : await loadTicket(params.ticket_id);
+          ? await tndmJson<Record<string, unknown>>(args, signal)
+          : await loadTicket(params.ticket_id, signal);
         const taskTitle =
           params.title ??
           extractTaskTitle(taskSnapshot, params.task_number) ??
           `Task ${params.task_number}`;
-        writeTaskDetailDoc(detailResult.path, params.task_number, taskTitle, params.detail);
-        await tndm(["ticket", "sync", params.ticket_id]);
-        finalResult = await loadTicket(params.ticket_id);
+        await writeTaskDetailDoc(detailResult.path, params.task_number, taskTitle, params.detail);
+        await tndm(["ticket", "sync", params.ticket_id], signal);
+        finalResult = await loadTicket(params.ticket_id, signal);
       } else if (hasManifestFieldChanges) {
         finalResult = await tndmJson<Record<string, unknown>>(args);
       } else {
@@ -342,13 +343,10 @@ export async function executeFlowTask(params: FlowTaskParams) {
         throw new Error("supi_flow_task: task_number is required for remove");
       }
 
-      const result = await tndmJson<Record<string, unknown>>([
-        "ticket",
-        "task",
-        "remove",
-        params.ticket_id,
-        String(params.task_number),
-      ]);
+      const result = await tndmJson<Record<string, unknown>>(
+        ["ticket", "task", "remove", params.ticket_id, String(params.task_number)],
+        signal,
+      );
 
       return {
         content: [
@@ -381,15 +379,12 @@ export const supiFlowCompleteTaskParams = Type.Object({
 
 export type FlowCompleteTaskParams = Static<typeof supiFlowCompleteTaskParams>;
 
-export async function executeFlowCompleteTask(params: FlowCompleteTaskParams) {
+export async function executeFlowCompleteTask(params: FlowCompleteTaskParams, signal?: AbortSignal) {
   try {
-    const result = await tndmJson<Record<string, unknown>>([
-      "ticket",
-      "task",
-      "complete",
-      params.ticket_id,
-      String(params.task_number),
-    ]);
+    const result = await tndmJson<Record<string, unknown>>(
+      ["ticket", "task", "complete", params.ticket_id, String(params.task_number)],
+      signal,
+    );
 
     return {
       content: [
@@ -431,13 +426,13 @@ export const supiFlowCloseParams = Type.Object({
 
 export type FlowCloseParams = Static<typeof supiFlowCloseParams>;
 
-export async function executeFlowClose(params: FlowCloseParams) {
+export async function executeFlowClose(params: FlowCloseParams, signal?: AbortSignal) {
   const verificationResults = params.verification_results?.trim() ?? "";
   if (!verificationResults) {
     throw new Error("supi_flow_close: verification_results is required");
   }
 
-  const ticket = await loadTicket(params.ticket_id);
+  const ticket = await loadTicket(params.ticket_id, signal);
   const status = extractTicketStatus(ticket);
   const tags = extractTicketTags(ticket);
 
@@ -455,7 +450,7 @@ export async function executeFlowClose(params: FlowCloseParams) {
     );
   }
 
-  const tasks = await loadTaskList(params.ticket_id);
+  const tasks = await loadTaskList(params.ticket_id, signal);
   if (tasks.length === 0) {
     throw new Error(`supi_flow_close: ticket ${params.ticket_id} has no structured tasks`);
   }
@@ -471,14 +466,11 @@ export async function executeFlowClose(params: FlowCloseParams) {
   }
 
   // Create/register archive.md via document registry, then write results
-  const docResult = await tndmJson<{ path: string }>([
-    "ticket",
-    "doc",
-    "create",
-    params.ticket_id,
-    "archive",
-  ]);
-  writeFileSync(docResult.path, `# Archive\n\n${verificationResults}\n`, "utf-8");
+  const docResult = await tndmJson<{ path: string }>(
+    ["ticket", "doc", "create", params.ticket_id, "archive"],
+    signal,
+  );
+  await writeArchiveDoc(docResult.path, verificationResults);
   await tndm(["ticket", "sync", params.ticket_id]);
 
   // Replace any flow-state tag with flow:done — remove all possible flow-state tags,
@@ -494,7 +486,7 @@ export async function executeFlowClose(params: FlowCloseParams) {
     "done",
     "--add-tags",
     "flow:done",
-  ]);
+  ], signal);
 
   return {
     content: [
@@ -638,30 +630,21 @@ function findRepoRoot(startDir = process.cwd()): string {
   }
 }
 
-async function loadTicket(id: string): Promise<Record<string, unknown>> {
-  return tndmJson<Record<string, unknown>>(["ticket", "show", id]);
+async function loadTicket(id: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  return tndmJson<Record<string, unknown>>(["ticket", "show", id], signal);
 }
 
-async function loadTaskList(id: string): Promise<FlowTaskListEntry[]> {
-  const tasks = await tndmJson<unknown>(["ticket", "task", "list", id]);
+async function loadTaskList(id: string, signal?: AbortSignal): Promise<FlowTaskListEntry[]> {
+  const tasks = await tndmJson<unknown>(["ticket", "task", "list", id], signal);
   if (!Array.isArray(tasks)) {
     throw new Error(`supi_flow: task list for ticket ${id} did not return an array`);
   }
   return filterFlowTasks(tasks);
 }
 
-async function ensureTaskDetailDoc(id: string, taskNumber: number): Promise<{ path: string }> {
-  return tndmJson<{ path: string }>([
-    "ticket",
-    "task",
-    "detail",
-    "ensure",
-    id,
-    String(taskNumber),
-  ]);
-}
-
-function writeTaskDetailDoc(path: string, taskNumber: number, title: string, detail: string): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `# Task ${taskNumber}: ${title}\n\n${detail}\n`, "utf-8");
+async function ensureTaskDetailDoc(id: string, taskNumber: number, signal?: AbortSignal): Promise<{ path: string }> {
+  return tndmJson<{ path: string }>(
+    ["ticket", "task", "detail", "ensure", id, String(taskNumber)],
+    signal,
+  );
 }

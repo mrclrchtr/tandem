@@ -116,6 +116,28 @@ describe("tndmVersion", () => {
   });
 });
 
+describe("signal handling", () => {
+  it("forwards AbortSignal to execFile options", async () => {
+    const mock = vi.mocked(execFile);
+    mock.mockImplementation((_file, _args, _opts, cb) => {
+      if (typeof cb === "function") cb(null, "hello", "");
+      return {} as never;
+    });
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    await tndm(["ticket", "list"], signal);
+
+    expect(mock).toHaveBeenCalledWith(
+      "tndm",
+      ["ticket", "list"],
+      expect.objectContaining({ signal }),
+      expect.any(Function),
+    );
+  });
+});
+
 describe("tndmJson", () => {
   it("parses JSON from tndm --json output", async () => {
     const mock = vi.mocked(execFile);
