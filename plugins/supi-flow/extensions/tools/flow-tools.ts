@@ -205,11 +205,15 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
       ? `Ticket ${params.ticket_id} is already in flow:applying and currently blocked.`
       : `Ticket ${params.ticket_id} is already in flow:applying.`;
 
+  const taskSummary = tasks
+    .map((t) => `  ${t.number ?? "?"}. ${t.detail_path ?? "?"} — ${t.title ?? "(untitled)"}`)
+    .join("\n");
+
   return {
     content: [
       {
         type: "text" as const,
-        text: `${transitionText} Loaded approved overview and ${taskCount} task${taskCount === 1 ? "" : "s"}.`,
+        text: `${transitionText} Loaded approved overview and ${taskCount} task${taskCount === 1 ? "" : "s"}.\n\nTask detail docs (read each before its task):\n${taskSummary}`,
       },
     ],
     details: {

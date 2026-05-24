@@ -31,11 +31,12 @@ incomplete, or outdated. Do not start until those concerns are resolved.
 For each unchecked task, in order:
 
 1. Announce which task you are working on.
-2. Follow the task as written. If the current task references a linked task doc via `detail_path`, read it now and treat it as part of the task definition.
-3. Run the verification for that task and read the result carefully.
-4. If verification passes: call `supi_flow_complete_task { ticket_id: "<ID>", task_number: <N> }` to check the task off in the ticket.
-5. If verification fails: stop, diagnose, fix, and re-verify before moving on.
-6. Record what actually passed.
+2. **Read the task detail doc first.** Every task has a `detail_path` (e.g. `tasks/task-01.md`). Read that file before touching any code. The detail doc is the authoritative task specification — do not rely on memory or the plan overview alone.
+3. Follow the task as written. Treat the detail doc as part of the task definition.
+4. Run the verification for that task and read the result carefully.
+5. If verification passes: call `supi_flow_complete_task { ticket_id: "<ID>", task_number: <N> }` to check the task off in the ticket.
+6. If verification fails: stop, diagnose, fix, and re-verify before moving on.
+7. Record what actually passed.
 
 Do not skip failed checks. Do not collapse several tasks into one vague batch.
 
@@ -87,6 +88,7 @@ Do not guess. Do not force through blockers.
 | "Just this once" | Verification still applies. |
 | "Previous run passed" | Code changed. Run it again. |
 | "This task is too simple to need TDD" | TDD is preferred for testable code. If it is not practical, verify it manually and say why. |
+| "I know what the task says" | Task detail docs evolve between plan and apply. Read them fresh. |
 
 ## When all tasks are done
 
