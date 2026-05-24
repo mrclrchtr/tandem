@@ -80,9 +80,9 @@ Wait for approval. Rerun self-review after any changes.
 ```
 
 Then recommend:
-- Non-trivial: `/supi-flow-plan TNDM-XXXXXX`
+- Non-trivial: `/skill:supi-flow-plan TNDM-XXXXXX`
 - Trivial: proceed with direct implementation
 
 <HARD-GATE>
-For non-trivial work, do NOT invoke any implementation skill or write code. The ONLY next step after brainstorming is `/supi-flow-plan`. Trivial work may proceed directly.
+For non-trivial work, do NOT invoke any implementation skill or write code. The ONLY next step after brainstorming is `/skill:supi-flow-plan`. Trivial work may proceed directly.
 </HARD-GATE>

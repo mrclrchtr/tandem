@@ -19,7 +19,7 @@ If you have not completed Phase 1, you are not ready to propose a fix.
 
 Use this when:
 
-- a test fails during `/supi-flow-apply` and the cause is not obvious
+- a test fails during `/skill:supi-flow-apply` and the cause is not obvious
 - a build error blocks progress
 - behavior does not match expectations
 - a previous fix did not work
@@ -147,5 +147,5 @@ Ask the user when:
 
 ## Related skills
 
-- Return to `/supi-flow-apply` after debugging.
+- Return to `/skill:supi-flow-apply` after debugging.
 - Use the plan's TDD or verification steps when implementing the fix.

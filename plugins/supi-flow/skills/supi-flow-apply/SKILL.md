@@ -90,5 +90,5 @@ Do not guess. Do not force through blockers.
 
 ## When all tasks are done
 
-- If a ticket exists: summarize what passed in conversation, but do not mark it done yet — `/supi-flow-archive` handles durable verification evidence in `archive.md` and final closeout.
-- Announce: `Implementation complete. Run /supi-flow-archive TNDM-XXXXXX to verify, update docs, and close out.`
+- If a ticket exists: summarize what passed in conversation, but do not mark it done yet — `/skill:supi-flow-archive` handles durable verification evidence in `archive.md` and final closeout.
+- Announce: `Implementation complete. Run /skill:supi-flow-archive TNDM-XXXXXX to verify, update docs, and close out.`

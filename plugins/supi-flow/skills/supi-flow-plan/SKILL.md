@@ -117,4 +117,4 @@ Write the plan in the lightest form that will still survive execution:
 
 - **If a ticket exists:** use `supi_flow_plan { ticket_id: "<ID>", plan_content: "..." }` to store the approved overview in `content.md`. Then list the current tasks. If the manifest is empty, build it with repeated `supi_flow_task { operation: "add", ... }` calls. If tasks already exist, reconcile them to the new final plan with `supi_flow_task` edit/remove/add operations. Keep `supi_tndm_cli` task_* actions as lower-level escape hatches for advanced/manual repair cases.
 - **If no ticket exists:** default to conversation-first. Offer saving to a ticket or file if the work is larger or likely multi-session.
-- Close with: `Plan ready. Review it and approve before we start. Then run /supi-flow-apply TNDM-XXXXXX.`
+- Close with: `Plan ready. Review it and approve before we start. Then run /skill:supi-flow-apply TNDM-XXXXXX.`
