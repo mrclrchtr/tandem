@@ -30,7 +30,7 @@ export const supiFlowStartParams = Type.Object({
   ),
   context: Type.Optional(
     Type.String({
-      description: "Brief context to store in ticket content (brainstorm intent / design summary)",
+      description: "Brief design summary to store in ticket content (brainstorm intent)",
     }),
   ),
 });
@@ -85,7 +85,7 @@ export const supiFlowPlanParams = Type.Object({
   ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
   plan_content: Type.String({
     description:
-      "Approved overview / plan markdown to store in the ticket's canonical content.md. This may contain zero tasks; task authoring happens separately in state.toml.",
+      "Approved overview markdown to store in content.md. Task authoring happens separately via supi_flow_task.",
   }),
 });
 
@@ -420,7 +420,7 @@ export const supiFlowCloseParams = Type.Object({
   ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
   verification_results: Type.String({
     description:
-      "Verification results / evidence from the agent to write into archive.md before closing the ticket.",
+      "Verification evidence to write into archive.md before closing the ticket.",
   }),
 });
 

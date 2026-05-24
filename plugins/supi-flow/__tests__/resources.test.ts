@@ -77,7 +77,7 @@ describe("supi-flow extension", () => {
     expect(tool).toBeDefined();
     const guidance = tool?.promptGuidelines?.join(" ") ?? "";
     expect(guidance).toContain("load the approved overview and task manifest");
-    expect(guidance).toContain("read linked task detail docs only when the active task begins");
+    expect(guidance).toContain("read task detail docs only when that task becomes active");
   });
 
   it("registers session_start handler for version check", () => {

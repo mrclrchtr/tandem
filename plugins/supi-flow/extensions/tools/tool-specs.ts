@@ -24,19 +24,8 @@ export const toolSpecs = [
     name: "supi_tndm_cli",
     label: "TNDM CLI",
     description:
-      "Execute tndm ticket operations. Action determines which params apply:\n" +
-      "- create: title (required), status, priority, type, tags, depends_on, effort, content\n" +
-      "- update: id (required), title, status, priority, type, tags, add_tags, remove_tags, depends_on, effort, content\n" +
-      "- show: id (required)\n" +
-      "- list: all (boolean), definition (ready|questions|unknown)\n" +
-      "- awareness: against (git ref, required)\n" +
-      "- task_add: id (required), task_title (required), task_detail\n" +
-      "- task_list: id (required)\n" +
-      "- task_complete: id (required), task_number (required)\n" +
-      "- task_remove: id (required), task_number (required)\n" +
-      "- task_edit: id (required), task_number (required), task_title, task_detail\n" +
-      "- task_set: id (required), task_json (required)",
-    promptSnippet: "Execute tndm ticket operations via supi_tndm_cli",
+      "Execute tndm ticket operations. Action determines which params apply; see parameter descriptions for required fields.",
+    promptSnippet: "Execute tndm ticket operations",
     promptGuidelines: [
       "Use supi_tndm_cli for direct tndm operations instead of running tndm via bash",
     ],
@@ -79,12 +68,12 @@ export const toolSpecs = [
     name: "supi_flow_plan",
     label: "Flow Plan",
     description:
-      "Store the approved overview / plan in the ticket's canonical content.md. " +
+      "Store the approved overview in the ticket's content.md. " +
       "Updates tags from flow:brainstorm to flow:planned. Task authoring happens separately in state.toml.",
     promptSnippet: "Store a plan in a TNDM ticket",
     promptGuidelines: [
       "Use supi_flow_plan after creating a plan to persist the approved overview in content.md",
-      "Create execution tasks separately after the overview exists; do not rely on supi_flow_plan to parse task blocks into state.toml",
+      "Use supi_flow_task to author tasks after supi_flow_plan; supi_flow_plan only stores the overview, not tasks",
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowPlanParams,
@@ -103,10 +92,11 @@ export const toolSpecs = [
     label: "Flow Apply",
     description:
       "Start the apply phase for a planned ticket. " +
-      "Loads the approved content.md overview, returns the structured task manifest, transitions flow:planned tickets to status=in_progress with flow:applying, and preserves the current in_progress/blocked status for already-applying tickets.",
+      "Loads the approved overview and task manifest, transitions flow:planned tickets to flow:applying, and preserves the current status for already-applying tickets.",
     promptSnippet: "Start the apply phase for a TNDM flow ticket",
     promptGuidelines: [
-      "Use supi_flow_apply at the beginning of implementation to load the approved overview and task manifest, review that overview and full task list up front, read linked task detail docs only when the active task begins, and move a planned ticket into flow:applying when needed.",
+      "Use supi_flow_apply at the beginning of implementation to load the approved overview and task manifest",
+      "Review the full overview and task list up front; read task detail docs only when that task becomes active",
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowApplyParams,
@@ -126,7 +116,7 @@ export const toolSpecs = [
     description:
       "Manage one structured task in a flow ticket. " +
       "Operation determines which params apply: add requires title; edit/remove require task_number; optional detail writes or clears the canonical task detail doc.",
-    promptSnippet: "Manage one task at a time in a TNDM flow ticket",
+    promptSnippet: "Manage one task in a TNDM flow ticket",
     promptGuidelines: [
       "Use supi_flow_task for the common plan-time path to add, edit, or remove one structured task at a time",
       "Prefer supi_flow_task over raw task_json or detail_path handling when authoring normal flow tasks",
@@ -152,7 +142,7 @@ export const toolSpecs = [
     promptSnippet: "Check off a completed plan task in a TNDM ticket",
     promptGuidelines: [
       "Use supi_flow_complete_task after each task's verification passes during apply",
-      "Call this with the task number, not the description text",
+      "Pass the task number, not the description text",
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowCompleteTaskParams,

@@ -82,7 +82,7 @@ export const supi_tndm_cli_params = Type.Object({
 
   // Awareness params
   against: Type.Optional(
-    Type.String({ description: "Git ref to run awareness against (required for awareness)" }),
+    Type.String({ description: "Git ref for awareness action" }),
   ),
 
   // Task params
@@ -90,14 +90,14 @@ export const supi_tndm_cli_params = Type.Object({
     Type.String({ description: "Task title (required for task_add)" }),
   ),
   task_number: Type.Optional(
-    Type.Number({ description: "Task number (required for task_complete, task_remove, task_edit)" }),
+    Type.Number({ description: "1-based task number (required for task_complete, task_remove, task_edit)" }),
   ),
 
   task_detail: Type.Optional(
     Type.String({ description: "Optional markdown body for a task detail doc" }),
   ),
   task_json: Type.Optional(
-    Type.String({ description: "JSON array of tasks (required for task_set)" }),
+    Type.String({ description: "JSON array of tasks for task_set" }),
   ),
 });
 
