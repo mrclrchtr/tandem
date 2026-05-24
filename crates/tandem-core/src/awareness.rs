@@ -281,7 +281,7 @@ fn canonicalize_tasks(tasks: &[Task]) -> Vec<TaskSnapshotEntry> {
             status: task.status.as_str().to_string(),
         })
         .collect();
-    canonical.sort_by(|a, b| a.number.cmp(&b.number));
+    canonical.sort_by_key(|a| a.number);
     canonical
 }
 
