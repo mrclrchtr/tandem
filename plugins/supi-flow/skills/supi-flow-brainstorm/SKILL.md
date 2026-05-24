@@ -11,6 +11,10 @@ Turn an idea into an approved design through focused collaboration. Default to a
 Do NOT write code, scaffold anything, or take implementation action until you have presented a design and the user has approved it. This applies even to changes that seem simple.
 </HARD-GATE>
 
+## Anti-Pattern: "This Change Is Too Small To Need Brainstorming"
+
+Every change goes through this process — a one-line fix, a config tweak, a refactor, all of them. "Simple" changes are where unexamined assumptions cause the most rework. The design can be short (a few sentences for truly simple changes), but you MUST present it and get approval.
+
 ## Checklist
 
 You MUST complete these items in order. Each step is expanded in the sections below.
