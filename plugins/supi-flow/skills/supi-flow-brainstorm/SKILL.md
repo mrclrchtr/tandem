@@ -83,12 +83,20 @@ After approval:
 
 Before handing off:
 
-1. Remove placeholders or vague wording.
-2. Check for contradictions.
-3. Make sure the scope still fits a single implementation plan.
-4. Make ambiguous requirements explicit.
+1. **Placeholder scan** — any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+2. **Internal consistency** — do any sections contradict each other?
+3. **Scope check** — is this focused enough for a single implementation plan, or does it need decomposition?
+4. **Ambiguity check** — could any requirement be interpreted two ways? If so, pick one and make it explicit.
 
 Fix issues inline, then continue.
+
+## User review gate
+
+After the design is persisted (in the ticket or in chat for trivial work), pause and ask the user to review it:
+
+> "Design is ready in `<chat or ticket ID>`. Please review it and let me know if you want to make any changes before we proceed."
+
+Wait for the user's response. If they request changes, make them and re-run the self-review. Only proceed once the user approves.
 
 ## Handoff
 
