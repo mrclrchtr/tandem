@@ -13,29 +13,18 @@ EVERY TASK GETS FRESH VERIFICATION BEFORE MARKING DONE
 
 If you haven't run the verification command for this task, you cannot check it off. Previous runs do not count. "Should pass" is not evidence.
 
-## Step 1: Find the plan
+## Step 1: Load the plan
 
-- A TNDM-ID was set during plan phase. Start apply with:
-  `supi_flow_apply { ticket_id: "<ID>" }`
-  This loads the approved overview from `content.md`, returns the structured task list with status, title, files, verification, and any linked `detail_path`, moves `flow:planned` tickets into `status=in_progress` with `flow:applying`, and preserves the current `in_progress` or `blocked` status for already-applying tickets.
-- Read the returned overview and full task manifest before starting work. Do **not** read every linked task doc (`detail_path`) at apply start. If a task has a linked task doc, note it and read that doc only when that specific task becomes active so you do not miss task detail captured outside the manifest.
-- If `supi_flow_apply` reports a missing overview, empty task manifest, or invalid lifecycle state, stop and resolve that gap before editing.
-- If `supi_flow_apply` returns `status: "blocked"`, stop and resolve the blocker before resuming implementation.
-- If no plan is available: ask which change to implement.
+Call `supi_flow_apply { ticket_id: "<ID>" }`. Read the returned overview and full task manifest.
+If a task has a linked `detail_path`, note it — read that doc only when the task becomes active.
 
-## Step 2: Review the plan critically
+If the tool reports an error (missing overview, empty manifest, invalid lifecycle, blocked),
+stop and resolve it before editing. If no plan is available, ask which change to implement.
 
-Read the whole plan before starting: the approved overview plus the full task manifest loaded by `supi_flow_apply`. You do **not** need to read every linked task detail doc yet.
+## Step 2: Review the plan
 
-Raise questions before editing if:
-
-- the plan has a gap
-- the instructions are unclear
-- the scope changed
-- a task is missing verification
-- you are unsure whether a task should be test-driven or test-exempt
-
-Do not start implementation until those concerns are resolved.
+Read the whole plan before starting. Raise concerns before editing if anything is unclear,
+incomplete, or outdated. Do not start until those concerns are resolved.
 
 ## Step 3: Execute tasks
 
@@ -52,56 +41,40 @@ Do not skip failed checks. Do not collapse several tasks into one vague batch.
 
 ### TDD by default, not always
 
-For tasks that involve writing code, prefer TDD when the code is reasonably testable.
+For testable code, write the test first:
 
-```text
-NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
-```
+1. Write a failing test for the right reason.
+2. Write the minimal code to make it pass.
+3. Re-run and confirm it passes.
+4. Run any broader regression checks the plan calls for.
 
-Default flow:
-
-1. Write the test.
-2. Run it and confirm it fails for the right reason.
-3. Write the minimal code to make it pass.
-4. Re-run the test and confirm it passes.
-5. Run any broader regression checks the plan calls for.
+No production code without a failing test first.
 
 ### Test-exempt work
 
-If the task is marked test-exempt in the plan, or the work is clearly not practical to drive with TDD, use manual verification instead.
+For docs-only, config-only, trivial changes, or integration work with no reasonable harness:
 
-Examples:
+1. Run the manual verification from the plan. If the plan omitted one, add the smallest
+   concrete verification you can justify.
+2. Confirm actual output matches the claim and note the exemption when reporting completion.
 
-- docs-only edits
-- config-only edits
-- trivial changes
-- shell or integration work with no reasonable harness
-
-For test-exempt work:
-
-1. Run the manual verification step from the plan.
-2. If the plan omitted one, add the smallest concrete verification you can justify.
-3. Confirm the actual output matches the claim.
-4. Note the exemption rationale briefly when you report completion.
-
-If you are **uncertain** whether TDD is practical, ask the user instead of guessing.
+If uncertain whether TDD is practical, ask instead of guessing.
 
 The hard rule is not "TDD in every case." The hard rule is: **no unverified changes**.
 
-## Step 4: When blocked, load systematic debugging
+## Step 4: When blocked or stuck
 
-If verification fails and you do not understand why, load `/skill:supi-flow-debug` and follow it before attempting random fixes.
+If verification fails and you don't understand why, load `/skill:supi-flow-debug`
+before attempting random fixes.
 
-## When to stop and ask
+Stop and ask the user when:
 
-STOP and ask the user when:
-
-- a verification fails repeatedly and you still do not understand the cause
-- you have tried 3 fixes and none worked
-- a dependency is missing
-- the plan has a critical gap
-- an instruction is unclear
-- you are unsure whether a task should use TDD or a test exemption
+- A verification fails repeatedly and you still don't understand the cause
+- You've tried 3 fixes and none worked
+- A dependency is missing
+- The plan has a gap, is unclear, or scope changed
+- A task is missing verification
+- You're unsure whether to use TDD or a test exemption
 
 Do not guess. Do not force through blockers.
 
