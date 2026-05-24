@@ -5,94 +5,41 @@ description: Verify implementation against the plan, update living documentation
 
 # Archive and document
 
-Use this after `/supi-flow-apply` when implementation is complete. This is a docs-first closeout step, not a repository-cleanup workflow.
+Use after `/skill:supi-flow-apply` when implementation is complete. This is a docs-first verification closeout, not a repository cleanup.
 
 ## The Iron Law
 
-```text
-NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
-```
-
-Before claiming the change is done, the docs are accurate, or the ticket can be closed: run the proof fresh, read the result, and check the exit status.
+NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE. Run the proof fresh, read the result, check the exit status.
 
 ## Step 1: Find the change
 
-- A TNDM-ID was set during plan phase. Read the ticket metadata first:
-  `supi_tndm_cli { action: "show", id: "<ID>" }` — inspect `content_path` and the registered documents, then read `content.md` for the approved design and list tasks with `supi_tndm_cli { action: "task_list", id: "<ID>" }`.
-- Archive runs only when a ticket exists. Trivial flows that skipped the ticket close out directly in conversation — do not run archive.
-- If nothing is clear: ask which change to archive.
+Read the ticket metadata and content, then list its tasks. Archive only runs when a ticket exists — trivial flows close out in conversation. If unclear, ask which change to archive.
 
-## Step 2: Verify completion
+## Step 2: Verify completion against the plan
 
-Compare the plan against what was actually done. Fresh checks only.
+For every planned task, run fresh verification:
 
-- [ ] Every planned task is complete, or any deviation is explained.
-- [ ] Tests and verification commands were run fresh.
-- [ ] The implemented result still matches the approved intent.
-- [ ] Any claimed manual verification was actually performed.
-
-If any check fails, stop and fix that first.
-
-### Verification gate
-
-```text
-1. Identify the command or evidence that proves the claim.
+1. Identify the command or evidence that proves completion.
 2. Run it fresh.
 3. Read the full result and exit code.
-4. Confirm the claim matches the evidence.
-5. Only then report success.
-```
+4. Confirm the evidence matches the claim.
 
-## Step 3: Update living documentation
+Stop if: a task is incomplete and unexplained, tests weren't run fresh, the result diverges from approved intent, or claimed manual verification wasn't actually performed.
 
-Update docs only where the change actually affects them.
+## Step 3: Update and verify docs
 
-1. Review `git diff` to understand the real delta.
-2. Identify the docs that should change.
-3. Update them with grounded, specific language.
-4. Reference actual file paths, commands, settings, or behavior when helpful.
+1. Review `git diff` for the real delta.
+2. Update only the docs the change actually affects — file paths, commands, settings, behavior.
+3. Verify docs match the final code: check paths, command names, settings, and guidance against the implementation. Do not assume correctness.
 
-## Step 4: Verify doc accuracy
+## Step 4: Close out
 
-Do the docs match the actual code and workflow?
+Close the ticket — requires nonblank verification evidence and all tasks complete. Stores the evidence in the ticket archive.
 
-- check file paths
-- check command names
-- check settings or behavior descriptions
-- check that new guidance matches the final implementation
+## Step 5: Commit
 
-Do not assume documentation is correct just because it sounds right.
+If only ticket files changed: commit with `chore(tndm): close <ticket_id>`. Otherwise ask whether to commit now (use the `commit` skill if available) or let the user handle it manually.
 
-## Step 5: Close out
+## Red flag
 
-- Call `supi_flow_close { ticket_id: "<ID>", verification_results: "..." }` with the full verification evidence.
-  `supi_flow_close` requires nonblank `verification_results`, refuses to close while structured tasks remain incomplete, then sets `status=done`, tags=`flow:done`, and stores the evidence in `archive.md`.
-- There is no ticket-less closeout.
-
-## Step 6: Commit or finish
-
-```instructions
-run("git status")
-if only_changed(".tndm/"):
-  commit(".tndm/", "chore(tndm): close <ticket_id>")
-  say("The ticket is closed. All changes are committed.")
-else:
-  ask_user("Commit all changes now, including .tndm/, or finish and commit manually?")
-  if user_chose_commit_now:
-    if skill_exists_matching("commit"):
-      use_skill_matching("commit")
-    else:
-      git_add_all()
-      git_commit()
-  else:
-    say("The ticket is closed. Remember to commit your changes when ready.")
-```
-
-## Red flags
-
-Stop if you catch yourself:
-
-- claiming success from an old test run
-- saying "should" or "probably" instead of citing evidence
-- updating docs before confirming the implementation
-- treating this as a repository cleanup workflow instead of a verification-and-docs closeout
+Stop if you're treating this as repository cleanup instead of a verification closeout.
