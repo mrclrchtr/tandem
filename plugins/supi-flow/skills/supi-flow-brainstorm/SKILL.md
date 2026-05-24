@@ -5,99 +5,69 @@ description: You MUST use this before any implementation. Clarify intent, shape 
 
 # Flow Brainstorm
 
-Turn an idea into an approved design through focused collaboration. Default to a lightweight conversation. Add more structure only when the change is larger, riskier, or likely to span sessions.
+Turn an idea into an approved design through focused collaboration. Default to lightweight conversation; add structure only when the change is larger, riskier, or likely to span sessions. No change is too small — unexamined assumptions cause the most rework.
 
 <HARD-GATE>
 Do NOT write code, scaffold anything, or take implementation action until you have presented a design and the user has approved it. This applies even to changes that seem simple.
 </HARD-GATE>
 
-## Anti-Pattern: "This Change Is Too Small To Need Brainstorming"
-
-Every change goes through this process — a one-line fix, a config tweak, a refactor, all of them. "Simple" changes are where unexamined assumptions cause the most rework. The design can be short (a few sentences for truly simple changes), but you MUST present it and get approval.
-
 ## Checklist
 
-You MUST complete these items in order. Each step is expanded in the sections below.
+Complete these in order:
 
-1. **Explore context** — check relevant files, docs, recent commits, and existing tickets.
-2. **Ask clarifying questions** — one at a time. Focus on purpose, constraints, and success criteria.
+1. **Explore context** — relevant files, docs, recent commits, existing tickets.
+2. **Ask clarifying questions** — one at a time, with a recommendation. Focus on purpose, constraints, and success criteria.
 3. **Propose 2-3 approaches** — include trade-offs and a recommendation.
-4. **Present the design** — scale detail to complexity, get approval per section.
-5. **Classify and persist** — decide trivial vs non-trivial, then store the design (see [Classify and persist](#classify-and-persist)).
-6. **Self-review** — run the four checks in [Self-review](#self-review), fix issues inline.
-7. **User review gate** — pause and ask the user to review the written design before proceeding.
-8. **Handoff** — present the outcome and recommend the next step.
+4. **Present the design** — scale detail to complexity; get approval per section.
+5. **Classify and persist** — trivial (chat-only) or non-trivial (ticket). See below.
+6. **Self-review** — run the four checks.
+7. **User review gate** — pause for user review before proceeding.
+8. **Handoff** — present outcome, recommend next step.
 
 ## Understanding the idea
 
-- **Check the current project state first.** Follow existing patterns before proposing new ones.
-- **Assess scope before asking detailed questions.** If the request spans multiple independent changes, flag it immediately. Help the user decompose into sub-projects, then brainstorm the first one.
-- **Explore the codebase before asking the user.** Read code, docs, or history first. Only ask when the answer requires judgment or intent.
-- **Ask one question per message, with a recommended answer.** Guide — don't just interrogate. The user can override, but they shouldn't have to invent answers from scratch.
-- **Walk every branch of the decision tree.** Resolve dependencies between decisions one-by-one. Don't stop at the first plausible answer — keep refining until goals, non-goals, constraints, and success criteria are clear.
+- **Check project state first.** Follow existing patterns. Explore code, docs, and history before asking the user. Only ask when the answer requires judgment or intent.
+- **Flag multi-scope requests early.** If the request spans independent changes, help decompose into sub-projects and brainstorm the first one.
+- **Ask one question per message, with a recommended answer.** Guide — don't interrogate. The user can override, but shouldn't have to invent answers from scratch.
+- **Walk every branch.** Resolve dependencies between decisions one-by-one. Keep refining until goals, non-goals, constraints, and success criteria are clear.
+- **Include targeted cleanup** when it directly helps the work. Do not propose unrelated refactors.
 
 ## Exploring approaches
 
 - Propose 2-3 approaches with trade-offs.
 - Lead with your recommendation and say why.
-- Prefer simple, well-bounded designs over sprawling ones.
+- Prefer simple, well-bounded designs.
 
 ## Presenting the design
 
-Cover the parts that matter for the change, such as:
-
-- approach
-- main components or files
-- data flow or control flow
-- edge cases and error handling
-- testing and verification
-- docs to update, if any
-
-Keep each section proportional to the complexity. A small change may only need a few sentences.
-
-## Working in existing codebases
-
-- Follow established patterns unless there is a strong reason not to.
-- Include targeted cleanup when it directly helps the work.
-- Do not propose unrelated refactors.
+Cover the parts that matter for the change: approach, main components/files, data/control flow, edge cases and error handling, testing and verification, docs to update. Scale each section to complexity.
 
 ## Classify and persist
 
-After the design is approved, decide how to store it.
+**Trivial** (single file, no tests/docs, one step, or "just do it"): keep the design in chat. Implement directly. No ticket.
 
-**Trivial** — single file, no tests/docs needed, one verification step, or the user says "just do it":
-- Keep the design in chat.
-- Implement directly, verify, done. No ticket.
+**Non-trivial** (multi-file, needs tests/docs, multi-step, or likely multi-session): call `supi_flow_start`, then store the approved design via `supi_tndm_cli update content`. Task authoring happens later, during plan phase.
 
-**Non-trivial** — multi-file, needs tests or docs, multi-step, or likely multi-session:
-- Call `supi_flow_start` to create a TNDM ticket.
-- Store the approved design in the ticket via `supi_tndm_cli { action: "update", id: "<ID>", content: "<outcome>" }`.
-- During plan phase, keep task authoring separate: the overview stays in the ticket, and executable tasks are later authored one at a time via `supi_flow_task`.
-
-**Retroactive escalation:** if a trivial change grows in scope mid-implementation, stop, create a retroactive ticket via `supi_flow_start`, and store a summary of completed work + new scope.
+**Retroactive escalation:** if a trivial change grows mid-implementation, stop, call `supi_flow_start`, and store a summary of completed work plus new scope.
 
 ## Self-review
 
-Before handing off:
+1. **Placeholder scan** — no TODOs, vague requirements, or incomplete sections.
+2. **Consistency** — no contradictions between sections.
+3. **Scope** — focused enough for one plan, or flagged for decomposition.
+4. **Ambiguity** — pick one interpretation for any ambiguous requirement and state it explicitly.
 
-1. **Placeholder scan** — any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
-2. **Internal consistency** — do any sections contradict each other?
-3. **Scope check** — is this focused enough for a single implementation plan, or does it need decomposition?
-4. **Ambiguity check** — could any requirement be interpreted two ways? If so, pick one and make it explicit.
-
-Fix issues inline, then continue.
+Fix issues inline before handing off.
 
 ## User review gate
 
-After the design is persisted (in the ticket or in chat for trivial work), pause and ask the user to review it:
+After the design is persisted, pause:
 
 > "Design is ready in `<chat or ticket ID>`. Please review it and let me know if you want to make any changes before we proceed."
 
-Wait for the user's response. If they request changes, make them and re-run the self-review. Only proceed once the user approves.
+Wait for approval. Rerun self-review after any changes.
 
 ## Handoff
-
-Present the outcome in a compact form:
 
 ```markdown
 ## Brainstorming Outcome
@@ -110,17 +80,9 @@ Present the outcome in a compact form:
 ```
 
 Then recommend:
-- If non-trivial: `/supi-flow-plan TNDM-XXXXXX`
-- If trivial: proceed with direct implementation
+- Non-trivial: `/supi-flow-plan TNDM-XXXXXX`
+- Trivial: proceed with direct implementation
 
 <HARD-GATE>
 For non-trivial work, do NOT invoke any implementation skill or write code. The ONLY next step after brainstorming is `/supi-flow-plan`. Trivial work may proceed directly.
 </HARD-GATE>
-
-## Key principles
-
-- One question at a time
-- Explore alternatives before settling
-- Scale rigor to risk
-- Default to lightweight collaboration
-- Keep the design clear enough to implement without guessing
