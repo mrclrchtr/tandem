@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/mrclrchtr/tandem/compare/v0.12.0...v0.12.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* **supi-flow:** prevent agents from skipping task detail docs during apply ([63d8db3](https://github.com/mrclrchtr/tandem/commit/63d8db32661c7d759435a546cccda87cbd961954))
+
 ## [0.12.0](https://github.com/mrclrchtr/tandem/compare/v0.11.0...v0.12.0) (2026-05-24)
 
 
