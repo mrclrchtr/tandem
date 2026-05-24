@@ -108,6 +108,10 @@ Then recommend:
 - If non-trivial: `/supi-flow-plan TNDM-XXXXXX`
 - If trivial: proceed with direct implementation
 
+<HARD-GATE>
+For non-trivial work, do NOT invoke any implementation skill or write code. The ONLY next step after brainstorming is `/supi-flow-plan`. Trivial work may proceed directly.
+</HARD-GATE>
+
 ## Key principles
 
 - One question at a time
