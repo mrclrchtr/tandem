@@ -8,6 +8,12 @@ import {
   truncateHead,
 } from "@earendil-works/pi-coding-agent";
 import { tndm, tndmJson } from "../cli.js";
+import {
+  ensureTaskDetailDoc,
+  extractLatestTaskNumber,
+  extractTaskTitle,
+  loadTicket,
+} from "./ticket-helpers.js";
 
 export const actionEnum = StringEnum([
   "create",
@@ -375,60 +381,4 @@ function addOptionalFlags(
   }
 }
 
-// NOTE: This assumes task numbers are auto-incremented (1, 2, 3…). If task_add ever
-// supports explicit task numbering, this will need to use a more precise source
-// of truth (e.g. a top-level `task_number` field in the JSON response).
-function extractLatestTaskNumber(result: Record<string, unknown>): number {
-  const tasks = extractTasks(result);
-  const numbers = tasks
-    .map((task) => task.number)
-    .filter((value): value is number => typeof value === "number");
 
-  if (numbers.length === 0) {
-    throw new Error("supi_tndm_cli: task_add did not return a task list; cannot attach task detail");
-  }
-
-  return Math.max(...numbers);
-}
-
-function extractTaskTitle(result: Record<string, unknown>, taskNumber: number): string | undefined {
-  return extractTasks(result).find((task) => task.number === taskNumber)?.title;
-}
-
-function extractTasks(result: Record<string, unknown>): Array<{ number?: number; title?: string }> {
-  if (Array.isArray(result.tasks)) {
-    return result.tasks.filter(
-      (task): task is { number?: number; title?: string } => typeof task === "object" && task !== null,
-    );
-  }
-
-  const ticket = result.ticket;
-  if (typeof ticket === "object" && ticket !== null) {
-    const state = (ticket as { state?: unknown }).state;
-    if (typeof state === "object" && state !== null && Array.isArray((state as { tasks?: unknown }).tasks)) {
-      return ((state as { tasks: unknown[] }).tasks).filter(
-        (task): task is { number?: number; title?: string } => typeof task === "object" && task !== null,
-      );
-    }
-  }
-
-  return [];
-}
-
-async function loadTicket(
-  id: string,
-  signal?: AbortSignal,
-): Promise<Record<string, unknown>> {
-  return tndmJson<Record<string, unknown>>(["ticket", "show", id], signal);
-}
-
-async function ensureTaskDetailDoc(
-  id: string,
-  taskNumber: number,
-  signal?: AbortSignal,
-): Promise<{ path: string }> {
-  return tndmJson<{ path: string }>(
-    ["ticket", "task", "detail", "ensure", id, String(taskNumber)],
-    signal,
-  );
-}

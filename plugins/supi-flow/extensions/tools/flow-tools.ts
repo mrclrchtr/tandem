@@ -1,18 +1,23 @@
-import { existsSync, readFileSync } from "node:fs";
 import { writeArchiveDoc, writeTaskDetailDoc } from "./doc-writes.js";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname } from "node:path";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { tndm, tndmJson } from "../cli.js";
-
-type FlowTaskListEntry = {
-  number?: number;
-  title?: string;
-  status?: string;
-  detail_path?: string;
-};
-
-// ─── supi_flow_start ───────────────────────────────────────────
+import {
+  ensureTaskDetailDoc,
+  extractContentPath,
+  extractLatestTaskNumber,
+  extractTaskTitle,
+  extractTicketStatus,
+  extractTicketTags,
+  filterFlowTasks,
+  findRepoRoot,
+  type FlowTaskListEntry,
+  loadTicket,
+  readRequiredTicketContent,
+  resolveTicketPath,
+  unwrapTicket,
+} from "./ticket-helpers.js";
 
 export const supiFlowStartParams = Type.Object({
   title: Type.String({ description: "Ticket title describing the change" }),
@@ -162,7 +167,7 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
     );
   }
 
-  const overview = readRequiredTicketContent(
+  const overview = await readRequiredTicketContent(
     params.ticket_id,
     extractContentPath(ticket),
     "supi_flow_apply",
@@ -405,7 +410,7 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams, si
     const message = error instanceof Error ? error.message : String(error);
     // Task already done returns a regular success from the CLI; only hard failure
     // happens when the task doesn't exist
-    if (message.includes("not found")) {
+    if (/\btask\s+\d+\s+not\s+found/i.test(message)) {
       throw new Error(
         `Task ${params.task_number} not found in ticket ${params.ticket_id}.`,
       );
@@ -504,147 +509,10 @@ export async function executeFlowClose(params: FlowCloseParams, signal?: AbortSi
   };
 }
 
-function extractLatestTaskNumber(result: Record<string, unknown>): number {
-  const tasks = extractTasks(result);
-  const numbers = tasks
-    .map((task) => task.number)
-    .filter((value): value is number => typeof value === "number");
-
-  if (numbers.length === 0) {
-    throw new Error("supi_flow_task: task_add did not return a task list");
-  }
-
-  return Math.max(...numbers);
-}
-
-function extractTaskTitle(result: Record<string, unknown>, taskNumber: number): string | undefined {
-  return extractTasks(result).find((task) => task.number === taskNumber)?.title;
-}
-
-function extractTasks(result: Record<string, unknown>): FlowTaskListEntry[] {
-  const ticket = unwrapTicket(result);
-
-  if (Array.isArray(ticket.tasks)) {
-    return filterFlowTasks(ticket.tasks);
-  }
-
-  const state = ticket.state;
-  if (
-    typeof state === "object" &&
-    state !== null &&
-    Array.isArray((state as { tasks?: unknown }).tasks)
-  ) {
-    return filterFlowTasks((state as { tasks: unknown[] }).tasks);
-  }
-
-  return [];
-}
-
-function filterFlowTasks(tasks: unknown[]): FlowTaskListEntry[] {
-  return tasks
-    .filter(
-      (task): task is FlowTaskListEntry => typeof task === "object" && task !== null,
-    )
-    .map((task) => {
-      // Derive detail_path from canonical naming convention
-      if (task.number !== undefined && !task.detail_path) {
-        const num = String(task.number).padStart(2, "0");
-        return { ...task, detail_path: `tasks/task-${num}.md` };
-      }
-      return task;
-    });
-}
-
-function unwrapTicket(result: Record<string, unknown>): Record<string, unknown> {
-  const ticket = result.ticket;
-  if (typeof ticket === "object" && ticket !== null) {
-    return ticket as Record<string, unknown>;
-  }
-  return result;
-}
-
-function extractTicketTags(result: Record<string, unknown>): string[] {
-  const ticket = unwrapTicket(result);
-  if (!Array.isArray(ticket.tags)) {
-    return [];
-  }
-
-  return ticket.tags.filter((tag): tag is string => typeof tag === "string");
-}
-
-function extractTicketStatus(result: Record<string, unknown>): string | undefined {
-  const ticket = unwrapTicket(result);
-  return typeof ticket.status === "string" ? ticket.status : undefined;
-}
-
-function extractContentPath(result: Record<string, unknown>): string | undefined {
-  const ticket = unwrapTicket(result);
-  return typeof ticket.content_path === "string" ? ticket.content_path : undefined;
-}
-
-function readRequiredTicketContent(
-  ticketId: string,
-  contentPath: string | undefined,
-  toolName: string,
-): string {
-  if (!contentPath) {
-    throw new Error(`${toolName}: ticket ${ticketId} is missing content_path`);
-  }
-
-  let overview: string;
-  try {
-    overview = readFileSync(resolveTicketPath(contentPath), "utf-8");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`${toolName}: failed to read content.md for ticket ${ticketId}: ${message}`);
-  }
-
-  if (!overview.trim()) {
-    throw new Error(`${toolName}: approved overview in content.md must not be blank`);
-  }
-
-  return overview;
-}
-
-function resolveTicketPath(ticketPath: string): string {
-  if (isAbsolute(ticketPath)) {
-    return ticketPath;
-  }
-
-  return resolve(findRepoRoot(), ticketPath);
-}
-
-function findRepoRoot(startDir = process.cwd()): string {
-  let current = resolve(startDir);
-
-  while (true) {
-    if (existsSync(join(current, ".git")) || existsSync(join(current, ".tndm"))) {
-      return current;
-    }
-
-    const parent = dirname(current);
-    if (parent === current) {
-      throw new Error(`failed to locate repository root from ${startDir}`);
-    }
-    current = parent;
-  }
-}
-
-async function loadTicket(id: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
-  return tndmJson<Record<string, unknown>>(["ticket", "show", id], signal);
-}
-
 async function loadTaskList(id: string, signal?: AbortSignal): Promise<FlowTaskListEntry[]> {
   const tasks = await tndmJson<unknown>(["ticket", "task", "list", id], signal);
   if (!Array.isArray(tasks)) {
     throw new Error(`supi_flow: task list for ticket ${id} did not return an array`);
   }
   return filterFlowTasks(tasks);
-}
-
-async function ensureTaskDetailDoc(id: string, taskNumber: number, signal?: AbortSignal): Promise<{ path: string }> {
-  return tndmJson<{ path: string }>(
-    ["ticket", "task", "detail", "ensure", id, String(taskNumber)],
-    signal,
-  );
 }

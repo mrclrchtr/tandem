@@ -34,9 +34,9 @@ export const toolSpecs = [
     async execute(
       _toolCallId: string,
       params: Record<string, unknown>,
-      _signal?: AbortSignal,
+      signal?: AbortSignal,
     ) {
-      return executeTndmCli(params as never, _signal);
+      return executeTndmCli(params as never, signal);
     },
   },
 
@@ -57,9 +57,9 @@ export const toolSpecs = [
     async execute(
       _toolCallId: string,
       params: Record<string, unknown>,
-      _signal?: AbortSignal,
+      signal?: AbortSignal,
     ) {
-      return executeFlowStart(params as never, _signal);
+      return executeFlowStart(params as never, signal);
     },
   },
 
@@ -80,9 +80,9 @@ export const toolSpecs = [
     async execute(
       _toolCallId: string,
       params: Record<string, unknown>,
-      _signal?: AbortSignal,
+      signal?: AbortSignal,
     ) {
-      return executeFlowPlan(params as never, _signal);
+      return executeFlowPlan(params as never, signal);
     },
   },
 
@@ -103,9 +103,9 @@ export const toolSpecs = [
     async execute(
       _toolCallId: string,
       params: Record<string, unknown>,
-      _signal?: AbortSignal,
+      signal?: AbortSignal,
     ) {
-      return executeFlowApply(params as never, _signal);
+      return executeFlowApply(params as never, signal);
     },
   },
 
@@ -126,9 +126,9 @@ export const toolSpecs = [
     async execute(
       _toolCallId: string,
       params: Record<string, unknown>,
-      _signal?: AbortSignal,
+      signal?: AbortSignal,
     ) {
-      return executeFlowTask(params as never, _signal);
+      return executeFlowTask(params as never, signal);
     },
   },
 
@@ -149,9 +149,9 @@ export const toolSpecs = [
     async execute(
       _toolCallId: string,
       params: Record<string, unknown>,
-      _signal?: AbortSignal,
+      signal?: AbortSignal,
     ) {
-      return executeFlowCompleteTask(params as never, _signal);
+      return executeFlowCompleteTask(params as never, signal);
     },
   },
 
@@ -172,9 +172,9 @@ export const toolSpecs = [
     async execute(
       _toolCallId: string,
       params: Record<string, unknown>,
-      _signal?: AbortSignal,
+      signal?: AbortSignal,
     ) {
-      return executeFlowClose(params as never, _signal);
+      return executeFlowClose(params as never, signal);
     },
   },
 ];

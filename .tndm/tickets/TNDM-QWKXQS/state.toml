@@ -1,0 +1,71 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-24T19:49:58.888741Z"
+revision = 44
+
+[document_fingerprints]
+archive = "sha256:a87cb1ffde595b82289dff8d1ca0f05938e592c7c8b8f6a5cc06fd11858d949d"
+content = "sha256:c7875e70e34ff43a5ff07f3c898d7bc9f79e71ab6e808fa7e5a913dd0be8fda4"
+task-01 = "sha256:7f2321273f3fcafd666d18607d66cd2e706c5202bac1152ca52116cda5073c0f"
+task-02 = "sha256:4f12c014eee06a74de4b0e4e39b5a2f775dfd149c6f989d76ba98bdfb833624d"
+task-03 = "sha256:e6ffef3a30ea50fecf47f38960ba8e0640395bc7433cc0fb003a88323db329e3"
+task-04 = "sha256:e28568c526c3bae9e21fb76d7fcd02b53e4df4f2aaed327fd71ca42d07bdda8a"
+task-05 = "sha256:273442a4a3bf9548efb799edd13dbdbb8a855b63cafb60c73f47b31a1205c932"
+task-06 = "sha256:f25a404e60c99ca49ab76bb69db7ea1eca179f1c64ce455200e262224e81aba5"
+task-07 = "sha256:dad0b0f6da7c1a16f4e7308c92a5acc23ed26ad240f4d796d1f36e34a9c1038c"
+task-08 = "sha256:1b371750775a2f2b07e46a24632d0ee16737c5d0966cd1f62d7f963233b87893"
+task-09 = "sha256:c3895a51043e03b60c7b13f678c9a11427969becc7adb9b96a9e4f5540d872ca"
+
+[[tasks]]
+number = 1
+title = "Create ticket-helpers.ts with all shared utility functions"
+status = "done"
+detail_path = "tasks/task-01.md"
+
+[[tasks]]
+number = 2
+title = "Update tndm-cli.ts to import helpers from ticket-helpers.ts"
+status = "done"
+detail_path = "tasks/task-02.md"
+
+[[tasks]]
+number = 3
+title = "Update flow-tools.ts to import helpers from ticket-helpers.ts"
+status = "done"
+detail_path = "tasks/task-03.md"
+
+[[tasks]]
+number = 4
+title = "Verify Phase 1: tsc + all existing tests pass"
+status = "done"
+detail_path = "tasks/task-04.md"
+
+[[tasks]]
+number = 5
+title = "Rename _signal → signal in tool-specs.ts execute wrappers"
+status = "done"
+detail_path = "tasks/task-05.md"
+
+[[tasks]]
+number = 6
+title = 'Replace includes("not found") with regex in executeFlowCompleteTask'
+status = "done"
+detail_path = "tasks/task-06.md"
+
+[[tasks]]
+number = 7
+title = "Create ticket-helpers.test.ts with resolveTicketPath and findRepoRoot tests"
+status = "done"
+detail_path = "tasks/task-07.md"
+
+[[tasks]]
+number = 8
+title = "Add CI frozen-lockfile check for pnpm lockfile drift"
+status = "done"
+detail_path = "tasks/task-08.md"
+
+[[tasks]]
+number = 9
+title = "Verify Phase 2: tsc + all tests pass (existing + new)"
+status = "done"
+detail_path = "tasks/task-09.md"
