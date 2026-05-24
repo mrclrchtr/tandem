@@ -31,7 +31,7 @@ You MUST complete these items in order. Each step is expanded in the sections be
 ## Understanding the idea
 
 - Check the current project state first. Follow existing patterns before proposing new ones.
-- Assess scope early. If the user is really asking for several subsystems, say so and help break the work into smaller changes.
+- **Assess scope before asking detailed questions.** If the request describes multiple independent changes, flag this immediately — don't spend questions refining details of work that needs decomposition first. Help the user break it into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal flow. Each sub-project gets its own spec → plan → implementation cycle.
 - Ask one question per message. Multiple choice is great when it makes the decision easier.
 - Keep refining until you understand the goal, non-goals, constraints, and what success looks like.
 
