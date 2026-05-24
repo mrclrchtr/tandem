@@ -4,23 +4,13 @@
     "config:best-practices",
     ":automergeMinor",
   ],
-  "allowedCommands": [
-    "^mise lock$",
-  ],
   "packageRules": [
     {
       "matchManagers": [
         "mise"
       ],
-      "postUpgradeTasks": {
-        "commands": [
-          "mise lock"
-        ],
-        "fileFilters": [
-          "mise.toml",
-          "mise.lock"
-        ],
-        "executionMode": "branch"
+      "lockFileMaintenance": {
+        "enabled": true
       }
     }
   ],
