@@ -4,6 +4,9 @@
     "config:best-practices",
     ":automergeMinor",
   ],
+  "allowedCommands": [
+    "^mise lock$",
+  ],
   "packageRules": [
     {
       "matchManagers": [
