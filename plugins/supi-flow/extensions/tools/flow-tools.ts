@@ -1,22 +1,24 @@
-import { writeArchiveDoc, writeTaskDetailDoc } from "./doc-writes.js";
+import { writeArchiveDoc } from "./doc-writes.js";
 import { dirname } from "node:path";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { tndm, tndmJson } from "../cli.js";
 import {
-  ensureTaskDetailDoc,
   extractContentPath,
   extractLatestTaskNumber,
   extractTaskTitle,
   extractTicketStatus,
   extractTicketTags,
-  filterFlowTasks,
-  findRepoRoot,
+  FLOW_TAGS_ALL,
+  FLOW_TAG_APPLYING,
+  FLOW_TAG_BRAINSTORM,
+  FLOW_TAG_DONE,
+  FLOW_TAG_PLANNED,
   type FlowTaskListEntry,
+  loadTaskList,
   loadTicket,
   readRequiredTicketContent,
-  resolveTicketPath,
-  unwrapTicket,
+  writeTaskDetailAndReload,
 } from "./ticket-helpers.js";
 
 export const supiFlowStartParams = Type.Object({
@@ -50,7 +52,7 @@ export async function executeFlowStart(params: FlowStartParams, signal?: AbortSi
     "--status",
     "todo",
     "--tags",
-    "flow:brainstorm",
+    FLOW_TAG_BRAINSTORM,
   ];
 
   if (params.priority) args.push("--priority", params.priority);
@@ -79,7 +81,7 @@ export async function executeFlowStart(params: FlowStartParams, signal?: AbortSi
       ticketId,
       ticketPath: ticketDir,
       status: "todo",
-      tags: "flow:brainstorm",
+      tags: FLOW_TAG_BRAINSTORM,
     },
   };
 }
@@ -114,9 +116,9 @@ export async function executeFlowPlan(params: FlowPlanParams, signal?: AbortSign
     "update",
     params.ticket_id,
     "--remove-tags",
-    "flow:brainstorm,flow:planned,flow:applying,flow:done",
+    FLOW_TAGS_ALL,
     "--add-tags",
-    "flow:planned",
+    FLOW_TAG_PLANNED,
   ], signal);
 
   return {
@@ -129,7 +131,7 @@ export async function executeFlowPlan(params: FlowPlanParams, signal?: AbortSign
     details: {
       action: "flow_plan",
       ticketId: params.ticket_id,
-      tags: "flow:planned",
+      tags: FLOW_TAG_PLANNED,
       contentStored: true,
     },
   };
@@ -148,17 +150,17 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
   const status = extractTicketStatus(ticket);
   const tags = extractTicketTags(ticket);
 
-  if (status === "done" || tags.includes("flow:done")) {
+  if (status === "done" || tags.includes(FLOW_TAG_DONE)) {
     throw new Error(`supi_flow_apply: ticket ${params.ticket_id} is already closed`);
   }
 
-  if (!tags.includes("flow:planned") && !tags.includes("flow:applying")) {
+  if (!tags.includes(FLOW_TAG_PLANNED) && !tags.includes(FLOW_TAG_APPLYING)) {
     throw new Error(
       `supi_flow_apply: ticket ${params.ticket_id} must be in flow:planned or flow:applying`,
     );
   }
   if (
-    tags.includes("flow:applying") &&
+    tags.includes(FLOW_TAG_APPLYING) &&
     status !== "in_progress" &&
     status !== "blocked"
   ) {
@@ -181,7 +183,7 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
   let transitioned = false;
   let applyStatus = status ?? "in_progress";
 
-  if (tags.includes("flow:planned")) {
+  if (tags.includes(FLOW_TAG_PLANNED)) {
     await tndm([
       "ticket",
       "update",
@@ -189,9 +191,9 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
       "--status",
       "in_progress",
       "--remove-tags",
-      "flow:planned",
+      FLOW_TAG_PLANNED,
       "--add-tags",
-      "flow:applying",
+      FLOW_TAG_APPLYING,
     ], signal);
     transitioned = true;
     applyStatus = "in_progress";
@@ -221,7 +223,7 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
       ticketId: params.ticket_id,
       transitioned,
       status: applyStatus,
-      tags: "flow:applying",
+      tags: FLOW_TAG_APPLYING,
       contentPath,
       overview,
       tasks,
@@ -269,10 +271,9 @@ export async function executeFlowTask(params: FlowTaskParams, signal?: AbortSign
       let finalResult = result;
 
       if (params.detail !== undefined) {
-        const detailResult = await ensureTaskDetailDoc(params.ticket_id, taskNumber, signal);
-        await writeTaskDetailDoc(detailResult.path, taskNumber, params.title, params.detail);
-        await tndm(["ticket", "sync", params.ticket_id], signal);
-        finalResult = await loadTicket(params.ticket_id, signal);
+        finalResult = await writeTaskDetailAndReload(
+          params.ticket_id, taskNumber, params.title, params.detail, signal,
+        );
       }
 
       return {
@@ -313,21 +314,19 @@ export async function executeFlowTask(params: FlowTaskParams, signal?: AbortSign
       let finalResult: Record<string, unknown> | undefined;
 
       if (params.detail !== undefined) {
-        const detailResult = await ensureTaskDetailDoc(params.ticket_id, params.task_number, signal);
-        const taskSnapshot = hasManifestFieldChanges
-          ? await tndmJson<Record<string, unknown>>(args, signal)
-          : await loadTicket(params.ticket_id, signal);
-        const taskTitle =
-          params.title ??
-          extractTaskTitle(taskSnapshot, params.task_number) ??
-          `Task ${params.task_number}`;
-        await writeTaskDetailDoc(detailResult.path, params.task_number, taskTitle, params.detail);
-        await tndm(["ticket", "sync", params.ticket_id], signal);
-        finalResult = await loadTicket(params.ticket_id, signal);
-      } else if (hasManifestFieldChanges) {
-        finalResult = await tndmJson<Record<string, unknown>>(args);
+        const applyTitleEdit = hasManifestFieldChanges;
+        let taskTitle: string;
+        if (params.title !== undefined) {
+          taskTitle = params.title;
+        } else {
+          const ticket = await loadTicket(params.ticket_id, signal);
+          taskTitle = extractTaskTitle(ticket, params.task_number) ?? `Task ${params.task_number}`;
+        }
+        finalResult = await writeTaskDetailAndReload(
+          params.ticket_id, params.task_number, taskTitle, params.detail, signal, applyTitleEdit,
+        );
       } else {
-        finalResult = await tndmJson<Record<string, unknown>>(args);
+        finalResult = await tndmJson<Record<string, unknown>>(args, signal);
       }
 
       return {
@@ -445,10 +444,10 @@ export async function executeFlowClose(params: FlowCloseParams, signal?: AbortSi
   const status = extractTicketStatus(ticket);
   const tags = extractTicketTags(ticket);
 
-  if (status === "done" || tags.includes("flow:done")) {
+  if (status === "done" || tags.includes(FLOW_TAG_DONE)) {
     throw new Error(`supi_flow_close: ticket ${params.ticket_id} is already closed`);
   }
-  if (!tags.includes("flow:applying")) {
+  if (!tags.includes(FLOW_TAG_APPLYING)) {
     throw new Error(
       `supi_flow_close: ticket ${params.ticket_id} must be in flow:applying before close`,
     );
@@ -480,7 +479,7 @@ export async function executeFlowClose(params: FlowCloseParams, signal?: AbortSi
     signal,
   );
   await writeArchiveDoc(docResult.path, verificationResults);
-  await tndm(["ticket", "sync", params.ticket_id]);
+  await tndm(["ticket", "sync", params.ticket_id], signal);
 
   // Replace any flow-state tag with flow:done — remove all possible flow-state tags,
   // set status, and add flow:done in one atomic call, to work correctly regardless of
@@ -490,11 +489,11 @@ export async function executeFlowClose(params: FlowCloseParams, signal?: AbortSi
     "update",
     params.ticket_id,
     "--remove-tags",
-    "flow:brainstorm,flow:planned,flow:applying,flow:done",
+    FLOW_TAGS_ALL,
     "--status",
     "done",
     "--add-tags",
-    "flow:done",
+    FLOW_TAG_DONE,
   ], signal);
 
   return {
@@ -508,15 +507,7 @@ export async function executeFlowClose(params: FlowCloseParams, signal?: AbortSi
       action: "flow_close",
       ticketId: params.ticket_id,
       status: "done",
-      tags: "flow:done",
+      tags: FLOW_TAG_DONE,
     },
   };
-}
-
-async function loadTaskList(id: string, signal?: AbortSignal): Promise<FlowTaskListEntry[]> {
-  const tasks = await tndmJson<unknown>(["ticket", "task", "list", id], signal);
-  if (!Array.isArray(tasks)) {
-    throw new Error(`supi_flow: task list for ticket ${id} did not return an array`);
-  }
-  return filterFlowTasks(tasks);
 }

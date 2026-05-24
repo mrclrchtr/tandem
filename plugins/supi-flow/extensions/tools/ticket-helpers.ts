@@ -1,7 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { tndmJson } from "../cli.js";
+import { tndm, tndmJson } from "../cli.js";
+import { writeTaskDetailDoc } from "./doc-writes.js";
 
 export type FlowTaskListEntry = {
   number?: number;
@@ -10,22 +11,25 @@ export type FlowTaskListEntry = {
   detail_path?: string;
 };
 
-// ─── findRepoRoot (memoized) ───────────────────────────────────
+// ─── Flow tag constants ────────────────────────────────────────
 
-let _repoRoot: string | null = null;
+export const FLOW_TAGS_ALL =
+  "flow:brainstorm,flow:planned,flow:applying,flow:done";
+export const FLOW_TAG_BRAINSTORM = "flow:brainstorm";
+export const FLOW_TAG_PLANNED = "flow:planned";
+export const FLOW_TAG_APPLYING = "flow:applying";
+export const FLOW_TAG_DONE = "flow:done";
+
+// ─── findRepoRoot ──────────────────────────────────────────────
 
 /**
- * Walk up from startDir looking for `.git` or `.tndm` — memoized after first call.
- * Export with underscore prefix for testing only.
+ * Walk up from startDir looking for `.git` or `.tndm`.
  */
 export function findRepoRoot(startDir = process.cwd()): string {
-  if (_repoRoot !== null) return _repoRoot;
-
   let current = resolve(startDir);
 
   while (true) {
     if (existsSync(join(current, ".git")) || existsSync(join(current, ".tndm"))) {
-      _repoRoot = current;
       return current;
     }
 
@@ -35,11 +39,6 @@ export function findRepoRoot(startDir = process.cwd()): string {
     }
     current = parent;
   }
-}
-
-/** Reset the memoized repo root cache (for testing only). */
-export function _resetRepoRootCache(): void {
-  _repoRoot = null;
 }
 
 // ─── resolveTicketPath ────────────────────────────────────────
@@ -155,6 +154,52 @@ export async function ensureTaskDetailDoc(
     ["ticket", "task", "detail", "ensure", id, String(taskNumber)],
     signal,
   );
+}
+
+// ─── loadTaskList ──────────────────────────────────────────────
+
+export async function loadTaskList(
+  id: string,
+  signal?: AbortSignal,
+): Promise<FlowTaskListEntry[]> {
+  const tasks = await tndmJson<unknown>(["ticket", "task", "list", id], signal);
+  if (!Array.isArray(tasks)) {
+    throw new Error(`supi_flow: task list for ticket ${id} did not return an array`);
+  }
+  return filterFlowTasks(tasks);
+}
+
+// ─── writeTaskDetailAndReload ──────────────────────────────────
+
+/**
+ * Shared utility: after a task add or edit, handle the full detail-doc lifecycle.
+ *
+ * 1. Ensure the detail doc exists via tndm doc registration.
+ * 2. Optionally apply a title edit to the task manifest.
+ * 3. Write the markdown body to the canonical path.
+ * 4. Sync the ticket so the file is registered.
+ * 5. Reload the ticket for the updated snapshot.
+ */
+export async function writeTaskDetailAndReload(
+  id: string,
+  taskNumber: number,
+  title: string,
+  detail: string,
+  signal?: AbortSignal,
+  applyTitleEdit?: boolean,
+): Promise<Record<string, unknown>> {
+  const detailResult = await ensureTaskDetailDoc(id, taskNumber, signal);
+
+  if (applyTitleEdit) {
+    await tndmJson<Record<string, unknown>>(
+      ["ticket", "task", "edit", id, String(taskNumber), "--title", title],
+      signal,
+    );
+  }
+
+  await writeTaskDetailDoc(detailResult.path, taskNumber, title, detail);
+  await tndm(["ticket", "sync", id], signal);
+  return loadTicket(id, signal);
 }
 
 // ─── Content reading (async) ──────────────────────────────────

@@ -1,34 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 
-vi.mock("../extensions/cli.js", () => {
-  const _mockTndm = vi.fn();
-  const _mockTndmJson = vi.fn();
-  // Strip trailing undefined args so existing toHaveBeenCalledWith assertions
-  // keep working after signal parameter was added.
-  const stripTrailingUndefined = (args: unknown[]) => {
-    while (args.length > 0 && args[args.length - 1] === undefined) {
-      args.pop();
-    }
-    return args;
-  };
+vi.mock("../extensions/cli.js", () => ({
+  tndm: vi.fn(),
+  tndmJson: vi.fn(),
+}));
+
+vi.mock("../extensions/tools/ticket-helpers.js", async () => {
+  const actual = await vi.importActual<typeof import("../extensions/tools/ticket-helpers.js")>(
+    "../extensions/tools/ticket-helpers.js",
+  );
   return {
-    tndm: new Proxy(_mockTndm, {
-      apply(target, _thisArg, args: unknown[]) {
-        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
-      },
-    }),
-    tndmJson: new Proxy(_mockTndmJson, {
-      apply(target, _thisArg, args: unknown[]) {
-        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
-      },
-    }),
+    ...actual,
+    writeTaskDetailAndReload: vi.fn(),
   };
 });
 
 const { tndm, tndmJson } = await import("../extensions/cli.js");
+const helpers = await import("../extensions/tools/ticket-helpers.js");
 const { executeTndmCli } = await import("../extensions/tools/tndm-cli.js");
 
 beforeEach(() => {
@@ -50,7 +38,7 @@ describe("executeTndmCli list", () => {
 
     const details = result.details as unknown as { tickets: unknown; envelope: unknown };
 
-    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith(["ticket", "list"]);
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith(["ticket", "list"], undefined);
     expect(result.content[0].text).toContain("\"tickets\"");
     expect(details.tickets).toEqual(envelope.tickets);
     expect(details.envelope).toEqual(envelope);
@@ -75,28 +63,25 @@ describe("executeTndmCli task_add", () => {
       "TNDM-ADD",
       "--title",
       "Simple task",
-    ]);
+    ], undefined);
     expect(vi.mocked(tndm)).not.toHaveBeenCalled();
+    expect(vi.mocked(helpers.writeTaskDetailAndReload)).not.toHaveBeenCalled();
   });
 
-  it("creates and links a task detail doc when detail markdown is provided", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-cli-tool-"));
-    const docPath = join(tmpDir, "tasks", "task-01.md");
+  it("delegates detail-doc writing to shared helper when detail is provided", async () => {
+    const addResult = {
+      schema_version: 1,
+      id: "TNDM-DETAIL",
+      tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
+    };
     const finalTicket = {
       schema_version: 1,
       id: "TNDM-DETAIL",
       tasks: [{ number: 1, title: "Detailed task", status: "todo", detail_path: "tasks/task-01.md" }],
     };
 
-    vi.mocked(tndmJson)
-      .mockResolvedValueOnce({
-        schema_version: 1,
-        id: "TNDM-DETAIL",
-        tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
-      })
-      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-01.md" })
-      .mockResolvedValueOnce(finalTicket);
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+    vi.mocked(tndmJson).mockResolvedValueOnce(addResult);
+    vi.mocked(helpers.writeTaskDetailAndReload).mockResolvedValueOnce(finalTicket);
 
     const result = await executeTndmCli({
       action: "task_add",
@@ -105,54 +90,36 @@ describe("executeTndmCli task_add", () => {
       task_detail: "Implementation notes go here.",
     });
 
+    // Step 1: task add via CLI
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket",
-      "task",
-      "add",
-      "TNDM-DETAIL",
-      "--title",
-      "Detailed task",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket",
-      "task",
-      "detail",
-      "ensure",
-      "TNDM-DETAIL",
-      "1",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
-      "ticket",
-      "show",
-      "TNDM-DETAIL",
-    ]);
-    expect(readFileSync(docPath, "utf-8")).toContain("Implementation notes go here.");
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-DETAIL"]);
-    expect(result.details.result).toEqual(finalTicket);
-    expect(result.content[0].text).toContain("detail_path");
-  });
+      "ticket", "task", "add", "TNDM-DETAIL", "--title", "Detailed task",
+    ], undefined);
 
+    // Step 2: shared helper handles ensure → write → sync → reload
+    expect(vi.mocked(helpers.writeTaskDetailAndReload)).toHaveBeenCalledWith(
+      "TNDM-DETAIL", 1, "Detailed task", "Implementation notes go here.", undefined,
+    );
+
+    expect(result.details.result).toEqual(finalTicket);
+  });
 });
 
 describe("executeTndmCli task_edit", () => {
-  it("infers task titles from top-level show envelopes when writing detail", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "tndm-cli-tool-edit-"));
-    const docPath = join(tmpDir, "tasks", "task-02.md");
+  it("delegates detail-only edit to shared helper", async () => {
+    const existingTicket = {
+      schema_version: 1,
+      id: "TNDM-EDITDETAIL",
+      tasks: [{ number: 2, title: "Existing task", status: "todo" }],
+    };
     const finalTicket = {
       schema_version: 1,
       id: "TNDM-EDITDETAIL",
       tasks: [{ number: 2, title: "Existing task", status: "todo", detail_path: "tasks/task-02.md" }],
     };
 
-    vi.mocked(tndmJson)
-      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-02.md" })
-      .mockResolvedValueOnce({
-        schema_version: 1,
-        id: "TNDM-EDITDETAIL",
-        tasks: [{ number: 2, title: "Existing task", status: "todo" }],
-      })
-      .mockResolvedValueOnce(finalTicket);
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+    // loadTicket to extract title
+    vi.mocked(tndmJson).mockResolvedValueOnce(existingTicket);
+    vi.mocked(helpers.writeTaskDetailAndReload).mockResolvedValueOnce(finalTicket);
 
     const result = await executeTndmCli({
       action: "task_edit",
@@ -161,27 +128,16 @@ describe("executeTndmCli task_edit", () => {
       task_detail: "Updated detail body.",
     });
 
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket",
-      "task",
-      "detail",
-      "ensure",
-      "TNDM-EDITDETAIL",
-      "2",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket",
-      "show",
-      "TNDM-EDITDETAIL",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
-      "ticket",
-      "show",
-      "TNDM-EDITDETAIL",
-    ]);
-    expect(readFileSync(docPath, "utf-8")).toContain("# Task 2: Existing task");
-    expect(readFileSync(docPath, "utf-8")).toContain("Updated detail body.");
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-EDITDETAIL"]);
+    // Step 1: loadTicket to get existing title
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith(
+      ["ticket", "show", "TNDM-EDITDETAIL"], undefined,
+    );
+
+    // Step 2: shared helper with applyTitleEdit=false (no title change)
+    expect(vi.mocked(helpers.writeTaskDetailAndReload)).toHaveBeenCalledWith(
+      "TNDM-EDITDETAIL", 2, "Existing task", "Updated detail body.", undefined, false,
+    );
+
     expect(result.details.result).toEqual(finalTicket);
   });
 });

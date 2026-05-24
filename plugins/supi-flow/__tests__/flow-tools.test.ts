@@ -3,33 +3,25 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-// Mock cli.ts modules used by flow-tools
-vi.mock("../extensions/cli.js", () => {
-  const _mockTndm = vi.fn();
-  const _mockTndmJson = vi.fn();
-  // Strip trailing undefined args so existing toHaveBeenCalledWith assertions
-  // keep working after signal parameter was added.
-  const stripTrailingUndefined = (args: unknown[]) => {
-    while (args.length > 0 && args[args.length - 1] === undefined) {
-      args.pop();
-    }
-    return args;
-  };
+// Mock cli.ts
+vi.mock("../extensions/cli.js", () => ({
+  tndm: vi.fn(),
+  tndmJson: vi.fn(),
+}));
+
+// Mock ticket-helpers — keep real implementations, only mock writeTaskDetailAndReload
+vi.mock("../extensions/tools/ticket-helpers.js", async () => {
+  const actual = await vi.importActual<typeof import("../extensions/tools/ticket-helpers.js")>(
+    "../extensions/tools/ticket-helpers.js",
+  );
   return {
-    tndm: new Proxy(_mockTndm, {
-      apply(target, _thisArg, args: unknown[]) {
-        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
-      },
-    }),
-    tndmJson: new Proxy(_mockTndmJson, {
-      apply(target, _thisArg, args: unknown[]) {
-        return Reflect.apply(target, _thisArg, stripTrailingUndefined([...args]));
-      },
-    }),
+    ...actual,
+    writeTaskDetailAndReload: vi.fn(),
   };
 });
 
 const { tndm, tndmJson } = await import("../extensions/cli.js");
+const helpers = await import("../extensions/tools/ticket-helpers.js");
 const flowTools = await import("../extensions/tools/flow-tools.js");
 
 beforeEach(() => {
@@ -57,8 +49,7 @@ describe("executeFlowStart", () => {
       "todo",
       "--tags",
       "flow:brainstorm",
-    ]);
-    // No context, so tndm should not be called
+    ], undefined);
     expect(vi.mocked(tndm)).not.toHaveBeenCalled();
     expect(result.content[0].text).toContain("Created ticket TNDM-TEST");
     expect(result.content[0].text).toContain("at /tmp/.tndm/tickets/TNDM-TEST");
@@ -97,14 +88,14 @@ describe("executeFlowStart", () => {
       "p1",
       "--type",
       "feature",
-    ]);
+    ], undefined);
     expect(vi.mocked(tndm)).toHaveBeenCalledWith([
       "ticket",
       "update",
       "TNDM-OPT",
       "--content",
       "Design summary for the change",
-    ]);
+    ], undefined);
     expect(vi.mocked(tndm)).toHaveBeenCalledTimes(1);
     expect(result.details.ticketId).toBe("TNDM-OPT");
     expect(result.content[0].text).toContain("at /tmp/.tndm/tickets/TNDM-OPT");
@@ -136,7 +127,7 @@ No tasks yet.`;
       "TNDM-TEST",
       "--content",
       planContent,
-    ]);
+    ], undefined);
     expect(vi.mocked(tndm)).toHaveBeenNthCalledWith(2, [
       "ticket",
       "update",
@@ -145,7 +136,7 @@ No tasks yet.`;
       "flow:brainstorm,flow:planned,flow:applying,flow:done",
       "--add-tags",
       "flow:planned",
-    ]);
+    ], undefined);
   });
 
   it("does not treat checklist-style task text as executable task parsing", async () => {
@@ -169,7 +160,7 @@ No tasks yet.`;
       "TNDM-RAW",
       "--content",
       planContent,
-    ]);
+    ], undefined);
   });
 
   it("returns overview persistence details instead of task counts", async () => {
@@ -236,13 +227,13 @@ describe("executeFlowApply", () => {
       "ticket",
       "show",
       "TNDM-APPLY",
-    ]);
+    ], undefined);
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
       "ticket",
       "task",
       "list",
       "TNDM-APPLY",
-    ]);
+    ], undefined);
     expect(vi.mocked(tndm)).toHaveBeenCalledWith([
       "ticket",
       "update",
@@ -253,7 +244,7 @@ describe("executeFlowApply", () => {
       "flow:planned",
       "--add-tags",
       "flow:applying",
-    ]);
+    ], undefined);
     expect(result.content[0].text).toContain("flow:applying");
     expect(result.details).toMatchObject({
       action: "flow_apply",
@@ -413,36 +404,19 @@ describe("executeFlowApply", () => {
 // ─── executeFlowTask ───────────────────────────────────────────
 
 describe("executeFlowTask", () => {
-  it("adds one task at a time and auto-writes canonical detail docs", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "flow-task-add-"));
-    const docPath = join(tmpDir, "tasks", "task-01.md");
+  it("adds one task at a time and delegates detail to shared helper", async () => {
     const finalTicket = {
       schema_version: 1,
       id: "TNDM-TASK",
-      tasks: [
-        {
-          number: 1,
-          title: "Detailed task",
-          status: "todo",
-        },
-      ],
+      tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
     };
 
-    vi.mocked(tndmJson)
-      .mockResolvedValueOnce({
-        schema_version: 1,
-        id: "TNDM-TASK",
-        tasks: [
-          {
-            number: 1,
-            title: "Detailed task",
-            status: "todo",
-          },
-        ],
-      })
-      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-01.md" })
-      .mockResolvedValueOnce(finalTicket);
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+    vi.mocked(tndmJson).mockResolvedValueOnce({
+      schema_version: 1,
+      id: "TNDM-TASK",
+      tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
+    });
+    vi.mocked(helpers.writeTaskDetailAndReload).mockResolvedValueOnce(finalTicket);
 
     const result = await flowTools.executeFlowTask({
       ticket_id: "TNDM-TASK",
@@ -452,36 +426,17 @@ describe("executeFlowTask", () => {
     });
 
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket",
-      "task",
-      "add",
-      "TNDM-TASK",
-      "--title",
-      "Detailed task",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket",
-      "task",
-      "detail",
-      "ensure",
-      "TNDM-TASK",
-      "1",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
-      "ticket",
-      "show",
-      "TNDM-TASK",
-    ]);
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TASK"]);
-    expect(readFileSync(docPath, "utf-8")).toContain("Implementation notes go here.");
+      "ticket", "task", "add", "TNDM-TASK", "--title", "Detailed task",
+    ], undefined);
+    expect(vi.mocked(helpers.writeTaskDetailAndReload)).toHaveBeenCalledWith(
+      "TNDM-TASK", 1, "Detailed task", "Implementation notes go here.", undefined,
+    );
     expect(result.details.taskNumber).toBe(1);
     expect(result.details.result).toEqual(finalTicket);
     expect(result.content[0].text).toContain("Task 1 added");
   });
 
-  it("edits only task detail without issuing a no-op manifest edit", async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), "flow-task-edit-"));
-    const docPath = join(tmpDir, "tasks", "task-02.md");
+  it("edits task detail via shared helper without manifest edit", async () => {
     const existingTicket = {
       schema_version: 1,
       id: "TNDM-TASK",
@@ -490,21 +445,11 @@ describe("executeFlowTask", () => {
     const finalTicket = {
       schema_version: 1,
       id: "TNDM-TASK",
-      tasks: [
-        {
-          number: 2,
-          title: "Existing task",
-          status: "todo",
-          detail_path: "tasks/task-02.md",
-        },
-      ],
+      tasks: [{ number: 2, title: "Existing task", status: "todo", detail_path: "tasks/task-02.md" }],
     };
 
-    vi.mocked(tndmJson)
-      .mockResolvedValueOnce({ path: docPath, detail_path: "tasks/task-02.md" })
-      .mockResolvedValueOnce(existingTicket)
-      .mockResolvedValueOnce(finalTicket);
-    vi.mocked(tndm).mockResolvedValue({ stdout: "", stderr: "" });
+    vi.mocked(tndmJson).mockResolvedValueOnce(existingTicket);
+    vi.mocked(helpers.writeTaskDetailAndReload).mockResolvedValueOnce(finalTicket);
 
     const result = await flowTools.executeFlowTask({
       ticket_id: "TNDM-TASK",
@@ -513,26 +458,14 @@ describe("executeFlowTask", () => {
       detail: "Revised task detail.",
     });
 
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket",
-      "task",
-      "detail",
-      "ensure",
-      "TNDM-TASK",
-      "2",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket",
-      "show",
-      "TNDM-TASK",
-    ]);
-    expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
-      "ticket",
-      "show",
-      "TNDM-TASK",
-    ]);
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TASK"]);
-    expect(readFileSync(docPath, "utf-8")).toContain("Revised task detail.");
+    // loadTicket for title extraction
+    expect(vi.mocked(tndmJson)).toHaveBeenCalledWith(
+      ["ticket", "show", "TNDM-TASK"], undefined,
+    );
+    // shared helper with applyTitleEdit=false
+    expect(vi.mocked(helpers.writeTaskDetailAndReload)).toHaveBeenCalledWith(
+      "TNDM-TASK", 2, "Existing task", "Revised task detail.", undefined, false,
+    );
     expect(result.details.taskNumber).toBe(2);
     expect(result.details.result).toEqual(finalTicket);
     expect(result.content[0].text).toContain("Task 2 updated");
@@ -548,12 +481,8 @@ describe("executeFlowTask", () => {
     });
 
     expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
-      "ticket",
-      "task",
-      "remove",
-      "TNDM-TASK",
-      "3",
-    ]);
+      "ticket", "task", "remove", "TNDM-TASK", "3",
+    ], undefined);
     expect(result.details.removed).toBe(true);
     expect(result.content[0].text).toContain("Task 3 removed");
   });
@@ -574,12 +503,8 @@ describe("executeFlowCompleteTask", () => {
     });
 
     expect(vi.mocked(tndmJson)).toHaveBeenCalledWith([
-      "ticket",
-      "task",
-      "complete",
-      "TNDM-TEST",
-      "1",
-    ]);
+      "ticket", "task", "complete", "TNDM-TEST", "1",
+    ], undefined);
 
     expect(result.details.completed).toBe(true);
     expect(result.details.taskNumber).toBe(1);
@@ -723,7 +648,6 @@ describe("executeFlowClose", () => {
       verification_results: "All tests pass.",
     });
 
-    // Should remove all flow-state tags, set status, and add flow:done in one call
     expect(vi.mocked(tndm)).toHaveBeenCalledWith([
       "ticket",
       "update",
@@ -734,7 +658,7 @@ describe("executeFlowClose", () => {
       "done",
       "--add-tags",
       "flow:done",
-    ]);
+    ], undefined);
   });
 
   it("writes verification results to archive.md and syncs", async () => {
@@ -746,31 +670,19 @@ describe("executeFlowClose", () => {
     });
 
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket",
-      "show",
-      "TNDM-TEST",
-    ]);
+      "ticket", "show", "TNDM-TEST",
+    ], undefined);
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket",
-      "task",
-      "list",
-      "TNDM-TEST",
-    ]);
+      "ticket", "task", "list", "TNDM-TEST",
+    ], undefined);
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(3, [
-      "ticket",
-      "doc",
-      "create",
-      "TNDM-TEST",
-      "archive",
-    ]);
+      "ticket", "doc", "create", "TNDM-TEST", "archive",
+    ], undefined);
 
-    // Should have written verification results to the archive file
     const content = readFileSync(archivePath, "utf-8");
     expect(content).toContain("# Archive");
     expect(content).toContain("All tests pass.");
 
-    // Should have synced
-    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"]);
+    expect(vi.mocked(tndm)).toHaveBeenCalledWith(["ticket", "sync", "TNDM-TEST"], undefined);
   });
-
 });

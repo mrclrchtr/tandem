@@ -1,0 +1,50 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-24T22:49:28.90297Z"
+revision = 36
+
+[document_fingerprints]
+archive = "sha256:5bee4665cc316cc6ec0cf669d67a8cb52d10e1a168f85a06843f20cf92bd786b"
+content = "sha256:af030c93d8e3742dffd6e25dce4dd6644ae65a1f7ff6fb5dc2d12e795647c5db"
+task-01 = "sha256:bbb949c4ecf74181e2fd4269cb09c9bc403df9a7a253cf660932e15957e07cbc"
+task-02 = "sha256:dc457ac5de1a3c7e1ddbf290ee89ba1ee533d7049d8dbb28f0bc957d8ca30962"
+task-03 = "sha256:827fe56aaf6313b517656abd03f37cc7c71a54837111907088ac40a79e62e8ce"
+task-04 = "sha256:33b0ec8c98206b7a4a492f2457ac9ff2e3084d2bd6acc45717a339151a58d338"
+task-05 = "sha256:172dead0a5eefdd40be61efef3c35bd43ff21ef8e24cf84d39e6bb42a78897ce"
+task-06 = "sha256:8f3ee01a017c91ba95a3a680ed70b1448278eac98829f50c0a3c97c3efb188e6"
+task-07 = "sha256:02e3607adb3a4b4955440243b003cd94129c64ea99099183c2c4cb982f49439d"
+
+[[tasks]]
+number = 1
+title = "Create shared helper + tag constants + loadTaskList in ticket-helpers.ts"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Refactor tndm-cli.ts to use shared helper, fix signal gaps, collapse dead branch"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Refactor flow-tools.ts to use shared helper, constants, fix signal gaps"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Remove _repoRoot module cache from ticket-helpers.ts"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Run full test suite — verify zero regressions"
+status = "done"
+
+[[tasks]]
+number = 6
+title = "Add integration tests against real tndm CLI"
+status = "done"
+
+[[tasks]]
+number = 7
+title = "Doc dedup — trim overlapping skill conventions from CLAUDE.md"
+status = "done"

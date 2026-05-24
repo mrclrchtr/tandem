@@ -1,4 +1,3 @@
-import { writeTaskDetailDoc } from "./doc-writes.js";
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import {
@@ -9,10 +8,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { tndm, tndmJson } from "../cli.js";
 import {
-  ensureTaskDetailDoc,
   extractLatestTaskNumber,
   extractTaskTitle,
   loadTicket,
+  writeTaskDetailAndReload,
 } from "./ticket-helpers.js";
 
 export const actionEnum = StringEnum([
@@ -265,10 +264,9 @@ export async function executeTndmCli(
 
       if (params.task_detail !== undefined) {
         const taskNumber = extractLatestTaskNumber(result);
-        const detailResult = await ensureTaskDetailDoc(params.id, taskNumber, signal);
-        await writeTaskDetailDoc(detailResult.path, taskNumber, params.task_title, params.task_detail);
-        await tndm(["ticket", "sync", params.id], signal);
-        finalResult = await loadTicket(params.id, signal);
+        finalResult = await writeTaskDetailAndReload(
+          params.id, taskNumber, params.task_title, params.task_detail, signal,
+        );
       }
 
       return {
@@ -325,24 +323,17 @@ export async function executeTndmCli(
       let finalResult: Record<string, unknown> | undefined;
 
       if (params.task_detail !== undefined) {
-        const detailResult = await ensureTaskDetailDoc(params.id, params.task_number, signal);
-        const taskSnapshot = hasManifestFieldChanges
-          ? await tndmJson<Record<string, unknown>>(args, signal)
-          : await loadTicket(params.id, signal);
-        const taskTitle =
-          params.task_title ??
-          extractTaskTitle(taskSnapshot, params.task_number) ??
-          `Task ${params.task_number}`;
-        await writeTaskDetailDoc(
-          detailResult.path,
-          params.task_number,
-          taskTitle,
-          params.task_detail,
+        const applyTitleEdit = hasManifestFieldChanges;
+        let taskTitle: string;
+        if (params.task_title !== undefined) {
+          taskTitle = params.task_title;
+        } else {
+          const ticket = await loadTicket(params.id, signal);
+          taskTitle = extractTaskTitle(ticket, params.task_number) ?? `Task ${params.task_number}`;
+        }
+        finalResult = await writeTaskDetailAndReload(
+          params.id, params.task_number, taskTitle, params.task_detail, signal, applyTitleEdit,
         );
-        await tndm(["ticket", "sync", params.id], signal);
-        finalResult = await loadTicket(params.id, signal);
-      } else if (hasManifestFieldChanges) {
-        finalResult = await tndmJson<Record<string, unknown>>(args, signal);
       } else {
         finalResult = await tndmJson<Record<string, unknown>>(args, signal);
       }
@@ -380,5 +371,3 @@ function addOptionalFlags(
     args.push(`--${flagName}`, String(value));
   }
 }
-
-
