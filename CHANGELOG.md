@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.12.0](https://github.com/mrclrchtr/tandem/compare/v0.11.0...v0.12.0) (2026-05-24)
+
+
+### Features
+
+* **supi-flow:** add closing HARD-GATE to forbid skipping plan phase for non-trivial work ([b00e32e](https://github.com/mrclrchtr/tandem/commit/b00e32e0ea13f8defbeedd0805bf9e4e52e52f28))
+* **supi-flow:** add user review gate after design persistence ([f9487fd](https://github.com/mrclrchtr/tandem/commit/f9487fd8bcb00c0f0f3b93523e5833fc0d5578b5))
+* **tandem:** enforce mandatory task detail docs, remove inline task support ([97d1ea8](https://github.com/mrclrchtr/tandem/commit/97d1ea89aef96bf425e0408fc34f15741e76506e))
+
+
+### Bug Fixes
+
+* **renovate:** add allowedCommands for mise lock post-upgrade task ([7f77fd5](https://github.com/mrclrchtr/tandem/commit/7f77fd5a256d28c6b49d9cc63a9cdb414c41a0ff))
+* **renovate:** use native mise lockFileMaintenance instead of postUpgradeTasks ([10af657](https://github.com/mrclrchtr/tandem/commit/10af657371b1f14e6435c466eeb4a75bcea461d1))
+* replace sort_by with sort_by_key for rust 1.95 clippy lint ([414e3ea](https://github.com/mrclrchtr/tandem/commit/414e3eaa7c60597f5368f6edb69b503605a12f86))
+* **supi-flow:** defer task detail doc reads until task start ([410192c](https://github.com/mrclrchtr/tandem/commit/410192c6d42d554dbb2fedb2146f3f86140c9f8e))
+
+
+### Performance Improvements
+
+* **supi-flow:** trim tool descriptions and guidelines for token efficiency ([e22ab4c](https://github.com/mrclrchtr/tandem/commit/e22ab4c562e5d7e3125338d796adff0167bb0148))
+
 ## [0.11.0](https://github.com/mrclrchtr/tandem/compare/v0.10.1...v0.11.0) (2026-05-21)
 
 
