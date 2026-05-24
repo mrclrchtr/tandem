@@ -124,7 +124,7 @@ export default function (pi: ExtensionAPI) {
       "Loads the approved content.md overview, returns the structured task manifest, transitions flow:planned tickets to status=in_progress with flow:applying, and preserves the current in_progress/blocked status for already-applying tickets.",
     promptSnippet: "Start the apply phase for a TNDM flow ticket",
     promptGuidelines: [
-      "Use supi_flow_apply at the beginning of implementation to load the approved overview and task manifest, and to move a planned ticket into flow:applying when needed.",
+      "Use supi_flow_apply at the beginning of implementation to load the approved overview and task manifest, review that overview and full task list up front, read linked task detail docs only when the active task begins, and move a planned ticket into flow:applying when needed.",
     ],
     executionMode: "sequential" as ToolExecutionMode,
     parameters: supiFlowApplyParams,

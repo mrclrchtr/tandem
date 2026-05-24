@@ -1,0 +1,22 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-24T16:46:56.316357Z"
+revision = 17
+
+[document_fingerprints]
+archive = "sha256:3fbc012440ec44c4a213d85237cc189be6bdb341d021a166038f7a08136861a3"
+content = "sha256:3ae85b36bebd813eb35921047be5a29a84c2bb565f2a1451914c0fb69e7c0e08"
+task-01 = "sha256:b24988729a081be355f41bf1b368b023591e74febe844d3acfeb7f49a81448dd"
+task-02 = "sha256:8975d271d9de5e041fc62faf129ff41b0f3291e008104a5ceb13c4a75df628fb"
+
+[[tasks]]
+number = 1
+title = "Update apply skill and README guidance for lazy task-detail loading"
+status = "done"
+detail_path = "tasks/task-01.md"
+
+[[tasks]]
+number = 2
+title = "Update supi_flow_apply prompt guidance and cover it with a registration test"
+status = "done"
+detail_path = "tasks/task-02.md"

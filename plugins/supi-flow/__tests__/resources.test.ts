@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import flowExtension from "../extensions/index";
 
+type RegisteredTool = {
+  name: string;
+  promptGuidelines?: string[];
+};
+
 function setup(): Map<string, (...args: unknown[]) => unknown> {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
-  const tools: string[] = [];
+  const tools: RegisteredTool[] = [];
   const pi = {
     on(event: string, handler: (...args: unknown[]) => unknown) {
       handlers.set(event, handler);
     },
-    registerTool(tool: { name: string }) {
-      tools.push(tool.name);
+    registerTool(tool: RegisteredTool) {
+      tools.push(tool);
     },
     registerCommand() {},
   };
@@ -19,11 +24,24 @@ function setup(): Map<string, (...args: unknown[]) => unknown> {
   return handlers;
 }
 
+function getRegisteredToolEntries(
+  handlers: Map<string, (...args: unknown[]) => unknown>,
+): RegisteredTool[] {
+  const fn = handlers.get("_tools");
+  return fn ? (fn() as RegisteredTool[]) : [];
+}
+
 function getRegisteredTools(
   handlers: Map<string, (...args: unknown[]) => unknown>,
 ): string[] {
-  const fn = handlers.get("_tools");
-  return fn ? (fn() as string[]) : [];
+  return getRegisteredToolEntries(handlers).map((tool) => tool.name);
+}
+
+function getRegisteredTool(
+  handlers: Map<string, (...args: unknown[]) => unknown>,
+  name: string,
+): RegisteredTool | undefined {
+  return getRegisteredToolEntries(handlers).find((tool) => tool.name === name);
 }
 
 describe("supi-flow extension", () => {
@@ -43,6 +61,15 @@ describe("supi-flow extension", () => {
     expect(tools).toContain("supi_flow_complete_task");
     expect(tools).toContain("supi_flow_close");
     expect(tools.length).toBe(7);
+  });
+
+  it("registers supi_flow_apply guidance that defers task detail doc reads until the active task starts", () => {
+    const handlers = setup();
+    const tool = getRegisteredTool(handlers, "supi_flow_apply");
+    expect(tool).toBeDefined();
+    const guidance = tool?.promptGuidelines?.join(" ") ?? "";
+    expect(guidance).toContain("load the approved overview and task manifest");
+    expect(guidance).toContain("read linked task detail docs only when the active task begins");
   });
 
   it("registers session_start handler for version check", () => {

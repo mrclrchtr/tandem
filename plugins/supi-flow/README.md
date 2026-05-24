@@ -119,6 +119,8 @@ There is no custom `/supi-flow` slash command registered by the extension.
 
 3. **Apply** — `/skill:supi-flow-apply TNDM-XXXXXX`
    - start with `supi_flow_apply` to load the approved overview and task manifest
+   - review the overview and full task list up front
+   - defer linked `detail_path` doc reads until the corresponding task starts
    - transition planned tickets into `flow:applying`
    - resume already-applying tickets with their current `in_progress` or `blocked` status intact
    - execute tasks in order
@@ -139,7 +141,7 @@ There is no custom `/supi-flow` slash command registered by the extension.
 |---|---|---|
 | Brainstorm | `supi-flow-brainstorm` | creates or refines the change definition; non-trivial work starts with `supi_flow_start` |
 | Plan | `supi-flow-plan` | stores the approved overview in `content.md`, then authors structured tasks one at a time via `supi_flow_task` |
-| Apply | `supi-flow-apply` | starts with `supi_flow_apply`, loads the approved overview plus task manifest, transitions to `flow:applying` when needed, preserves the current `in_progress` or `blocked` status for already-applying tickets, then executes tasks and verifies each step fresh |
+| Apply | `supi-flow-apply` | starts with `supi_flow_apply`, loads the approved overview plus task manifest, reviews that overview and full task list up front, reads any linked task detail doc only when that task begins, transitions to `flow:applying` when needed, preserves the current `in_progress` or `blocked` status for already-applying tickets, then executes tasks and verifies each step fresh |
 | Archive | `supi-flow-archive` | verifies the final result, writes `archive.md`, and closes the ticket |
 
 Flow state is tracked with TNDM status/tag combinations:
@@ -181,7 +183,7 @@ The extension registers seven custom tools.
 | `supi_tndm_cli` | Structured wrapper around `tndm` for ticket create/update/show/list/awareness plus lower-level task add/list/complete/remove/edit/set actions |
 | `supi_flow_start` | Creates a ticket with `status=todo` and tag `flow:brainstorm`, optionally persisting initial context into `content.md` |
 | `supi_flow_plan` | Stores the approved overview in `content.md` and replaces flow-state tags with `flow:planned` |
-| `supi_flow_apply` | Loads the approved overview from `content.md`, returns the structured task manifest, transitions `flow:planned` tickets into `status=in_progress` with `flow:applying`, and preserves the current `in_progress` or `blocked` status for already-applying tickets |
+| `supi_flow_apply` | Loads the approved overview from `content.md`, returns the structured task manifest, transitions `flow:planned` tickets into `status=in_progress` with `flow:applying`, preserves the current `in_progress` or `blocked` status for already-applying tickets, and is used with apply guidance that reads linked task detail docs only when the active task begins |
 | `supi_flow_task` | Adds, edits, or removes one structured task at a time and optionally manages the canonical `tasks/task-XX.md` detail doc; use it to reconcile existing task manifests during replans as well as to create new ones |
 | `supi_flow_complete_task` | Marks one numbered task as done in the structured task manifest |
 | `supi_flow_close` | Requires verification evidence, refuses to close unless the ticket is in `flow:applying` with a non-empty all-done structured task list, writes `archive.md`, syncs documents, and closes the ticket with `status=done` and `flow:done` |

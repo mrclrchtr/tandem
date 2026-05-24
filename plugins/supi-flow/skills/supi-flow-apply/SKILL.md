@@ -18,14 +18,14 @@ If you haven't run the verification command for this task, you cannot check it o
 - A TNDM-ID was set during plan phase. Start apply with:
   `supi_flow_apply { ticket_id: "<ID>" }`
   This loads the approved overview from `content.md`, returns the structured task list with status, title, files, verification, and any linked `detail_path`, moves `flow:planned` tickets into `status=in_progress` with `flow:applying`, and preserves the current `in_progress` or `blocked` status for already-applying tickets.
-- Read the returned overview before starting work. If a task has a linked task doc (`detail_path`), read that task doc before implementing so you do not miss task detail captured outside the manifest.
+- Read the returned overview and full task manifest before starting work. Do **not** read every linked task doc (`detail_path`) at apply start. If a task has a linked task doc, note it and read that doc only when that specific task becomes active so you do not miss task detail captured outside the manifest.
 - If `supi_flow_apply` reports a missing overview, empty task manifest, or invalid lifecycle state, stop and resolve that gap before editing.
 - If `supi_flow_apply` returns `status: "blocked"`, stop and resolve the blocker before resuming implementation.
 - If no plan is available: ask which change to implement.
 
 ## Step 2: Review the plan critically
 
-Read the whole plan before starting, including the approved overview loaded by `supi_flow_apply`.
+Read the whole plan before starting: the approved overview plus the full task manifest loaded by `supi_flow_apply`. You do **not** need to read every linked task detail doc yet.
 
 Raise questions before editing if:
 
@@ -42,7 +42,7 @@ Do not start implementation until those concerns are resolved.
 For each unchecked task, in order:
 
 1. Announce which task you are working on.
-2. Follow the task as written. If the task references a linked task doc via `detail_path`, read it first and treat it as part of the task definition.
+2. Follow the task as written. If the current task references a linked task doc via `detail_path`, read it now and treat it as part of the task definition.
 3. Run the verification for that task and read the result carefully.
 4. If verification passes: call `supi_flow_complete_task { ticket_id: "<ID>", task_number: <N> }` to check the task off in the ticket.
 5. If verification fails: stop, diagnose, fix, and re-verify before moving on.
