@@ -1,6 +1,7 @@
 ---
 name: supi-flow-plan
 description: Create an implementation plan for an approved design with exact file paths, ordered tasks, concrete verification, and no placeholders.
+disable-model-invocation: true
 ---
 
 # Create implementation plan

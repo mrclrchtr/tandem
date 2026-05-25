@@ -1,6 +1,7 @@
 ---
 name: supi-flow-brainstorm
 description: You MUST use this before any implementation. Clarify intent, shape the design, and get approval before touching code.
+disable-model-invocation: true
 ---
 
 # Flow Brainstorm

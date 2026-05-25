@@ -1,6 +1,7 @@
 ---
 name: supi-flow-archive
 description: Verify implementation against the plan, update living documentation, and close out the change.
+disable-model-invocation: true
 ---
 
 # Archive and document

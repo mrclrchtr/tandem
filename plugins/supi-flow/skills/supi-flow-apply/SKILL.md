@@ -1,6 +1,7 @@
 ---
 name: supi-flow-apply
 description: Execute an approved implementation plan task by task — verify each step fresh, stop when blocked, and ask instead of guessing.
+disable-model-invocation: true
 ---
 
 # Execute implementation plan
