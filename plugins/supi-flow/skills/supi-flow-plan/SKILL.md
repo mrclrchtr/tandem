@@ -57,6 +57,8 @@ For each task, include:
 
 Use enough detail that an agent can execute without guessing, but do not force huge code blocks into every step.
 
+**Always make the final task a verification task.** This task confirms the whole change works end-to-end — run the full test suite, exercise the changed behavior manually, or both. It is not task-specific unit verification (each task already carries its own); it is the integration gate that proves the assembled change is correct.
+
 **Task numbering convention**: On an empty ticket, adds through `supi_flow_task` start at 1 and increase sequentially. On a ticket that already has tasks, `add` returns the next available task number. Always use the returned task number for later edits, removals, and completion.
 
 Every task gets a canonical `tasks/task-XX.md` detail doc automatically at creation time. When a task needs real implementation detail or notices, pass `detail` markdown through `supi_flow_task` to write the full content; omit `detail` to keep the minimal template.
@@ -97,6 +99,7 @@ Do not use test exemptions to avoid testing logic that could reasonably be teste
 - **No placeholders.** Never write `TBD`, `TODO`, `implement later`, or vague instructions like `add error handling`.
 - **Exact file paths** always.
 - **Verification is mandatory.** Every task needs a concrete check.
+- **Final task is always verify/test.** Every plan ends with a dedicated verification task that confirms the whole change works end-to-end (full test suite, manual smoke test, or both). This is in addition to each task's own verification.
 - **No code before test or verification.** Testable code starts with a failing test. Test-exempt work starts with manual verification.
 - **Include doc updates** when the change affects docs, help text, architecture notes, or workflow guidance.
 
@@ -108,6 +111,7 @@ After writing the plan, check it against the approved design:
 2. **Placeholder scan:** remove vague or incomplete instructions.
 3. **Consistency:** do names, types, files, and steps line up across tasks?
 4. **Right-sized detail:** is the plan clear without being bloated?
+5. **Final verify task:** does the last task confirm the whole change works end-to-end?
 
 Fix issues inline before handing off.
 
