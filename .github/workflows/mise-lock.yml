@@ -35,7 +35,7 @@ jobs:
         run: mise lock
 
       - name: Commit updated mise.lock
-        uses: stefanzweifel/git-auto-commit-action@9c7b446b0e7e8c08e1b0c0bfc29aeccfeab5dd3d # v6.2.1
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9 # v7.1.0
         with:
           commit_message: "chore: update mise.lock"
           file_pattern: "mise.lock"
