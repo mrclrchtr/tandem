@@ -1,7 +1,7 @@
 use std::{env, fs};
 
 use tandem_core::ports::TicketStore;
-use tandem_storage::{FileTicketStore, discover_repo_root, ticket_dir};
+use tandem_storage::{FileTicketStore, discover_repo_root, fingerprint_bytes, ticket_dir};
 
 pub(crate) fn handle_fmt(check: bool) -> anyhow::Result<()> {
     let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
@@ -31,6 +31,51 @@ pub(crate) fn handle_fmt(check: bool) -> anyhow::Result<()> {
                 if !check {
                     fs::write(&path, canonical).map_err(|error| anyhow::anyhow!("{error}"))?;
                 }
+            }
+        }
+
+        // Normalize registered documents to end with a single trailing newline
+        let mut fingerprints_changed = false;
+        let mut state_fingerprints = ticket.state.document_fingerprints.clone();
+        for doc in &ticket.meta.documents {
+            let doc_path = base.join(&doc.path);
+            if !doc_path.is_file() {
+                continue;
+            }
+            let current =
+                fs::read_to_string(&doc_path).map_err(|error| anyhow::anyhow!("{error}"))?;
+            let normalized = ensure_trailing_newline(&current);
+            if current != normalized {
+                changed_files.push(doc_path.clone());
+                if !check {
+                    fs::write(&doc_path, &normalized)
+                        .map_err(|error| anyhow::anyhow!("{error}"))?;
+                }
+                // Recompute fingerprint in both modes so state.toml
+                // is reported in --check too (even though we won't write)
+                let new_fp = fingerprint_bytes(normalized.as_bytes());
+                if state_fingerprints
+                    .get(&doc.name)
+                    .is_none_or(|fp| fp != &new_fp)
+                {
+                    state_fingerprints.insert(doc.name.clone(), new_fp);
+                    fingerprints_changed = true;
+                }
+            }
+        }
+
+        // If fingerprints changed due to document normalization, update state.toml
+        if fingerprints_changed {
+            let state_path = base.join("state.toml");
+            let mut updated_state = ticket.state.clone();
+            updated_state.document_fingerprints = state_fingerprints;
+            let canonical_state = updated_state.to_canonical_toml();
+            if !check {
+                fs::write(&state_path, &canonical_state)
+                    .map_err(|error| anyhow::anyhow!("{error}"))?;
+            }
+            if !changed_files.contains(&state_path) {
+                changed_files.push(state_path);
             }
         }
 
@@ -68,4 +113,19 @@ pub(crate) fn handle_fmt(check: bool) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+/// Ensure content ends with exactly one trailing newline.
+///
+/// - Empty content => `"\n"`
+/// - Already ends with single `\n` => unchanged
+/// - Multiple trailing `\n` => collapsed to one
+/// - Windows `\r\n` terminators are preserved (only `\n` is trimmed,
+///   so `"hello\r\n"` stays as-is).
+fn ensure_trailing_newline(content: &str) -> String {
+    if content.is_empty() {
+        return "\n".to_string();
+    }
+    let trimmed = content.trim_end_matches('\n');
+    format!("{}\n", trimmed)
 }
