@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/mrclrchtr/tandem/compare/v0.13.0...v0.14.0) (2026-05-27)
+
+
+### Features
+
+* **tandem-cli:** normalize registered documents to end with trailing newline ([0130554](https://github.com/mrclrchtr/tandem/commit/013055419a0fdfd7ed1a207f4201758470347f63))
+
 ## [0.13.0](https://github.com/mrclrchtr/tandem/compare/v0.12.1...v0.13.0) (2026-05-25)
 
 
