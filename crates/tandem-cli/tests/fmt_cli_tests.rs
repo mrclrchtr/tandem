@@ -1,15 +1,17 @@
 #![allow(clippy::disallowed_types)]
 
-use std::{fs, process::Command};
+mod common;
+
+use common::*;
+use std::fs;
 use tandem_storage::fingerprint_bytes;
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_check_reports_non_canonical_structured_files() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -41,12 +43,7 @@ fn fmt_check_reports_non_canonical_structured_files() {
     .expect("write state.toml");
     fs::write(ticket_dir.join("content.md"), "body\n").expect("write content.md");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .arg("--check")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt --check");
+    let output = repo.run(&["fmt", "--check"]);
 
     assert!(!output.status.success(), "fmt --check should fail on drift");
 
@@ -58,10 +55,9 @@ fn fmt_check_reports_non_canonical_structured_files() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_rewrites_non_canonical_structured_files() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -93,12 +89,7 @@ fn fmt_rewrites_non_canonical_structured_files() {
     .expect("write state.toml");
     fs::write(ticket_dir.join("content.md"), "body\n").expect("write content.md");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -138,10 +129,9 @@ fn fmt_rewrites_non_canonical_structured_files() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_adds_trailing_newline_to_content_md() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -182,12 +172,7 @@ fn fmt_adds_trailing_newline_to_content_md() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -218,10 +203,9 @@ fn fmt_adds_trailing_newline_to_content_md() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_adds_trailing_newline_to_plan_md() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -267,12 +251,7 @@ fn fmt_adds_trailing_newline_to_plan_md() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -303,10 +282,9 @@ fn fmt_adds_trailing_newline_to_plan_md() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_adds_trailing_newline_to_task_detail_doc() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -355,12 +333,7 @@ fn fmt_adds_trailing_newline_to_task_detail_doc() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -384,10 +357,9 @@ fn fmt_adds_trailing_newline_to_task_detail_doc() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_check_reports_missing_trailing_newline() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -426,12 +398,7 @@ fn fmt_check_reports_missing_trailing_newline() {
     .expect("write state.toml");
 
     // --check should fail
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .arg("--check")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt --check");
+    let output = repo.run(&["fmt", "--check"]);
 
     assert!(
         !output.status.success(),
@@ -443,7 +410,6 @@ fn fmt_check_reports_missing_trailing_newline() {
         stdout.contains("content.md"),
         "stdout should mention content.md, was: {stdout:?}"
     );
-    // state.toml should also be reported since fingerprint would change
     assert!(
         stdout.contains("state.toml"),
         "stdout should mention state.toml alongside content.md, was: {stdout:?}"
@@ -457,10 +423,9 @@ fn fmt_check_reports_missing_trailing_newline() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_canonical_content_md_is_noop() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -486,7 +451,6 @@ fn fmt_canonical_content_md_is_noop() {
     )
     .expect("write meta.toml");
 
-    // content.md ALREADY has trailing newline
     let body = "already canonical\n";
     let fp = fingerprint_bytes(body.as_bytes());
     fs::write(ticket_dir.join("content.md"), body).expect("write content.md");
@@ -498,12 +462,7 @@ fn fmt_canonical_content_md_is_noop() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -522,10 +481,9 @@ fn fmt_canonical_content_md_is_noop() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_check_passes_when_content_md_has_trailing_newline() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -562,12 +520,7 @@ fn fmt_check_passes_when_content_md_has_trailing_newline() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .arg("--check")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt --check");
+    let output = repo.run(&["fmt", "--check"]);
 
     assert!(
         output.status.success(),
@@ -579,14 +532,9 @@ fn fmt_check_passes_when_content_md_has_trailing_newline() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_collapses_multiple_trailing_newlines() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
-        .path()
-        .join(".tndm")
-        .join("tickets")
-        .join("TNDM-NL01");
+    let ticket_dir = repo.path().join(".tndm").join("tickets").join("TNDM-NL01");
     fs::create_dir_all(&ticket_dir).expect("create ticket dir");
 
     fs::write(
@@ -620,12 +568,7 @@ fn fmt_collapses_multiple_trailing_newlines() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -652,10 +595,9 @@ fn fmt_collapses_multiple_trailing_newlines() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_normalizes_empty_content() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -693,12 +635,7 @@ fn fmt_normalizes_empty_content() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -721,10 +658,9 @@ fn fmt_normalizes_empty_content() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_check_reports_drift_and_missing_newline_together() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -764,12 +700,7 @@ fn fmt_check_reports_drift_and_missing_newline_together() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .arg("--check")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt --check");
+    let output = repo.run(&["fmt", "--check"]);
 
     // Should fail with both file and drift reported
     assert!(
@@ -799,10 +730,9 @@ fn fmt_check_reports_drift_and_missing_newline_together() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_fixes_structured_files_and_content_together() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -838,12 +768,7 @@ fn fmt_fixes_structured_files_and_content_together() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -873,10 +798,9 @@ fn fmt_fixes_structured_files_and_content_together() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_preserves_windows_line_endings() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -914,12 +838,7 @@ fn fmt_preserves_windows_line_endings() {
     )
     .expect("write state.toml");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
-
+    let output = repo.run(&["fmt"]);
     assert!(
         output.status.success(),
         "stderr was: {}",
@@ -938,10 +857,9 @@ fn fmt_preserves_windows_line_endings() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn fmt_fails_when_managed_files_are_invalid() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let ticket_dir = repo_root
+    let ticket_dir = repo
         .path()
         .join(".tndm")
         .join("tickets")
@@ -965,11 +883,7 @@ fn fmt_fails_when_managed_files_are_invalid() {
     .expect("write state.toml");
     fs::write(ticket_dir.join("content.md"), "body\n").expect("write content.md");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("fmt")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm fmt");
+    let output = repo.run(&["fmt"]);
 
     assert!(
         !output.status.success(),

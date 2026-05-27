@@ -1,0 +1,62 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-27T10:59:35.81877Z"
+revision = 44
+
+[document_fingerprints]
+archive = "sha256:942d773f4f84688c11277a7f20d9ea68ecb4b52fdb3d0ea7fa506f4d07a52e20"
+content = "sha256:6c0314797181c882a1cf3395fde0c8fdd846c28aab683ef4cc8d02a7527ac62f"
+task-01 = "sha256:3f1131949ac018f56ee71f934ebf4a85aa3e07b315b613da50c3d3ccdf680f35"
+task-02 = "sha256:549d07513dc76f1f7215acef7bdc03d7f22b53ce9f29526275ca42d89dc8e3dc"
+task-03 = "sha256:41416d069dc9d5c6a62a13aac102da041e1eadd089d62f79fffa9f710321abd2"
+task-04 = "sha256:2971d1935572c7038757180aa0b30086b4bc7c597aea8dd1117f4bb08f927e5f"
+task-05 = "sha256:9fd5a6030243eac379408775055e9d14641d3ac6affcd0238b3fe838069557e8"
+task-06 = "sha256:67b07f86bbce6832d8da3f945caef8abb8798314440cdafff99b358e7e7db7a1"
+task-07 = "sha256:4843a925e4037902bece9d19b08e770fd24657247fa9dab999650f57fed67023"
+task-08 = "sha256:67b8b83ad199becf131f80997424dfd8a04e8d1387672a775a50cc2f182c6e59"
+task-09 = "sha256:ec96a530063e0bcf4ea7824c0ecee3646bd0cb7a84eb7a87cd1fee1021babc0e"
+
+[[tasks]]
+number = 1
+title = "Create TestRepo struct in common/mod.rs"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Migrate ticket_create_tests.rs to TestRepo"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Migrate ticket_list_tests.rs to TestRepo"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Migrate ticket_update_tests.rs to TestRepo"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Migrate ticket_task_tests.rs to TestRepo"
+status = "done"
+
+[[tasks]]
+number = 6
+title = "Migrate ticket_config_tests.rs to TestRepo"
+status = "done"
+
+[[tasks]]
+number = 7
+title = "Migrate fmt_cli_tests.rs to TestRepo"
+status = "done"
+
+[[tasks]]
+number = 8
+title = "Migrate awareness_cli_tests.rs to TestRepo"
+status = "done"
+
+[[tasks]]
+number = 9
+title = "Final verification: full test suite pass"
+status = "done"

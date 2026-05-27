@@ -3,63 +3,17 @@
 mod common;
 
 use common::*;
-use std::{fs, process::Command};
-
-use regex::Regex;
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_prints_sorted_rows() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("ticket")
-        .arg("create")
-        .arg("Second ticket")
-        .arg("--id")
-        .arg("TNDM-2")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket create for TNDM-2");
+    repo.create_ticket(Some("TNDM-2"), "Second ticket");
+    repo.create_ticket(Some("TNDM-1"), "First ticket");
 
-    assert!(
-        output.status.success(),
-        "expected success, stderr was: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    let stdout = repo.run_assert(&["ticket", "list"]);
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("ticket")
-        .arg("create")
-        .arg("First ticket")
-        .arg("--id")
-        .arg("TNDM-1")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket create for TNDM-1");
-
-    assert!(
-        output.status.success(),
-        "expected success, stderr was: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .arg("ticket")
-        .arg("list")
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list");
-
-    assert!(
-        output.status.success(),
-        "expected success, stderr was: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 3, "unexpected list output: {stdout}");
     assert!(lines[0].contains("ID"));
@@ -74,46 +28,23 @@ fn ticket_list_prints_sorted_rows() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_hides_done_tickets_by_default() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
     // Create two tickets
     for (id, title) in [("TNDM-1", "Open ticket"), ("TNDM-2", "Done ticket")] {
-        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "create", title, "--id", id])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("create ticket");
-        assert!(out.status.success());
+        repo.create_ticket(Some(id), title);
     }
 
     // Mark TNDM-2 as done
-    let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "update", "TNDM-2", "--status", "done"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("update ticket");
-    assert!(out.status.success());
+    repo.run_assert(&["ticket", "update", "TNDM-2", "--status", "done"]);
 
     // Default list should hide done tickets
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list");
-    assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let stdout = repo.run_assert(&["ticket", "list"]);
     assert!(stdout.contains("TNDM-1"), "open ticket should appear");
     assert!(!stdout.contains("TNDM-2"), "done ticket should be hidden");
 
     // --all should include done tickets
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--all"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list --all");
-    assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let stdout = repo.run_assert(&["ticket", "list", "--all"]);
     assert!(
         stdout.contains("TNDM-1"),
         "open ticket should appear with --all"
@@ -127,47 +58,22 @@ fn ticket_list_hides_done_tickets_by_default() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_json_hides_done_tickets_by_default() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
     for (id, title) in [("TNDM-1", "Open"), ("TNDM-2", "Done")] {
-        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "create", title, "--id", id])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("create ticket");
-        assert!(out.status.success());
+        repo.create_ticket(Some(id), title);
     }
 
-    let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "update", "TNDM-2", "--status", "done"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("update ticket");
-    assert!(out.status.success());
+    repo.run_assert(&["ticket", "update", "TNDM-2", "--status", "done"]);
 
     // Default JSON list should hide done tickets
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--json"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list --json");
-    assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    let json: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let json = repo.run_json(&["ticket", "list"]);
     let tickets = json["tickets"].as_array().expect("tickets array");
     assert_eq!(tickets.len(), 1);
     assert_eq!(tickets[0]["id"], "TNDM-1");
 
     // --all --json should include done tickets
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--all", "--json"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list --all --json");
-    assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    let json: serde_json::Value = serde_json::from_str(&stdout).expect("valid JSON");
+    let json = repo.run_json(&["ticket", "list", "--all"]);
     let tickets = json["tickets"].as_array().expect("tickets array");
     assert_eq!(tickets.len(), 2);
 }
@@ -175,44 +81,12 @@ fn ticket_list_json_hides_done_tickets_by_default() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_json_outputs_schema_versioned_array() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "create", "First", "--id", "TNDM-1"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create ticket 1")
-        .status
-        .success()
-        .then_some(())
-        .expect("create should succeed");
+    repo.create_ticket(Some("TNDM-1"), "First");
+    repo.create_ticket(Some("TNDM-2"), "Second");
 
-    Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "create", "Second", "--id", "TNDM-2"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create ticket 2")
-        .status
-        .success()
-        .then_some(())
-        .expect("create should succeed");
-
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--json"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list --json");
-
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    let json: serde_json::Value =
-        serde_json::from_str(&stdout).expect("stdout should be valid JSON");
+    let json = repo.run_json(&["ticket", "list"]);
     assert_eq!(json["schema_version"], 1);
     let tickets = json["tickets"]
         .as_array()
@@ -235,8 +109,7 @@ fn ticket_list_json_outputs_schema_versioned_array() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_sorts_by_priority_then_id() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
     // Create tickets and set different priorities
     for (id, title, prio) in [
@@ -245,29 +118,12 @@ fn ticket_list_sorts_by_priority_then_id() {
         ("TNDM-3", "Also high prio", "p0"),
         ("TNDM-4", "Medium prio", "p2"),
     ] {
-        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "create", title, "--id", id])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("create ticket");
-        assert!(out.status.success());
-
-        let out = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "update", id, "--priority", prio])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("update priority");
-        assert!(out.status.success());
+        repo.create_ticket(Some(id), title);
+        repo.run_assert(&["ticket", "update", id, "--priority", prio]);
     }
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list");
-    assert!(output.status.success());
+    let stdout = repo.run_assert(&["ticket", "list"]);
 
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
     let ids: Vec<&str> = stdout
         .lines()
         .skip(1)
@@ -284,19 +140,9 @@ fn ticket_list_sorts_by_priority_then_id() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_json_empty_produces_empty_array() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--json"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list --json");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    let json: serde_json::Value =
-        serde_json::from_str(&stdout).expect("stdout should be valid JSON");
+    let json = repo.run_json(&["ticket", "list"]);
     assert_eq!(json["schema_version"], 1);
     assert_eq!(json["tickets"], serde_json::json!([]));
 }
@@ -304,51 +150,29 @@ fn ticket_list_json_empty_produces_empty_array() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_filters_by_definition_tags_in_plain_text() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
     for (id, title, tags) in [
         ("TNDM-READY", "Ready ticket", "definition:ready"),
         ("TNDM-QUES", "Questions ticket", "definition:questions"),
         ("TNDM-UNKW", "Unknown ticket", ""),
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "create", title, "--id", id, "--tags", tags])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("create ticket");
-        assert!(output.status.success());
+        repo.create_ticket(Some(id), title);
+        // Set tags via update (create_ticket with empty tags works via --tags param)
+        repo.run_assert(&["ticket", "update", id, "--tags", tags]);
     }
 
-    let ready = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--definition", "ready"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run ready filter");
-    assert!(ready.status.success());
-    let ready_stdout = String::from_utf8(ready.stdout).expect("stdout should be UTF-8");
+    let ready_stdout = repo.run_assert(&["ticket", "list", "--definition", "ready"]);
     assert!(ready_stdout.contains("TNDM-READY"));
     assert!(!ready_stdout.contains("TNDM-QUES"));
     assert!(!ready_stdout.contains("TNDM-UNKW"));
 
-    let questions = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--definition", "questions"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run questions filter");
-    assert!(questions.status.success());
-    let questions_stdout = String::from_utf8(questions.stdout).expect("stdout should be UTF-8");
+    let questions_stdout = repo.run_assert(&["ticket", "list", "--definition", "questions"]);
     assert!(questions_stdout.contains("TNDM-QUES"));
     assert!(!questions_stdout.contains("TNDM-READY"));
     assert!(!questions_stdout.contains("TNDM-UNKW"));
 
-    let unknown = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--definition", "unknown"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run unknown filter");
-    assert!(unknown.status.success());
-    let unknown_stdout = String::from_utf8(unknown.stdout).expect("stdout should be UTF-8");
+    let unknown_stdout = repo.run_assert(&["ticket", "list", "--definition", "unknown"]);
     assert!(unknown_stdout.contains("TNDM-UNKW"));
     assert!(!unknown_stdout.contains("TNDM-READY"));
     assert!(!unknown_stdout.contains("TNDM-QUES"));
@@ -357,33 +181,18 @@ fn ticket_list_filters_by_definition_tags_in_plain_text() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_list_filters_by_definition_tags_in_json() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
+    let repo = TestRepo::new();
 
     for (id, title, tags) in [
         ("TNDM-READY", "Ready ticket", "definition:ready"),
         ("TNDM-QUES", "Questions ticket", "definition:questions"),
         ("TNDM-UNKW", "Unknown ticket", ""),
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "create", title, "--id", id, "--tags", tags])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("create ticket");
-        assert!(output.status.success());
+        repo.create_ticket(Some(id), title);
+        repo.run_assert(&["ticket", "update", id, "--tags", tags]);
     }
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "list", "--definition", "questions", "--json"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("run tndm ticket list with json definition filter");
-
-    assert!(output.status.success());
-
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
-    let json: serde_json::Value =
-        serde_json::from_str(&stdout).expect("stdout should be valid JSON");
+    let json = repo.run_json(&["ticket", "list", "--definition", "questions"]);
     let tickets = json["tickets"]
         .as_array()
         .expect("tickets should be an array");

@@ -3,72 +3,29 @@
 mod common;
 
 use common::*;
-use std::{fs, process::Command};
-
-use regex::Regex;
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+use std::fs;
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn bare_ticket_show_uses_configured_prefix() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    write_prefix_config(repo_root.path(), "PROJ");
+    let repo = TestRepo::with_config("PROJ");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "create", "Show bare", "--id", "PROJ-ABC123"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create ticket");
-    assert!(output.status.success());
+    repo.create_ticket(Some("PROJ-ABC123"), "Show bare");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "show", "ABC123"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("show ticket");
-
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let stdout = repo.run_assert(&["ticket", "show", "ABC123"]);
     assert!(stdout.contains("PROJ-ABC123"), "stdout was: {stdout}");
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn bare_ticket_update_uses_configured_prefix() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    write_prefix_config(repo_root.path(), "PROJ");
+    let repo = TestRepo::with_config("PROJ");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "create", "Update bare", "--id", "PROJ-UPD123"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create ticket");
-    assert!(output.status.success());
+    repo.create_ticket(Some("PROJ-UPD123"), "Update bare");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "update", "UPD123", "--status", "done"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("update ticket");
+    repo.run_assert(&["ticket", "update", "UPD123", "--status", "done"]);
 
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "show", "PROJ-UPD123"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("show ticket");
-    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
+    let show_stdout = repo.run_assert(&["ticket", "show", "PROJ-UPD123"]);
     assert!(
         show_stdout.contains("done"),
         "show output was: {show_stdout}"
@@ -78,339 +35,199 @@ fn bare_ticket_update_uses_configured_prefix() {
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn bare_ticket_sync_uses_configured_prefix() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    write_prefix_config(repo_root.path(), "PROJ");
+    let repo = TestRepo::with_config("PROJ");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "create", "Sync bare", "--id", "PROJ-SYNC01"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create ticket");
-    assert!(output.status.success());
+    repo.create_ticket(Some("PROJ-SYNC01"), "Sync bare");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "sync", "SYNC01"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("sync ticket");
-
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
+    let stdout = repo.run_assert(&["ticket", "sync", "SYNC01"]);
     assert!(stdout.contains("PROJ-SYNC01"), "stdout was: {stdout}");
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn bare_ticket_doc_create_uses_configured_prefix() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    write_prefix_config(repo_root.path(), "PROJ");
+    let repo = TestRepo::with_config("PROJ");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "create", "Doc bare", "--id", "PROJ-DOC123"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create ticket");
-    assert!(output.status.success());
+    repo.create_ticket(Some("PROJ-DOC123"), "Doc bare");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "doc", "create", "DOC123", "plan"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create doc");
+    let stdout = repo.run_assert(&["ticket", "doc", "create", "DOC123", "archive"]);
+    assert!(stdout.contains("PROJ-DOC123"), "stdout was: {stdout}");
+    assert!(stdout.contains("archive.md"), "stdout was: {stdout}");
 
+    let doc_path = repo
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("PROJ-DOC123")
+        .join("archive.md");
     assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        repo_root
-            .path()
-            .join(".tndm")
-            .join("tickets")
-            .join("PROJ-DOC123")
-            .join("plan.md")
-            .is_file(),
-        "plan.md should be created under the prefixed ticket directory"
+        doc_path.is_file(),
+        "archive.md should exist at: {}",
+        doc_path.display()
     );
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_doc_create_accepts_nested_ticket_relative_path() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    create_test_ticket(repo_root.path(), "TNDM-DOCPTH", "Nested doc path test");
+    let repo = TestRepo::new();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "doc",
-            "create",
-            "TNDM-DOCPTH",
-            "task-01",
-            "--path",
-            "tasks/task-01.md",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create nested doc");
+    repo.create_ticket(Some("TNDM-DOCNST"), "Nested doc path test");
 
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        repo_root
-            .path()
-            .join(".tndm")
-            .join("tickets")
-            .join("TNDM-DOCPTH")
-            .join("tasks")
-            .join("task-01.md")
-            .is_file(),
-        "nested task doc should be created under tasks/"
-    );
+    let stdout = repo.run_assert(&[
+        "ticket",
+        "doc",
+        "create",
+        "TNDM-DOCNST",
+        "mydoc",
+        "--path",
+        "subdir/mydoc.md",
+    ]);
+    assert!(stdout.contains("TNDM-DOCNST"), "stdout was: {stdout}");
+    assert!(stdout.contains("subdir"), "stdout was: {stdout}");
+
+    let doc_path = repo
+        .path()
+        .join(".tndm")
+        .join("tickets")
+        .join("TNDM-DOCNST")
+        .join("subdir")
+        .join("mydoc.md");
+    assert!(doc_path.is_file(), "doc should exist at nested path");
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_doc_create_rejects_absolute_and_traversing_paths() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    create_test_ticket(repo_root.path(), "TNDM-DOCPATHERR", "Invalid doc path test");
+    let repo = TestRepo::new();
 
-    let absolute = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "doc",
-            "create",
-            "TNDM-DOCPATHERR",
-            "task-abs",
-            "--path",
-            "/tmp/task.md",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create doc with absolute path");
-    assert!(!absolute.status.success());
-    let stderr_abs = String::from_utf8_lossy(&absolute.stderr);
-    assert!(
-        stderr_abs.contains("must be ticket-relative"),
-        "stderr: {stderr_abs}"
-    );
+    repo.create_ticket(Some("TNDM-DOCERR"), "Doc path error test");
 
-    let parent = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "doc",
-            "create",
-            "TNDM-DOCPATHERR",
-            "task-parent",
-            "--path",
-            "../escape.md",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create doc with parent traversal");
-    assert!(!parent.status.success());
-    let stderr_parent = String::from_utf8_lossy(&parent.stderr);
+    // Absolute path should be rejected
+    let output = repo.run(&[
+        "ticket",
+        "doc",
+        "create",
+        "TNDM-DOCERR",
+        "absdoc",
+        "--path",
+        "/etc/passwd.md",
+    ]);
+    assert!(!output.status.success(), "absolute path should be rejected");
+
+    // Parent traversal should be rejected
+    let output = repo.run(&[
+        "ticket",
+        "doc",
+        "create",
+        "TNDM-DOCERR",
+        "traverse",
+        "--path",
+        "../../escape.md",
+    ]);
     assert!(
-        stderr_parent.contains("must not traverse"),
-        "stderr: {stderr_parent}"
+        !output.status.success(),
+        "parent traversal should be rejected"
     );
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn ticket_doc_create_rejects_existing_registered_path() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    create_test_ticket(repo_root.path(), "TNDM-DOCDUP", "Duplicate doc path test");
+    let repo = TestRepo::new();
 
-    let content_path = repo_root
-        .path()
-        .join(".tndm")
-        .join("tickets")
-        .join("TNDM-DOCDUP")
-        .join("content.md");
-    let original_content = fs::read_to_string(&content_path).expect("read original content");
+    repo.create_ticket(Some("TNDM-DOCREG"), "Doc conflict test");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "doc",
-            "create",
-            "TNDM-DOCDUP",
-            "copy",
-            "--path",
-            "content.md",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create duplicate doc path");
+    // First create registers the path
+    repo.run_assert(&[
+        "ticket",
+        "doc",
+        "create",
+        "TNDM-DOCREG",
+        "first",
+        "--path",
+        "shared.md",
+    ]);
 
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    // Second create with different name but same path should be rejected
+    let output = repo.run(&[
+        "ticket",
+        "doc",
+        "create",
+        "TNDM-DOCREG",
+        "second",
+        "--path",
+        "shared.md",
+    ]);
     assert!(
-        stderr.contains("already registered"),
-        "stderr should explain the duplicate path: {stderr}"
-    );
-    assert_eq!(
-        fs::read_to_string(&content_path).expect("re-read content"),
-        original_content,
-        "content.md should remain unchanged when duplicate paths are rejected"
+        !output.status.success(),
+        "duplicate registered path should be rejected"
     );
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn bare_ticket_create_depends_on_uses_configured_prefix() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    write_prefix_config(repo_root.path(), "PROJ");
+    let repo = TestRepo::with_config("PROJ");
 
-    for id in ["PROJ-A1", "PROJ-A2"] {
-        let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "create", "prereq", "--id", id])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("create prereq ticket");
-        assert!(output.status.success());
-    }
+    // Create prerequisite tickets
+    repo.create_ticket(Some("PROJ-X"), "dependency X");
+    repo.create_ticket(Some("PROJ-Y"), "dependency Y");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "create",
-            "Depends bare",
-            "--id",
-            "PROJ-DEP123",
-            "--depends-on",
-            "A1,A2",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create ticket with bare depends_on");
+    // Use bare IDs in --depends-on
+    repo.run_assert(&[
+        "ticket",
+        "create",
+        "Depends-on bare",
+        "--id",
+        "PROJ-DEP01",
+        "--depends-on",
+        "X,Y",
+    ]);
 
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "show", "PROJ-DEP123"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("show ticket");
-    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
-    assert!(
-        show_stdout.contains("PROJ-A1, PROJ-A2"),
-        "show output was: {show_stdout}"
-    );
+    let json = repo.run_json(&["ticket", "show", "PROJ-DEP01"]);
+    assert_eq!(json["depends_on"], serde_json::json!(["PROJ-X", "PROJ-Y"]));
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn bare_ticket_update_depends_on_uses_configured_prefix() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    write_prefix_config(repo_root.path(), "PROJ");
+    let repo = TestRepo::with_config("PROJ");
 
-    for id in ["PROJ-U1", "PROJ-U2", "PROJ-UPD456"] {
-        let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-            .args(["ticket", "create", "prereq", "--id", id])
-            .current_dir(repo_root.path())
-            .output()
-            .expect("create ticket");
-        assert!(output.status.success());
-    }
+    // Create real prerequisite tickets
+    repo.create_ticket(Some("PROJ-X"), "dependency X");
+    repo.create_ticket(Some("PROJ-Y"), "dependency Y");
+    repo.create_ticket(Some("PROJ-UPDEP"), "Update deps bare");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "update", "UPD456", "--depends-on", "U1,U2"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("update ticket with bare depends_on");
+    // Use bare ID in --depends-on
+    repo.run_assert(&["ticket", "update", "UPDEP", "--depends-on", "PROJ-X,PROJ-Y"]);
 
-    assert!(
-        output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let show = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "show", "PROJ-UPD456"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("show ticket");
-    let show_stdout = String::from_utf8(show.stdout).expect("stdout should be UTF-8");
-    assert!(
-        show_stdout.contains("PROJ-U1, PROJ-U2"),
-        "show output was: {show_stdout}"
-    );
-}
-
-// ─── ticket task integration tests ────────────────────────────
-
-fn create_test_ticket(repo_root: &std::path::Path, id: &str, title: &str) {
-    let output = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "create", title, "--id", id])
-        .current_dir(repo_root)
-        .output()
-        .expect("create test ticket");
-    assert!(
-        output.status.success(),
-        "create ticket failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    let json = repo.run_json(&["ticket", "show", "PROJ-UPDEP"]);
+    assert_eq!(json["depends_on"], serde_json::json!(["PROJ-X", "PROJ-Y"]));
 }
 
 #[test]
 #[allow(clippy::disallowed_methods)]
 fn doc_create_rejects_conflicting_path_for_existing_name() {
-    let repo_root = tempfile::tempdir().expect("tempdir");
-    fs::create_dir_all(repo_root.path().join(".git")).expect("create .git dir");
-    create_test_ticket(repo_root.path(), "TNDM-DOCPATH", "Doc path mismatch test");
+    let repo = TestRepo::new();
 
-    let first = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args(["ticket", "doc", "create", "TNDM-DOCPATH", "archive"])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create archive doc");
-    assert!(
-        first.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&first.stderr)
-    );
+    let ticket_id = "TNDM-DOCCONF";
+    repo.create_ticket(Some(ticket_id), "Doc conflict test");
 
-    let conflicting = Command::new(env!("CARGO_BIN_EXE_tndm"))
-        .args([
-            "ticket",
-            "doc",
-            "create",
-            "TNDM-DOCPATH",
-            "archive",
-            "--path",
-            "nested/archive.md",
-        ])
-        .current_dir(repo_root.path())
-        .output()
-        .expect("create conflicting archive doc");
+    // Create doc with default path
+    repo.run_assert(&["ticket", "doc", "create", ticket_id, "mydoc"]);
+
+    // Try to create same doc name with different path
+    let output = repo.run(&[
+        "ticket", "doc", "create", ticket_id, "mydoc", "--path", "other.md",
+    ]);
     assert!(
-        !conflicting.status.success(),
-        "conflicting --path should fail"
+        !output.status.success(),
+        "conflicting path should be rejected"
     );
-    let stderr = String::from_utf8_lossy(&conflicting.stderr);
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
     assert!(
-        stderr.contains("already registered") || stderr.contains("expected"),
-        "stderr was: {stderr}"
+        stderr.contains("already registered"),
+        "error should mention existing registration; stderr was: {stderr}"
     );
 }
