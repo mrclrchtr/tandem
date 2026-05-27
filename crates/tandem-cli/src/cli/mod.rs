@@ -3,6 +3,7 @@ mod doc;
 mod fmt;
 mod render;
 mod ticket;
+mod ticket_ctx;
 mod util;
 
 use clap::{Args, Parser, Subcommand};

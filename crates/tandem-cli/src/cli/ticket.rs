@@ -1,5 +1,5 @@
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -12,12 +12,13 @@ use tandem_core::{
         TicketStatus, TicketType,
     },
 };
-use tandem_storage::{FileTicketStore, discover_repo_root, load_config, ticket_dir};
+use tandem_storage::{FileTicketStore, ticket_dir};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::OutputArgs;
 use super::doc::recompute_ticket_document_fingerprints;
 use super::render::{TicketJson, TicketJsonEntry};
+use super::ticket_ctx::TicketCtx;
 use super::util::{
     DEFINITION_TAG_QUESTIONS, DEFINITION_TAG_READY, generate_ticket_id, load_ticket_content,
     parse_ticket_id_input, read_stdin_if_no_flags, ticket_content_path,
@@ -298,10 +299,7 @@ pub(crate) fn handle_ticket_create(
     effort: Option<TicketEffort>,
     json: bool,
 ) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root.clone());
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
+    let ctx = TicketCtx::new()?;
 
     // Only read stdin when no explicit create flags are provided. Speculatively reading
     // stdin when flags like --status or --tags are present causes an infinite hang in
@@ -319,10 +317,10 @@ pub(crate) fn handle_ticket_create(
 
     let ticket_id = match id {
         Some(value) => TicketId::parse(value)?,
-        None => generate_ticket_id(&store, &config.id_prefix)?,
+        None => generate_ticket_id(&ctx.store, ctx.id_prefix())?,
     };
 
-    let content = load_ticket_content(content_file, content, stdin_content, &config)?;
+    let content = load_ticket_content(content_file, content, stdin_content, &ctx.config)?;
     let mut meta = TicketMeta::new(ticket_id, title)?;
 
     if let Some(value) = priority {
@@ -347,7 +345,7 @@ pub(crate) fn handle_ticket_create(
         } else {
             value
                 .split(',')
-                .map(|s| parse_ticket_id_input(s, &config.id_prefix))
+                .map(|s| parse_ticket_id_input(s, ctx.id_prefix()))
                 .collect::<Result<Vec<_>, _>>()?
         };
         parsed.sort();
@@ -358,13 +356,15 @@ pub(crate) fn handle_ticket_create(
         meta.effort = Some(value);
     }
 
-    let mut ticket = store
+    let mut ticket = ctx
+        .store
         .create_ticket(NewTicket { meta, content })
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     if let Some(value) = status {
         ticket.state.status = value;
-        ticket = store
+        ticket = ctx
+            .store
             .update_ticket(&ticket)
             .map_err(|error| anyhow::anyhow!("{error}"))?;
     }
@@ -386,12 +386,10 @@ pub(crate) fn handle_ticket_create(
 }
 
 pub(crate) fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
-    let id = parse_ticket_id_input(&id, &config.id_prefix)?;
-    let ticket = store
+    let ctx = TicketCtx::new()?;
+    let id = ctx.resolve_id(&id)?;
+    let ticket = ctx
+        .store
         .load_ticket(&id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
@@ -416,16 +414,16 @@ pub(crate) fn handle_ticket_list(
     all: bool,
     definition: Option<TicketDefinitionFilter>,
 ) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
-    let ids = store
+    let ctx = TicketCtx::new()?;
+    let ids = ctx
+        .store
         .list_ticket_ids()
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     let mut tickets = Vec::new();
     for id in ids {
-        let ticket = store
+        let ticket = ctx
+            .store
             .load_ticket(&id)
             .map_err(|error| anyhow::anyhow!("{error}"))?;
         let matches_status = all || ticket.state.status != TicketStatus::Done;
@@ -562,12 +560,10 @@ pub(crate) fn handle_ticket_update(
         );
     }
 
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
-    let mut ticket = store
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
+    let mut ticket = ctx
+        .store
         .load_ticket(&ticket_id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
@@ -602,7 +598,7 @@ pub(crate) fn handle_ticket_update(
         } else {
             value
                 .split(',')
-                .map(|s| parse_ticket_id_input(s, &config.id_prefix))
+                .map(|s| parse_ticket_id_input(s, ctx.id_prefix()))
                 .collect::<Result<Vec<_>, _>>()?
         };
         parsed.sort();
@@ -639,7 +635,8 @@ pub(crate) fn handle_ticket_update(
         .format(&Rfc3339)
         .map_err(|error| anyhow::anyhow!("failed to format timestamp: {error}"))?;
 
-    let updated = store
+    let updated = ctx
+        .store
         .update_ticket(&ticket)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
@@ -660,13 +657,11 @@ pub(crate) fn handle_ticket_update(
 }
 
 pub(crate) fn handle_ticket_sync(id: String, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
-    let updated = store
+    let updated = ctx
+        .store
         .sync_ticket_documents(&ticket_id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
@@ -836,17 +831,14 @@ fn ensure_canonical_task_detail_doc(
 }
 
 pub(crate) fn handle_task_add(id: String, title: String, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root.clone());
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
     if title.trim().is_empty() {
         anyhow::bail!("task title must not be empty");
     }
 
-    let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let mut ticket = load_and_bump(&ctx.store, &ticket_id)?;
 
     let next_number = ticket
         .state
@@ -857,8 +849,13 @@ pub(crate) fn handle_task_add(id: String, title: String, json: bool) -> anyhow::
         .unwrap_or(0)
         + 1;
 
-    let _ =
-        ensure_canonical_task_detail_doc(&repo_root, &ticket_id, &mut ticket, next_number, &title)?;
+    let _ = ensure_canonical_task_detail_doc(
+        &ctx.repo_root,
+        &ticket_id,
+        &mut ticket,
+        next_number,
+        &title,
+    )?;
 
     ticket.state.tasks.push(Task {
         number: next_number,
@@ -866,18 +863,16 @@ pub(crate) fn handle_task_add(id: String, title: String, json: bool) -> anyhow::
         status: TaskStatus::Todo,
     });
 
-    recompute_ticket_document_fingerprints(&repo_root, &ticket_id, &mut ticket)?;
-    persist_and_output(&store, &ticket, json)?;
+    recompute_ticket_document_fingerprints(&ctx.repo_root, &ticket_id, &mut ticket)?;
+    persist_and_output(&ctx.store, &ticket, json)?;
     Ok(())
 }
 
 pub(crate) fn handle_task_list(id: String, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
-    let ticket = store
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
+    let ticket = ctx
+        .store
         .load_ticket(&ticket_id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
@@ -899,35 +894,29 @@ pub(crate) fn handle_task_list(id: String, json: bool) -> anyhow::Result<()> {
 }
 
 pub(crate) fn handle_task_complete(id: String, number: u32, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root);
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
-    let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let mut ticket = load_and_bump(&ctx.store, &ticket_id)?;
 
     let (idx, _) = find_task(&ticket.state.tasks, number)?;
     ticket.state.tasks[idx].status = TaskStatus::Done;
 
-    persist_and_output(&store, &ticket, json)?;
+    persist_and_output(&ctx.store, &ticket, json)?;
     Ok(())
 }
 
 pub(crate) fn handle_task_remove(id: String, number: u32, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root.clone());
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
-    let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let mut ticket = load_and_bump(&ctx.store, &ticket_id)?;
 
     let (idx, _) = find_task(&ticket.state.tasks, number)?;
     ticket.state.tasks.remove(idx);
-    prune_unlinked_canonical_task_detail_docs(&repo_root, &ticket_id, &mut ticket)?;
+    prune_unlinked_canonical_task_detail_docs(&ctx.repo_root, &ticket_id, &mut ticket)?;
 
-    persist_and_output(&store, &ticket, json)?;
+    persist_and_output(&ctx.store, &ticket, json)?;
     Ok(())
 }
 
@@ -937,13 +926,10 @@ pub(crate) fn handle_task_edit(
     title: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root.clone());
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
-    let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let mut ticket = load_and_bump(&ctx.store, &ticket_id)?;
 
     let (idx, _) = find_task(&ticket.state.tasks, number)?;
     let task = &mut ticket.state.tasks[idx];
@@ -954,21 +940,18 @@ pub(crate) fn handle_task_edit(
         task.title = value;
     }
 
-    persist_and_output(&store, &ticket, json)?;
+    persist_and_output(&ctx.store, &ticket, json)?;
     Ok(())
 }
 
 pub(crate) fn handle_task_detail_ensure(id: String, number: u32, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root.clone());
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
-    let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let mut ticket = load_and_bump(&ctx.store, &ticket_id)?;
     let (_idx, _) = find_task(&ticket.state.tasks, number)?;
     let (doc_name, rel_path) = canonical_task_detail_doc(number);
-    let ticket_path = ticket_dir(&repo_root, &ticket_id);
+    let ticket_path = ticket_dir(&ctx.repo_root, &ticket_id);
     let abs_path = ticket_path.join(&rel_path);
 
     if let Some(existing) = ticket
@@ -1019,9 +1002,10 @@ pub(crate) fn handle_task_detail_ensure(id: String, number: u32, json: bool) -> 
                 path: rel_path.clone(),
             });
     }
-    recompute_ticket_document_fingerprints(&repo_root, &ticket_id, &mut ticket)?;
+    recompute_ticket_document_fingerprints(&ctx.repo_root, &ticket_id, &mut ticket)?;
 
-    if let Err(error) = store
+    if let Err(error) = ctx
+        .store
         .update_ticket(&ticket)
         .map_err(|error| anyhow::anyhow!("{error}"))
     {
@@ -1049,13 +1033,10 @@ pub(crate) fn handle_task_detail_ensure(id: String, number: u32, json: bool) -> 
 }
 
 pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root.clone());
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
-    let mut ticket = load_and_bump(&store, &ticket_id)?;
+    let mut ticket = load_and_bump(&ctx.store, &ticket_id)?;
 
     let mut new_tasks: Vec<Task> = serde_json::from_str(&tasks_json)
         .map_err(|error| anyhow::anyhow!("invalid tasks JSON: {error}"))?;
@@ -1075,7 +1056,7 @@ pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> any
     }
     for task in &mut new_tasks {
         let _ = ensure_canonical_task_detail_doc(
-            &repo_root,
+            &ctx.repo_root,
             &ticket_id,
             &mut ticket,
             task.number,
@@ -1084,9 +1065,9 @@ pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> any
     }
 
     ticket.state.tasks = new_tasks;
-    prune_unlinked_canonical_task_detail_docs(&repo_root, &ticket_id, &mut ticket)?;
-    recompute_ticket_document_fingerprints(&repo_root, &ticket_id, &mut ticket)?;
+    prune_unlinked_canonical_task_detail_docs(&ctx.repo_root, &ticket_id, &mut ticket)?;
+    recompute_ticket_document_fingerprints(&ctx.repo_root, &ticket_id, &mut ticket)?;
 
-    persist_and_output(&store, &ticket, json)?;
+    persist_and_output(&ctx.store, &ticket, json)?;
     Ok(())
 }

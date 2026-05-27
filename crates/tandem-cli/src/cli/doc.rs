@@ -1,16 +1,14 @@
 use std::{
-    env, fs,
+    fs,
     path::{Component, Path, PathBuf},
 };
 
 use tandem_core::ports::TicketStore;
 use tandem_core::ticket::{Ticket, TicketDocument, TicketId};
-use tandem_storage::{
-    FileTicketStore, discover_repo_root, fingerprint_file, load_config, ticket_dir,
-};
+use tandem_storage::{fingerprint_file, ticket_dir};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-use super::util::parse_ticket_id_input;
+use super::ticket_ctx::TicketCtx;
 
 pub(crate) fn handle_doc_create(
     id: String,
@@ -18,13 +16,11 @@ pub(crate) fn handle_doc_create(
     path: Option<String>,
     json: bool,
 ) -> anyhow::Result<()> {
-    let current_dir = env::current_dir().map_err(|error| anyhow::anyhow!("{error}"))?;
-    let repo_root = discover_repo_root(&current_dir).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let config = load_config(&repo_root).map_err(|error| anyhow::anyhow!("{error}"))?;
-    let store = FileTicketStore::new(repo_root.clone());
-    let ticket_id = parse_ticket_id_input(&id, &config.id_prefix)?;
+    let ctx = TicketCtx::new()?;
+    let ticket_id = ctx.resolve_id(&id)?;
 
-    let mut ticket = store
+    let mut ticket = ctx
+        .store
         .load_ticket(&ticket_id)
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
@@ -47,7 +43,7 @@ pub(crate) fn handle_doc_create(
         }
 
         // Already registered — return the existing path
-        let doc_path = ticket_dir(&repo_root, &ticket_id).join(&existing.path);
+        let doc_path = ticket_dir(&ctx.repo_root, &ticket_id).join(&existing.path);
         if json {
             println!(
                 "{}",
@@ -78,7 +74,7 @@ pub(crate) fn handle_doc_create(
         );
     }
 
-    let abs_path = ticket_dir(&repo_root, &ticket_id).join(&rel_path);
+    let abs_path = ticket_dir(&ctx.repo_root, &ticket_id).join(&rel_path);
     if abs_path.exists() {
         anyhow::bail!(
             "document path {} already exists on disk; refusing to overwrite it",
@@ -102,7 +98,7 @@ pub(crate) fn handle_doc_create(
         path: rel_path.clone(),
     });
 
-    recompute_ticket_document_fingerprints(&repo_root, &ticket_id, &mut ticket)?;
+    recompute_ticket_document_fingerprints(&ctx.repo_root, &ticket_id, &mut ticket)?;
 
     // Bump revision and update timestamp
     ticket.state.revision += 1;
@@ -111,8 +107,8 @@ pub(crate) fn handle_doc_create(
         .map_err(|error| anyhow::anyhow!("failed to format timestamp: {error}"))?;
 
     // Write canonical meta and state
-    let meta_path = ticket_dir(&repo_root, &ticket_id).join("meta.toml");
-    let state_path = ticket_dir(&repo_root, &ticket_id).join("state.toml");
+    let meta_path = ticket_dir(&ctx.repo_root, &ticket_id).join("meta.toml");
+    let state_path = ticket_dir(&ctx.repo_root, &ticket_id).join("state.toml");
     fs::write(&meta_path, ticket.meta.to_canonical_toml())
         .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", meta_path.display()))?;
     fs::write(&state_path, ticket.state.to_canonical_toml())

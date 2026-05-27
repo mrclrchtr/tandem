@@ -1,0 +1,38 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-27T00:14:25.526145Z"
+revision = 28
+
+[document_fingerprints]
+archive = "sha256:99c124d8163ed5d3c2f1039b29be31e883eaf0047a2fef2b859b47428149570b"
+content = "sha256:51ccb88f9646d3c34a22702c605acbece70d959660f57b16fb28126a274fb1c8"
+task-01 = "sha256:14d9a3d3a6cc3dcd7e20a3a9b46e8f36953996b599d4baec615be26de043e734"
+task-02 = "sha256:b9e6d25b3dff540b7f7a858fc2c6a5f36401c8341f3a0a538a15aeed76a21b79"
+task-03 = "sha256:a2f370c20de85c9eb4a9d0f1f24713abdf6f18cc5c2afd688324e48ebf381012"
+task-04 = "sha256:1834e247b5954260879944bab444d659037fe1fdb4528c626aae135d19d5a2c9"
+task-05 = "sha256:0b0c7e07626bee6f791d568ab3eec904a03658f7825a28e19cb53e13aee70af0"
+
+[[tasks]]
+number = 1
+title = "Create TicketCtx struct in new ticket_ctx.rs"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Wire ticket_ctx module into cli/mod.rs"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Refactor all handlers in ticket.rs to use TicketCtx"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Refactor doc.rs to use TicketCtx"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Final verification: compile, lint, test, arch, and smoke"
+status = "done"
