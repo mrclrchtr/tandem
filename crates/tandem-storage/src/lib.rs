@@ -317,6 +317,107 @@ pub fn load_ticket_snapshot(repo_root: &Path) -> Result<TicketSnapshot, StorageE
     Ok(TicketSnapshot { tickets })
 }
 
+fn parse_meta(
+    raw: RawTicketMeta,
+    id: &TicketId,
+    meta_path: &Path,
+) -> Result<TicketMeta, StorageError> {
+    let mut depends_on = raw.depends_on.unwrap_or_default();
+    depends_on.sort();
+    depends_on.dedup();
+    let depends_on = depends_on
+        .into_iter()
+        .map(|dependency_id| {
+            TicketId::parse(dependency_id).map_err(|error| {
+                StorageError::new(format!(
+                    "invalid depends_on ticket id in {}: {error}",
+                    meta_path.display()
+                ))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut tags = raw.tags.unwrap_or_default();
+    tags.sort();
+    tags.dedup();
+
+    let mut meta = TicketMeta::new(id.clone(), raw.title).map_err(|error| {
+        StorageError::new(format!("invalid meta in {}: {error}", meta_path.display()))
+    })?;
+    if let Some(ticket_type) = raw.ticket_type {
+        meta.ticket_type = TicketType::parse(&ticket_type).map_err(|error| {
+            StorageError::new(format!("invalid type in {}: {error}", meta_path.display()))
+        })?;
+    }
+    if let Some(priority) = raw.priority {
+        meta.priority = TicketPriority::parse(&priority).map_err(|error| {
+            StorageError::new(format!(
+                "invalid priority in {}: {error}",
+                meta_path.display()
+            ))
+        })?;
+    }
+    if let Some(effort) = raw.effort {
+        meta.effort = Some(TicketEffort::parse(&effort).map_err(|error| {
+            StorageError::new(format!(
+                "invalid effort in {}: {error}",
+                meta_path.display()
+            ))
+        })?);
+    }
+    meta.depends_on = depends_on;
+    meta.tags = tags;
+
+    // Legacy ticket migration: if [[documents]] was not present, inject default
+    if raw.documents.is_none() {
+        meta.documents = vec![tandem_core::ticket::TicketDocument {
+            name: "content".to_string(),
+            path: "content.md".to_string(),
+        }];
+    } else if let Some(raw_docs) = raw.documents {
+        meta.documents = raw_docs
+            .into_iter()
+            .map(|d| tandem_core::ticket::TicketDocument {
+                name: d.name,
+                path: d.path,
+            })
+            .collect();
+    }
+
+    Ok(meta)
+}
+
+fn parse_state(raw: RawTicketState, state_path: &Path) -> Result<TicketState, StorageError> {
+    let mut state = TicketState::new(raw.updated_at, raw.revision).map_err(|error| {
+        StorageError::new(format!(
+            "invalid state in {}: {error}",
+            state_path.display()
+        ))
+    })?;
+    state.status = TicketStatus::parse(&raw.status).map_err(|error| {
+        StorageError::new(format!(
+            "invalid status in {}: {error}",
+            state_path.display()
+        ))
+    })?;
+    state.document_fingerprints = raw.document_fingerprints.unwrap_or_default();
+    state.tasks = raw
+        .tasks
+        .unwrap_or_default()
+        .into_iter()
+        .map(|raw| Task {
+            number: raw.number,
+            title: raw.title,
+            status: match raw.status {
+                RawTaskStatus::Todo => TaskStatus::Todo,
+                RawTaskStatus::Done => TaskStatus::Done,
+            },
+        })
+        .collect();
+
+    Ok(state)
+}
+
 impl TicketStore for FileTicketStore {
     type Error = StorageError;
 
@@ -452,95 +553,8 @@ impl TicketStore for FileTicketStore {
             )));
         }
 
-        let mut depends_on = raw_meta.depends_on.unwrap_or_default();
-        depends_on.sort();
-        depends_on.dedup();
-        let depends_on = depends_on
-            .into_iter()
-            .map(|dependency_id| {
-                TicketId::parse(dependency_id).map_err(|error| {
-                    StorageError::new(format!(
-                        "invalid depends_on ticket id in {}: {error}",
-                        meta_path.display()
-                    ))
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let mut tags = raw_meta.tags.unwrap_or_default();
-        tags.sort();
-        tags.dedup();
-
-        let mut meta = TicketMeta::new(id.clone(), raw_meta.title).map_err(|error| {
-            StorageError::new(format!("invalid meta in {}: {error}", meta_path.display()))
-        })?;
-        if let Some(ticket_type) = raw_meta.ticket_type {
-            meta.ticket_type = TicketType::parse(&ticket_type).map_err(|error| {
-                StorageError::new(format!("invalid type in {}: {error}", meta_path.display()))
-            })?;
-        }
-        if let Some(priority) = raw_meta.priority {
-            meta.priority = TicketPriority::parse(&priority).map_err(|error| {
-                StorageError::new(format!(
-                    "invalid priority in {}: {error}",
-                    meta_path.display()
-                ))
-            })?;
-        }
-        if let Some(effort) = raw_meta.effort {
-            meta.effort = Some(TicketEffort::parse(&effort).map_err(|error| {
-                StorageError::new(format!(
-                    "invalid effort in {}: {error}",
-                    meta_path.display()
-                ))
-            })?);
-        }
-        meta.depends_on = depends_on;
-        meta.tags = tags;
-
-        // Legacy ticket migration: if [[documents]] was not present, inject default
-        if raw_meta.documents.is_none() {
-            meta.documents = vec![tandem_core::ticket::TicketDocument {
-                name: "content".to_string(),
-                path: "content.md".to_string(),
-            }];
-        } else if let Some(raw_docs) = raw_meta.documents {
-            meta.documents = raw_docs
-                .into_iter()
-                .map(|d| tandem_core::ticket::TicketDocument {
-                    name: d.name,
-                    path: d.path,
-                })
-                .collect();
-        }
-
-        let mut state =
-            TicketState::new(raw_state.updated_at, raw_state.revision).map_err(|error| {
-                StorageError::new(format!(
-                    "invalid state in {}: {error}",
-                    state_path.display()
-                ))
-            })?;
-        state.status = TicketStatus::parse(&raw_state.status).map_err(|error| {
-            StorageError::new(format!(
-                "invalid status in {}: {error}",
-                state_path.display()
-            ))
-        })?;
-        state.document_fingerprints = raw_state.document_fingerprints.unwrap_or_default();
-        state.tasks = raw_state
-            .tasks
-            .unwrap_or_default()
-            .into_iter()
-            .map(|raw| Task {
-                number: raw.number,
-                title: raw.title,
-                status: match raw.status {
-                    RawTaskStatus::Todo => TaskStatus::Todo,
-                    RawTaskStatus::Done => TaskStatus::Done,
-                },
-            })
-            .collect();
+        let meta = parse_meta(raw_meta, id, &meta_path)?;
+        let state = parse_state(raw_state, &state_path)?;
 
         Ok(Ticket {
             meta,

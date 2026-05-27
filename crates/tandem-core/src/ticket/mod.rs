@@ -158,6 +158,28 @@ pub struct Ticket {
     pub content: String,
 }
 
+/// Validate a task list against business rules.
+///
+/// Returns `Ok(())` if all tasks are valid, or a `ValidationError` describing the first violation.
+pub fn validate_tasks(tasks: &[Task]) -> Result<(), ValidationError> {
+    if tasks.iter().any(|t| t.number == 0) {
+        return Err(ValidationError::new("task numbers must be >= 1"));
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for task in tasks {
+        if !seen.insert(task.number) {
+            return Err(ValidationError::new(format!(
+                "duplicate task number: {}",
+                task.number
+            )));
+        }
+    }
+    if tasks.iter().any(|t| t.title.trim().is_empty()) {
+        return Err(ValidationError::new("task title must not be empty"));
+    }
+    Ok(())
+}
+
 /// Default markdown template used for new ticket content.
 /// Overridable via `[templates] content` in `.tndm/config.toml`.
 pub const DEFAULT_CONTENT_TEMPLATE: &str = concat!(
@@ -382,5 +404,60 @@ mod tests {
         assert_eq!(json["number"], 42);
         assert_eq!(json["title"], "Minimal");
         assert_eq!(json["status"], "done");
+    }
+
+    #[test]
+    fn validate_tasks_accepts_valid_tasks() {
+        let tasks = vec![Task {
+            number: 1,
+            title: "Do the thing".to_string(),
+            status: TaskStatus::Todo,
+        }];
+        assert!(validate_tasks(&tasks).is_ok());
+    }
+
+    #[test]
+    fn validate_tasks_accepts_empty_list() {
+        assert!(validate_tasks(&[]).is_ok());
+    }
+
+    #[test]
+    fn validate_tasks_rejects_number_zero() {
+        let tasks = vec![Task {
+            number: 0,
+            title: "Bad".to_string(),
+            status: TaskStatus::Todo,
+        }];
+        let error = validate_tasks(&tasks).expect_err("should reject zero");
+        assert_eq!(error.message(), "task numbers must be >= 1");
+    }
+
+    #[test]
+    fn validate_tasks_rejects_duplicate_numbers() {
+        let tasks = vec![
+            Task {
+                number: 1,
+                title: "First".to_string(),
+                status: TaskStatus::Todo,
+            },
+            Task {
+                number: 1,
+                title: "Duplicate".to_string(),
+                status: TaskStatus::Todo,
+            },
+        ];
+        let error = validate_tasks(&tasks).expect_err("should reject duplicate");
+        assert_eq!(error.message(), "duplicate task number: 1");
+    }
+
+    #[test]
+    fn validate_tasks_rejects_empty_title() {
+        let tasks = vec![Task {
+            number: 1,
+            title: "   ".to_string(),
+            status: TaskStatus::Todo,
+        }];
+        let error = validate_tasks(&tasks).expect_err("should reject empty title");
+        assert_eq!(error.message(), "task title must not be empty");
     }
 }

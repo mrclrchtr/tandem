@@ -1,0 +1,44 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-27T01:18:23.524301Z"
+revision = 32
+
+[document_fingerprints]
+archive = "sha256:b01e152f2d4a30acfe62a45b289ec1ae5d6821424ce262b79c09ef58768d9a16"
+content = "sha256:90c6b9f2b81c416bc5151c08a3a111d97f3e20ae775f377e693b386f6274f58d"
+task-01 = "sha256:f432b4f1366bedf14d20ad96366dca265857d76dbf0e7217287edad46547d07d"
+task-02 = "sha256:d7baf92d8556295ef8f29981acff8e5b3338c5c3a841e12721d2169ccc50fd44"
+task-03 = "sha256:2f6320efe031d384d65bf98399214bc9abf21cfaf498fdcec5af4dfb51f34721"
+task-04 = "sha256:06f383ef705a70196354e75c1460308e06318c017366f817c846d5450c2cb84b"
+task-05 = "sha256:e6c79c7b89da9af47eed8154d2bc652e7b5dcab95d76de042a4786158df37de8"
+task-06 = "sha256:854a62af5494c060f85d7dff6d0a551b05868bb0dc20ffb681726d572736da8c"
+
+[[tasks]]
+number = 1
+title = "Extract parse_meta helper from load_ticket in tandem-storage"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Extract parse_state helper from load_ticket in tandem-storage"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Deduplicate path computation in handle_task_detail_ensure"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Add validate_tasks() to tandem-core with unit tests"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Use validate_tasks() in handle_task_set in tandem-cli"
+status = "done"
+
+[[tasks]]
+number = 6
+title = "Verify: full test suite, architecture checks, and canonical TOML"
+status = "done"

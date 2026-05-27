@@ -692,14 +692,14 @@ fn prune_unlinked_canonical_task_detail_docs(
 }
 
 /// Ensure the canonical task detail document exists, is registered, and return its
-/// ticket-relative path.
+/// ticket-relative path along with whether a new file was created on disk.
 fn ensure_canonical_task_detail_doc(
     repo_root: &Path,
     ticket_id: &TicketId,
     ticket: &mut Ticket,
     task_number: u32,
     title: &str,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<(String, bool)> {
     let (doc_name, rel_path) = canonical_task_detail_doc(task_number);
     let ticket_path = ticket_dir(repo_root, ticket_id);
     let abs_path = ticket_path.join(&rel_path);
@@ -731,7 +731,7 @@ fn ensure_canonical_task_detail_doc(
         );
     }
 
-    let mut _created_file = false;
+    let mut created_file = false;
     if !abs_path.is_file() {
         if let Some(parent) = abs_path.parent() {
             fs::create_dir_all(parent).map_err(|error| {
@@ -740,7 +740,7 @@ fn ensure_canonical_task_detail_doc(
         }
         fs::write(&abs_path, format!("# Task {task_number}: {title}\n\n"))
             .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", abs_path.display()))?;
-        _created_file = true;
+        created_file = true;
     }
 
     if !ticket.meta.documents.iter().any(|doc| doc.name == doc_name) {
@@ -753,7 +753,7 @@ fn ensure_canonical_task_detail_doc(
             });
     }
 
-    Ok(rel_path)
+    Ok((rel_path, created_file))
 }
 
 pub(crate) fn handle_task_add(id: String, title: String, json: bool) -> anyhow::Result<()> {
@@ -775,7 +775,7 @@ pub(crate) fn handle_task_add(id: String, title: String, json: bool) -> anyhow::
         .unwrap_or(0)
         + 1;
 
-    let _ = ensure_canonical_task_detail_doc(
+    let (_rel_path, _created) = ensure_canonical_task_detail_doc(
         &ctx.repo_root,
         &ticket_id,
         &mut ticket,
@@ -875,59 +875,21 @@ pub(crate) fn handle_task_detail_ensure(id: String, number: u32, json: bool) -> 
     let ticket_id = ctx.resolve_id(&id)?;
 
     let mut ticket = load_and_bump(&ctx.store, &ticket_id)?;
-    let (_idx, _) = find_task(&ticket.state.tasks, number)?;
-    let (doc_name, rel_path) = canonical_task_detail_doc(number);
-    let ticket_path = ticket_dir(&ctx.repo_root, &ticket_id);
-    let abs_path = ticket_path.join(&rel_path);
+    let task_title = {
+        let (_idx, task) = find_task(&ticket.state.tasks, number)?;
+        task.title.clone()
+    };
+    let (rel_path, created_file) = ensure_canonical_task_detail_doc(
+        &ctx.repo_root,
+        &ticket_id,
+        &mut ticket,
+        number,
+        &task_title,
+    )?;
 
-    if let Some(existing) = ticket
-        .meta
-        .documents
-        .iter()
-        .find(|doc| doc.name == doc_name)
-        && existing.path != rel_path
-    {
-        anyhow::bail!(
-            "task detail document {} is registered at unexpected path {} (expected {})",
-            doc_name,
-            existing.path,
-            rel_path
-        );
-    }
-    if let Some(existing) = ticket
-        .meta
-        .documents
-        .iter()
-        .find(|doc| doc.path == rel_path && doc.name != doc_name)
-    {
-        anyhow::bail!(
-            "ticket-relative path {} is already registered as document {}",
-            rel_path,
-            existing.name
-        );
-    }
+    let doc_name = canonical_task_detail_doc(number).0;
+    let abs_path = ticket_dir(&ctx.repo_root, &ticket_id).join(&rel_path);
 
-    let mut created_file = false;
-    if !abs_path.is_file() {
-        if let Some(parent) = abs_path.parent() {
-            fs::create_dir_all(parent).map_err(|error| {
-                anyhow::anyhow!("failed to create directory {}: {error}", parent.display())
-            })?;
-        }
-        fs::write(&abs_path, format!("# Task {number}\n\n"))
-            .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", abs_path.display()))?;
-        created_file = true;
-    }
-
-    if !ticket.meta.documents.iter().any(|doc| doc.name == doc_name) {
-        ticket
-            .meta
-            .documents
-            .push(tandem_core::ticket::TicketDocument {
-                name: doc_name.clone(),
-                path: rel_path.clone(),
-            });
-    }
     recompute_ticket_document_fingerprints(&ctx.repo_root, &ticket_id, &mut ticket)?;
 
     if let Err(error) = ctx
@@ -967,21 +929,9 @@ pub(crate) fn handle_task_set(id: String, tasks_json: String, json: bool) -> any
     let mut new_tasks: Vec<Task> = serde_json::from_str(&tasks_json)
         .map_err(|error| anyhow::anyhow!("invalid tasks JSON: {error}"))?;
 
-    // Validate task numbers are >= 1 and unique
-    if new_tasks.iter().any(|t| t.number == 0) {
-        anyhow::bail!("task numbers must be >= 1");
-    }
-    let mut seen = std::collections::BTreeSet::new();
-    for task in &new_tasks {
-        if !seen.insert(task.number) {
-            anyhow::bail!("duplicate task number: {}", task.number);
-        }
-    }
-    if new_tasks.iter().any(|t| t.title.trim().is_empty()) {
-        anyhow::bail!("task title must not be empty");
-    }
+    tandem_core::ticket::validate_tasks(&new_tasks).map_err(|error| anyhow::anyhow!("{error}"))?;
     for task in &mut new_tasks {
-        let _ = ensure_canonical_task_detail_doc(
+        let (_rel_path, _created) = ensure_canonical_task_detail_doc(
             &ctx.repo_root,
             &ticket_id,
             &mut ticket,
