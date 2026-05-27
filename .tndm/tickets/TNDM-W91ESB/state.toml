@@ -1,0 +1,62 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-27T16:46:31.546129Z"
+revision = 45
+
+[document_fingerprints]
+archive = "sha256:0ed749970ca5416f15f89e6f7f2f7e5a3298bbe81246a0ea1550f3e31720362b"
+content = "sha256:87dcdd8d9c5564542649836d46402d9d81ca9dd73d0e7c309c5eb6c56da3554f"
+task-01 = "sha256:3a9a5919e8488d75aeacf5887dd5999ca0e8705485012b5d978f726abea43091"
+task-02 = "sha256:e3a995e70ca2f618b4c6840c3d5a7c8c37c6def84ae9e5441fec63722b427c7f"
+task-03 = "sha256:2046372b57eecfaecf4cfa24f24d02f1004bfd31d2c24f7cff44eea04f1a1c01"
+task-04 = "sha256:de8854aeebe4a14d2f349d3277f88204a1ae41b84140add80ba1f9dd817e91d4"
+task-05 = "sha256:cad7984e4936ed521cc8cd63c884c0067cedabca973bb1165e785cd18feea929"
+task-06 = "sha256:3fba362db939483021da5243f130cb58b0337995938a3448d126fa1f68f97093"
+task-07 = "sha256:65915fa85a37d984dd935495ab8d50ceb6f345930b603a2eb1ce3e3dcea63cc0"
+task-08 = "sha256:a8be47163a4c0be9112f696b7962e4fc95c9387f09cf0465b732fe9e3f29a69d"
+task-09 = "sha256:53d2c2f7c8de9cd466f153c219167364c3f2e71f91e127859a565740050b4378"
+
+[[tasks]]
+number = 1
+title = "Create ticket/mod.rs with command enums"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Extract handle_ticket_show into ticket/show.rs"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Extract handle_ticket_sync into ticket/sync.rs"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Extract list handler into ticket/list.rs"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Extract update handler + TicketUpdate into ticket/update.rs"
+status = "done"
+
+[[tasks]]
+number = 6
+title = "Extract create handler into ticket/create.rs"
+status = "done"
+
+[[tasks]]
+number = 7
+title = "Extract task handlers + helpers into ticket/task.rs"
+status = "done"
+
+[[tasks]]
+number = 8
+title = "Wire cli/mod.rs dispatches and delete old ticket.rs"
+status = "done"
+
+[[tasks]]
+number = 9
+title = "Final verification — full CI suite"
+status = "done"

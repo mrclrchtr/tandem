@@ -60,12 +60,12 @@ pub(crate) fn run() -> anyhow::Result<()> {
     match cli.command {
         Command::Fmt { check } => fmt::handle_fmt(check),
         Command::Ticket { command } => match command {
-            ticket::TicketCommand::Create(args) => ticket::handle_ticket_create(args),
+            ticket::TicketCommand::Create(args) => ticket::create::handle_ticket_create(args),
             ticket::TicketCommand::Show { id, output } => {
-                ticket::handle_ticket_show(id, output.json)
+                ticket::show::handle_ticket_show(id, output.json)
             }
-            ticket::TicketCommand::List(args) => ticket::handle_ticket_list(args),
-            ticket::TicketCommand::Update(args) => ticket::handle_ticket_update(args),
+            ticket::TicketCommand::List(args) => ticket::list::handle_ticket_list(args),
+            ticket::TicketCommand::Update(args) => ticket::update::handle_ticket_update(args),
             ticket::TicketCommand::Doc { command } => match command {
                 ticket::DocCommand::Create {
                     id,
@@ -75,34 +75,34 @@ pub(crate) fn run() -> anyhow::Result<()> {
                 } => doc::handle_doc_create(id, name, path, output.json),
             },
             ticket::TicketCommand::Sync { id, output } => {
-                ticket::handle_ticket_sync(id, output.json)
+                ticket::sync::handle_ticket_sync(id, output.json)
             }
             ticket::TicketCommand::Task { command } => match command {
                 ticket::TaskCommand::Add { id, title, output } => {
-                    ticket::handle_task_add(id, title, output.json)
+                    ticket::task::handle_task_add(id, title, output.json)
                 }
                 ticket::TaskCommand::List { id, output } => {
-                    ticket::handle_task_list(id, output.json)
+                    ticket::task::handle_task_list(id, output.json)
                 }
                 ticket::TaskCommand::Complete { id, number, output } => {
-                    ticket::handle_task_complete(id, number, output.json)
+                    ticket::task::handle_task_complete(id, number, output.json)
                 }
                 ticket::TaskCommand::Remove { id, number, output } => {
-                    ticket::handle_task_remove(id, number, output.json)
+                    ticket::task::handle_task_remove(id, number, output.json)
                 }
                 ticket::TaskCommand::Edit {
                     id,
                     number,
                     title,
                     output,
-                } => ticket::handle_task_edit(id, number, title, output.json),
+                } => ticket::task::handle_task_edit(id, number, title, output.json),
                 ticket::TaskCommand::Detail { command } => match command {
                     ticket::TaskDetailCommand::Ensure { id, number, output } => {
-                        ticket::handle_task_detail_ensure(id, number, output.json)
+                        ticket::task::handle_task_detail_ensure(id, number, output.json)
                     }
                 },
                 ticket::TaskCommand::Set { id, tasks, output } => {
-                    ticket::handle_task_set(id, tasks, output.json)
+                    ticket::task::handle_task_set(id, tasks, output.json)
                 }
             },
         },

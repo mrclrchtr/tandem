@@ -123,9 +123,10 @@ GitHub Actions runs the same `mise` tasks (`fmt`, `compile`, `arch`, `clippy`, `
 
 ## Adding a new optional field to TicketMeta
 
-Touch all five sites in order:
+Touch all six sites in order:
 1. `crates/tandem-core/src/ticket/meta.rs` — add field to struct with appropriate serde attributes (`rename`, `skip`, etc.), update `new()`. `to_canonical_toml()` auto-serializes via `toml::to_string()`.
 2. `crates/tandem-core/src/awareness.rs` — add field to `AwarenessFieldDiffs`, compute diff in `between()`, add to `is_empty()`.
 3. `crates/tandem-storage/src/lib.rs` — add `Option<String>` to `RawTicketMeta`, parse after loading.
-4. `crates/tandem-cli/src/cli/ticket.rs` — add clap flag to `TicketCommand::Create` and `TicketCommand::Update` args; add `&& field.is_none()` to both `no_explicit_create` and `no_explicit_update` boolean computations in `handle_ticket_create` and `handle_ticket_update`.
-5. `crates/tandem-cli/src/cli/mod.rs` — ensure the new flag is wired into ticket commands with current help text.
+4. `crates/tandem-cli/src/cli/ticket/create.rs` — add clap flag to `TicketCreateArgs`; add `&& field.is_none()` to `no_explicit_create` boolean computation in `handle_ticket_create`.
+5. `crates/tandem-cli/src/cli/ticket/update.rs` — add clap flag to `TicketUpdateArgs`; add `&& field.is_none()` to `no_explicit_update` boolean computation in `handle_ticket_update`.
+6. `crates/tandem-cli/src/cli/mod.rs` — ensure the new flag is wired into ticket commands with current help text.

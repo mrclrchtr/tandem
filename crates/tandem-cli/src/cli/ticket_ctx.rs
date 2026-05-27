@@ -10,7 +10,7 @@ use super::util::parse_ticket_id_input;
 ///
 /// Eliminates the repetitive preamble (`env::current_dir → discover_repo_root →
 /// load_config → FileTicketStore::new → parse_ticket_id_input`) that was
-/// duplicated across every handler in `ticket.rs` and `doc.rs`.
+/// duplicated across every handler in `ticket/` and `doc.rs`.
 pub(crate) struct TicketCtx {
     pub(crate) store: FileTicketStore,
     pub(crate) repo_root: PathBuf,
