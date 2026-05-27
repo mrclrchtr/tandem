@@ -10,7 +10,7 @@ use syntect::{
 };
 use tandem_core::ticket::{Ticket, TicketId, TicketStatus};
 
-use super::util::format_timestamp;
+use super::util::{format_timestamp, ticket_content_path};
 
 #[derive(Serialize)]
 pub(crate) struct TicketJsonEntry<'a> {
@@ -41,6 +41,21 @@ pub(crate) static THEME: LazyLock<syntect::highlighting::Theme> = LazyLock::new(
     let ts = ThemeSet::load_defaults();
     ts.themes["base16-ocean.dark"].clone()
 });
+
+/// Print a ticket as JSON to stdout. Used by multiple handlers to avoid
+/// duplicating the envelope construction.
+pub(crate) fn output_ticket_json(ticket: &Ticket) -> anyhow::Result<()> {
+    let envelope = TicketJson {
+        schema_version: 1,
+        ticket: TicketJsonEntry {
+            meta: &ticket.meta,
+            state: &ticket.state,
+            content_path: ticket_content_path(&ticket.meta.id),
+        },
+    };
+    println!("{}", serde_json::to_string_pretty(&envelope)?);
+    Ok(())
+}
 
 pub(crate) fn print_ticket_human(ticket: &Ticket) {
     let use_color = std::io::stdout().is_terminal();

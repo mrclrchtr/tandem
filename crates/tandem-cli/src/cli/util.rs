@@ -108,3 +108,30 @@ pub(crate) fn load_ticket_content(
 
     Ok(tandem_core::ticket::DEFAULT_CONTENT_TEMPLATE.to_string())
 }
+
+/// Parse a comma-separated tag string into a sorted, deduplicated vector.
+pub(crate) fn parse_tags(value: &str) -> Vec<String> {
+    if value.trim().is_empty() {
+        Vec::new()
+    } else {
+        let mut parsed: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
+        parsed.sort();
+        parsed.dedup();
+        parsed
+    }
+}
+
+/// Parse a comma-separated list of ticket IDs, applying the configured prefix.
+pub(crate) fn parse_depends_on(value: &str, id_prefix: &str) -> anyhow::Result<Vec<TicketId>> {
+    if value.trim().is_empty() {
+        Ok(Vec::new())
+    } else {
+        let mut parsed = value
+            .split(',')
+            .map(|s| parse_ticket_id_input(s, id_prefix))
+            .collect::<Result<Vec<_>, _>>()?;
+        parsed.sort();
+        parsed.dedup();
+        Ok(parsed)
+    }
+}

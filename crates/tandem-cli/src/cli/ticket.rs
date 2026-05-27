@@ -17,11 +17,11 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::OutputArgs;
 use super::doc::recompute_ticket_document_fingerprints;
-use super::render::{TicketJson, TicketJsonEntry};
+use super::render::{TicketJsonEntry, output_ticket_json};
 use super::ticket_ctx::TicketCtx;
 use super::util::{
     DEFINITION_TAG_QUESTIONS, DEFINITION_TAG_READY, generate_ticket_id, load_ticket_content,
-    parse_ticket_id_input, read_stdin_if_no_flags, ticket_content_path,
+    parse_depends_on, parse_tags, read_stdin_if_no_flags, ticket_content_path,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -330,27 +330,10 @@ pub(crate) fn handle_ticket_create(
         meta.ticket_type = value;
     }
     if let Some(value) = tags {
-        let mut parsed: Vec<String> = if value.trim().is_empty() {
-            Vec::new()
-        } else {
-            value.split(',').map(|s| s.trim().to_string()).collect()
-        };
-        parsed.sort();
-        parsed.dedup();
-        meta.tags = parsed;
+        meta.tags = parse_tags(&value);
     }
     if let Some(value) = depends_on {
-        let mut parsed: Vec<TicketId> = if value.trim().is_empty() {
-            Vec::new()
-        } else {
-            value
-                .split(',')
-                .map(|s| parse_ticket_id_input(s, ctx.id_prefix()))
-                .collect::<Result<Vec<_>, _>>()?
-        };
-        parsed.sort();
-        parsed.dedup();
-        meta.depends_on = parsed;
+        meta.depends_on = parse_depends_on(&value, ctx.id_prefix())?;
     }
     if let Some(value) = effort {
         meta.effort = Some(value);
@@ -370,15 +353,7 @@ pub(crate) fn handle_ticket_create(
     }
 
     if json {
-        let envelope = TicketJson {
-            schema_version: 1,
-            ticket: TicketJsonEntry {
-                meta: &ticket.meta,
-                state: &ticket.state,
-                content_path: ticket_content_path(&ticket.meta.id),
-            },
-        };
-        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        output_ticket_json(&ticket)?;
     } else {
         println!("{}", ticket.meta.id);
     }
@@ -394,15 +369,7 @@ pub(crate) fn handle_ticket_show(id: String, json: bool) -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     if json {
-        let envelope = TicketJson {
-            schema_version: 1,
-            ticket: TicketJsonEntry {
-                meta: &ticket.meta,
-                state: &ticket.state,
-                content_path: ticket_content_path(&ticket.meta.id),
-            },
-        };
-        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        output_ticket_json(&ticket)?;
     } else {
         super::render::print_ticket_human(&ticket);
     }
@@ -583,27 +550,10 @@ pub(crate) fn handle_ticket_update(
         ticket.meta.ticket_type = value;
     }
     if let Some(value) = tags {
-        let mut parsed: Vec<String> = if value.trim().is_empty() {
-            Vec::new()
-        } else {
-            value.split(',').map(|s| s.trim().to_string()).collect()
-        };
-        parsed.sort();
-        parsed.dedup();
-        ticket.meta.tags = parsed;
+        ticket.meta.tags = parse_tags(&value);
     }
     if let Some(value) = depends_on {
-        let mut parsed: Vec<TicketId> = if value.trim().is_empty() {
-            Vec::new()
-        } else {
-            value
-                .split(',')
-                .map(|s| parse_ticket_id_input(s, ctx.id_prefix()))
-                .collect::<Result<Vec<_>, _>>()?
-        };
-        parsed.sort();
-        parsed.dedup();
-        ticket.meta.depends_on = parsed;
+        ticket.meta.depends_on = parse_depends_on(&value, ctx.id_prefix())?;
     }
     if let Some(value) = effort {
         ticket.meta.effort = Some(value);
@@ -641,15 +591,7 @@ pub(crate) fn handle_ticket_update(
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     if json {
-        let envelope = TicketJson {
-            schema_version: 1,
-            ticket: TicketJsonEntry {
-                meta: &updated.meta,
-                state: &updated.state,
-                content_path: ticket_content_path(&updated.meta.id),
-            },
-        };
-        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        output_ticket_json(&updated)?;
     } else {
         println!("{ticket_id}");
     }
@@ -666,15 +608,7 @@ pub(crate) fn handle_ticket_sync(id: String, json: bool) -> anyhow::Result<()> {
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     if json {
-        let envelope = TicketJson {
-            schema_version: 1,
-            ticket: TicketJsonEntry {
-                meta: &updated.meta,
-                state: &updated.state,
-                content_path: ticket_content_path(&updated.meta.id),
-            },
-        };
-        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        output_ticket_json(&updated)?;
     } else {
         println!("{ticket_id}");
     }
@@ -700,15 +634,7 @@ fn persist_and_output(store: &FileTicketStore, ticket: &Ticket, json: bool) -> a
         .map_err(|error| anyhow::anyhow!("{error}"))?;
 
     if json {
-        let envelope = TicketJson {
-            schema_version: 1,
-            ticket: TicketJsonEntry {
-                meta: &ticket.meta,
-                state: &ticket.state,
-                content_path: ticket_content_path(&ticket.meta.id),
-            },
-        };
-        println!("{}", serde_json::to_string_pretty(&envelope)?);
+        output_ticket_json(ticket)?;
     } else {
         println!("{}", ticket.meta.id);
     }
