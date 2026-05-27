@@ -1,0 +1,56 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-27T02:01:37.632149Z"
+revision = 40
+
+[document_fingerprints]
+archive = "sha256:6be3cd6577d8d31902a33a73be424876352bf6bbefa0c811aba08935f250e611"
+content = "sha256:11e49573e823b6074f8730cc166cbf78b1af11ca7db2bcdd9f030052a80a782c"
+task-01 = "sha256:9bf7c53e177442b5b4258b1fc07f2bc4f483d487afd7b310f2b4d2e4252fdc1f"
+task-02 = "sha256:10216057f2f009bc72b37deafb131f9bee77bcaeedd4d29e00539304dd3565f0"
+task-03 = "sha256:a04811ecda9edcb840a74cb9826851df9e7c2b1ecbff5c047446fc72009c58f5"
+task-04 = "sha256:f5f6321b5a1209460dbe7b9989828e5ef2f8bbb36e3e19dd9fb9f0b218f19e75"
+task-05 = "sha256:f4078d109c6b6afa6c0a06521e6c83dbe6a28ad931eeeb7eb6755a5a975a9f48"
+task-06 = "sha256:0aa6b4d199327607ac77518e663b5902d4bd88c536dd2abeb7f34fc005b1cb30"
+task-07 = "sha256:006d6e6c0d55979d21a7e80e1db58f493241d401acfc455e36ca1966cd95a4a4"
+task-08 = "sha256:8b1bca03fde6d13c90e7d3d0d2e0e045426b37d2a9a58b436f65d0a3c1cccfce"
+
+[[tasks]]
+number = 1
+title = "Extract named clap structs for Create, Update, and List subcommands"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Create TicketUpdate struct with is_empty() and apply()"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Refactor handle_ticket_create to use TicketUpdate"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Refactor handle_ticket_update to use TicketUpdate"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Simplify mod.rs dispatch: pass structs instead of destructuring fields"
+status = "done"
+
+[[tasks]]
+number = 6
+title = "Move shared test helpers to tests/common/mod.rs"
+status = "done"
+
+[[tasks]]
+number = 7
+title = "Split ticket_cli_tests.rs into focused test modules"
+status = "done"
+
+[[tasks]]
+number = 8
+title = "Final verification: full test suite, lints, and manual smoke test"
+status = "done"
