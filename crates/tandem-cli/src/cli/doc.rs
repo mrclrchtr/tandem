@@ -106,13 +106,15 @@ pub(crate) fn handle_doc_create(
         .format(&Rfc3339)
         .map_err(|error| anyhow::anyhow!("failed to format timestamp: {error}"))?;
 
-    // Write canonical meta and state
-    let meta_path = ticket_dir(&ctx.repo_root, &ticket_id).join("meta.toml");
-    let state_path = ticket_dir(&ctx.repo_root, &ticket_id).join("state.toml");
-    fs::write(&meta_path, ticket.meta.to_canonical_toml())
-        .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", meta_path.display()))?;
-    fs::write(&state_path, ticket.state.to_canonical_toml())
-        .map_err(|error| anyhow::anyhow!("failed to write {}: {error}", state_path.display()))?;
+    // Persist through the storage layer for atomicity
+    if let Err(error) = ctx
+        .store
+        .update_ticket(&ticket)
+        .map_err(|error| anyhow::anyhow!("{error}"))
+    {
+        let _ = fs::remove_file(&abs_path);
+        return Err(error);
+    }
 
     if json {
         println!(
