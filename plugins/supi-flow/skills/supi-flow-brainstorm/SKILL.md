@@ -53,12 +53,14 @@ Cover the parts that matter for the change: approach, main components/files, dat
 
 ## Self-review
 
-1. **Placeholder scan** — no TODOs, vague requirements, or incomplete sections.
-2. **Consistency** — no contradictions between sections.
-3. **Scope** — focused enough for one plan, or flagged for decomposition.
-4. **Ambiguity** — pick one interpretation for any ambiguous requirement and state it explicitly.
+**Design Self-Review:** After writing the design document, look at it with fresh eyes:
 
-Fix issues inline before handing off.
+- **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+- **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
+- **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
+- **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+
+Fix any issues inline. No need to re-review — just fix and move on.
 
 ## User review gate
 
