@@ -99,6 +99,7 @@ Do not use test exemptions to avoid testing logic that could reasonably be teste
 
 - **No placeholders.** Never write `TBD`, `TODO`, `implement later`, or vague instructions like `add error handling`.
 - **Exact file paths** always.
+- **Specific and unambiguous language.** Every task, file path, and verification step must be precise enough that another agent can execute it without asking clarifying questions. Prefer concrete commands over descriptions of intent.
 - **Verification is mandatory.** Every task needs a concrete check.
 - **Final task is always verify/test.** Every plan ends with a dedicated verification task that confirms the whole change works end-to-end (full test suite, manual smoke test, or both). This is in addition to each task's own verification.
 - **No code before test or verification.** Testable code starts with a failing test. Test-exempt work starts with manual verification.

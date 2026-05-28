@@ -58,7 +58,7 @@ Cover the parts that matter for the change: approach, main components/files, dat
 - **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
 - **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
 - **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
-- **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+- **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit. Use specific, unambiguous language — every claim in the design should survive a different agent reading it without context.
 
 Fix any issues inline. No need to re-review — just fix and move on.
 

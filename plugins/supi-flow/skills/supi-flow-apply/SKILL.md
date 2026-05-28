@@ -32,7 +32,7 @@ incomplete, or outdated. Do not start until those concerns are resolved.
 For each unchecked task, in order:
 
 1. Announce which task you are working on.
-2. **Read the task detail doc first.** Every task has a `detail_path` (e.g. `tasks/task-01.md`). Read that file before touching any code. The detail doc is the authoritative task specification — do not rely on memory or the plan overview alone.
+2. **Read the task detail doc first.** Every task has a `detail_path` (e.g. `tasks/task-01.md`). Read that file before touching any code. The detail doc is the authoritative task specification — do not rely on memory or the plan overview alone. If the doc is vague or ambiguous, pause and get clarification before editing code.
 3. Follow the task as written. Treat the detail doc as part of the task definition.
 4. Run the verification for that task and read the result carefully.
 5. If verification passes: call `supi_flow_complete_task { ticket_id: "<ID>", task_number: <N> }` to check the task off in the ticket.
