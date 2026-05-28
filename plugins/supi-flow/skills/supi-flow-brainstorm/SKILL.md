@@ -12,12 +12,16 @@ Turn an idea into an approved design through focused collaboration. Default to l
 Do NOT write code, scaffold anything, or take implementation action until you have presented a design and the user has approved it. This applies even to changes that seem simple.
 </HARD-GATE>
 
+## Anti-Pattern: Stopping questions too early
+
+The most common failure is jumping to approaches after 1-2 questions. The user nods along, you think you understand — but you haven't walked every branch. If you haven't covered purpose, non-goals, constraints, edge cases, and success criteria, you're not done. Ask another question.
+
 ## Checklist
 
 Complete these in order:
 
 1. **Explore context** — relevant files, docs, recent commits, existing tickets.
-2. **Ask clarifying questions** — one at a time, with a recommendation. Focus on purpose, constraints, and success criteria.
+2. **Ask clarifying questions** — one at a time, with a recommendation. Walk every branch of the decision tree before moving on.
 3. **Propose 2-3 approaches** — include trade-offs and a recommendation.
 4. **Present the design** — scale detail to complexity; get approval per section.
 5. **Classify and persist** — trivial (chat-only) or non-trivial (ticket). See below.
@@ -30,7 +34,8 @@ Complete these in order:
 - **Check project state first.** Follow existing patterns. Explore code, docs, and history before asking the user. Only ask when the answer requires judgment or intent.
 - **Flag multi-scope requests early.** If the request spans independent changes, help decompose into sub-projects and brainstorm the first one.
 - **Ask one question per message, with a recommended answer.** Guide — don't interrogate. The user can override, but shouldn't have to invent answers from scratch.
-- **Walk every branch.** Resolve dependencies between decisions one-by-one. Keep refining until goals, non-goals, constraints, and success criteria are clear.
+- **Walk every branch relentlessly.** Resolve dependencies between decisions one-by-one. For each answer, ask what it implies and what it rules out. Keep refining until goals, non-goals, constraints, edge cases, and success criteria are clear.
+- **Go back when needed.** When a new answer contradicts an earlier assumption, loop back and clarify.
 - **Include targeted cleanup** when it directly helps the work. Do not propose unrelated refactors.
 
 ## Exploring approaches
