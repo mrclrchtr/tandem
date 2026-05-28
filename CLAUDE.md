@@ -118,6 +118,7 @@ GitHub Actions runs the same `mise` tasks (`fmt`, `compile`, `arch`, `clippy`, `
 ## Commit guidelines
 
 - Commit messages follow Conventional Commits: `type(scope): summary`.
+- supi-flow skill changes use `feat(supi-flow)` or `fix(supi-flow)`, never `docs` — skill updates change agent behavior.
 - Body lines must not exceed 100 characters (enforced by commitlint via hk).
 - Run `mise run test` before committing.
 
