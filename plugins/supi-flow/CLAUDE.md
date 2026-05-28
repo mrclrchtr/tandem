@@ -10,7 +10,7 @@ It registers 7 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_p
 
 ## PI-specific guardrails
 
-- Never guess PI extension APIs or conventions from memory; read the installed PI docs first (`README.md`, `docs/index.md`, relevant files in `docs/`, and matching `examples/`) and follow linked `.md` cross-references.
+- When working on PI extension APIs, read the installed PI docs (`docs/extensions.md`, `docs/skills.md`, `docs/prompt-templates.md`) and follow cross-references.
 - PI loads this extension directly from the working tree; after editing `extensions/`, `skills/`, or `prompts/`, use `/reload` or restart PI before validating behavior.
 - This package uses PI's conventional directory structure (no `pi` manifest in `package.json`): `extensions/`, `skills/`, and `prompts/` are all auto-discovered by pi.
 - Do not register a `resources_discover` handler for `skills/` or `prompts/` paths — pi already auto-discovers them from convention directories. Returning already-discovered paths causes duplicate-discovery warnings at startup.
@@ -20,7 +20,6 @@ It registers 7 custom PI tools (`supi_tndm_cli`, `supi_flow_start`, `supi_flow_p
 - **tandem** (Rust) provides the `tndm` CLI that this plugin shells out to via `child_process.execFile`.
 - This plugin is consumed by pi (not Claude Code), so its `package.json` uses PI's conventional directory structure instead of a Claude Code `plugin.json` manifest.
 - This plugin wraps `tndm` CLI operations in structured PI tools — never shell out to `tndm` directly. Always use the registered PI tools.
-- The `plugins/` directory also contains `plugins/supi-flow/`; there is no other plugin to keep in sync.
 
 ## File structure
 
