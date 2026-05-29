@@ -22,7 +22,7 @@ Complete these in order:
 
 1. **Explore context** — relevant files, docs, recent commits, existing tickets.
 2. **Ask clarifying questions** — one at a time, with a recommendation. Walk every branch of the decision tree before moving on.
-3. **Propose 2-3 approaches** — include trade-offs and a recommendation.
+3. **Propose 2-3 approaches** — include trade-offs and a recommendation. One of the 2-3 should be intentionally "crazy" to surface overlooked ideas.
 4. **Present the design** — scale detail to complexity; get approval per section.
 5. **Classify and persist** — trivial (chat-only) or non-trivial (ticket). See below.
 6. **Self-review** — run the four checks.
@@ -40,9 +40,10 @@ Complete these in order:
 
 ## Exploring approaches
 
-- Propose 2-3 approaches with trade-offs.
+- Propose 2-3 total approaches with trade-offs.
+- Make one of those approaches intentionally "crazy" — unconventional, high-variance, or overpowered for the problem — so you can surface ideas that a conservative design might miss.
 - Lead with your recommendation and say why.
-- Prefer simple, well-bounded designs.
+- Prefer simple, well-bounded designs for the final recommendation.
 
 ## Presenting the design
 
