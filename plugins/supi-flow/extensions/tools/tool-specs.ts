@@ -51,6 +51,7 @@ export const toolSpecs = [
     promptGuidelines: [
       "Use supi_flow_start when a brainstorm becomes non-trivial and needs a durable ticket",
       "Always include context (design intent/summary) when known",
+      "Do NOT use supi_flow_start when the user says 'just implement', 'just do it', or explicitly requests direct implementation — those signal trivial work that should skip the flow",
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowStartParams,
