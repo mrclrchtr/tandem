@@ -9,14 +9,14 @@ vi.mock("../extensions/cli.js", () => ({
   tndmJson: vi.fn(),
 }));
 
-// Mock ticket-helpers — keep real implementations, only mock writeTaskDetailAndReload
+// Mock ticket-helpers — keep real implementations, only mock applyTaskMutation
 vi.mock("../extensions/tools/ticket-helpers.js", async () => {
   const actual = await vi.importActual<typeof import("../extensions/tools/ticket-helpers.js")>(
     "../extensions/tools/ticket-helpers.js",
   );
   return {
     ...actual,
-    writeTaskDetailAndReload: vi.fn(),
+    applyTaskMutation: vi.fn(),
   };
 });
 
@@ -416,7 +416,7 @@ describe("executeFlowTask", () => {
       id: "TNDM-TASK",
       tasks: [{ number: 1, title: "Detailed task", status: "todo" }],
     });
-    vi.mocked(helpers.writeTaskDetailAndReload).mockResolvedValueOnce(finalTicket);
+    vi.mocked(helpers.applyTaskMutation).mockResolvedValueOnce(finalTicket);
 
     const result = await flowTools.executeFlowTask({
       ticket_id: "TNDM-TASK",
@@ -428,7 +428,7 @@ describe("executeFlowTask", () => {
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
       "ticket", "task", "add", "TNDM-TASK", "--title", "Detailed task",
     ], undefined);
-    expect(vi.mocked(helpers.writeTaskDetailAndReload)).toHaveBeenCalledWith(
+    expect(vi.mocked(helpers.applyTaskMutation)).toHaveBeenCalledWith(
       "TNDM-TASK", 1, "Detailed task", "Implementation notes go here.", undefined,
     );
     expect(result.details.taskNumber).toBe(1);
@@ -449,7 +449,7 @@ describe("executeFlowTask", () => {
     };
 
     vi.mocked(tndmJson).mockResolvedValueOnce(existingTicket);
-    vi.mocked(helpers.writeTaskDetailAndReload).mockResolvedValueOnce(finalTicket);
+    vi.mocked(helpers.applyTaskMutation).mockResolvedValueOnce(finalTicket);
 
     const result = await flowTools.executeFlowTask({
       ticket_id: "TNDM-TASK",
@@ -463,7 +463,7 @@ describe("executeFlowTask", () => {
       ["ticket", "show", "TNDM-TASK"], undefined,
     );
     // shared helper with applyTitleEdit=false
-    expect(vi.mocked(helpers.writeTaskDetailAndReload)).toHaveBeenCalledWith(
+    expect(vi.mocked(helpers.applyTaskMutation)).toHaveBeenCalledWith(
       "TNDM-TASK", 2, "Existing task", "Revised task detail.", undefined, false,
     );
     expect(result.details.taskNumber).toBe(2);

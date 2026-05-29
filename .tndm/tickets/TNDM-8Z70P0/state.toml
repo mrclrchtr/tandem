@@ -1,0 +1,56 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-29T07:25:20.960051Z"
+revision = 42
+
+[document_fingerprints]
+archive = "sha256:21108db5abb8f7edcdafbacf020b0487312174166640c4b0014adbbbf9cef13c"
+content = "sha256:a77cc40aac42fd7748922475d54951941a166ee802265680f0247cc033a6e3f7"
+task-01 = "sha256:b15934d1534a771f5d09ea7ded24d1c917e4f1899318a08ccfb05689f48b422a"
+task-02 = "sha256:fc90e64533b6acdcd30cd3b4c56c7a7e037f6098b7662abfb7a8671c9ed1f112"
+task-03 = "sha256:95833cc6443becf99ea7a9de82cf5b54e164c1e4d64af5814ac7a21156e9a041"
+task-04 = "sha256:4f0ac3fbd4d877387b4caaef6a2bc63115af87e839909940ce12d17801a723aa"
+task-05 = "sha256:82274f43fbf4cbbeffe5192b1054823000ea9910ecea09add8147def86123c0d"
+task-06 = "sha256:1d5a8f5fa67b5c97681f3db1ad345b45b131359a6f4f35eef431ac5961dcd47d"
+task-07 = "sha256:8f32dda5b0cd9c18064ee2798cb79bda00b3e0097af882ec7305a9c43ce99550"
+task-08 = "sha256:2323c1edb8eccc6379125ba17cd177625e3f974ffc9c8f9fc4e82ba967616811"
+
+[[tasks]]
+number = 1
+title = "Add registerTypedTool adapter and drop as-never casts"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Add applyTaskMutation shared function to ticket-helpers"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Extract ticket action handlers to tndm-ticket-actions.ts"
+status = "done"
+
+[[tasks]]
+number = 4
+title = "Extract task action handlers to tndm-task-actions.ts using applyTaskMutation"
+status = "done"
+
+[[tasks]]
+number = 5
+title = "Rewrite tndm-cli.ts as action dispatch table"
+status = "done"
+
+[[tasks]]
+number = 6
+title = "Replace writeTaskDetailAndReload with applyTaskMutation in flow-tools"
+status = "done"
+
+[[tasks]]
+number = 7
+title = "Add .tndm naming comment to findRepoRoot"
+status = "done"
+
+[[tasks]]
+number = 8
+title = "Final verification: full test suite + typecheck"
+status = "done"

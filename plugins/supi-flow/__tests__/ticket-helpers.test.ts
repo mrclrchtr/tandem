@@ -164,74 +164,66 @@ describe("loadTaskList", () => {
   });
 });
 
-// ─── writeTaskDetailAndReload ─────────────────────────────────
+// ─── applyTaskMutation ────────────────────────────────────────
 
-describe("writeTaskDetailAndReload", () => {
-  it("ensure → write → sync → reload without title edit", async () => {
-    const detailPath = "/repo/.tndm/tickets/TNDM-WTD/tasks/task-01.md";
-    const finalTicket = { id: "TNDM-WTD", tasks: [{ number: 1, title: "Test", status: "todo" }] };
+describe("applyTaskMutation", () => {
+  it("calls ensure → write → sync → reload in order", async () => {
+    const detailPath = "/repo/.tndm/tickets/TNDM-ATM/tasks/task-01.md";
+    const finalTicket = { id: "TNDM-ATM", tasks: [{ number: 1, title: "Test", status: "todo" }] };
 
-    // Step 1: ensureTaskDetailDoc
-    vi.mocked(tndmJson).mockResolvedValueOnce({ path: detailPath } as never);
-    // Step 5: loadTicket
-    vi.mocked(tndmJson).mockResolvedValueOnce(finalTicket as never);
+    vi.mocked(tndmJson)
+      .mockResolvedValueOnce({ path: detailPath } as never)  // ensureTaskDetailDoc
+      .mockResolvedValueOnce(finalTicket as never);            // loadTicket
 
-    const result = await helpers.writeTaskDetailAndReload(
-      "TNDM-WTD",
-      1,
-      "Test",
-      "Some detail",
-      undefined,
+    const result = await helpers.applyTaskMutation(
+      "TNDM-ATM", 1, "Test", "Some detail",
     );
 
-    // Verify call sequence: ensure → write → sync → load
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket", "task", "detail", "ensure", "TNDM-WTD", "1",
+      "ticket", "task", "detail", "ensure", "TNDM-ATM", "1",
     ], undefined);
     expect(vi.mocked(writeTaskDetailDoc)).toHaveBeenCalledWith(
       detailPath, 1, "Test", "Some detail",
     );
     expect(vi.mocked(tndm)).toHaveBeenCalledWith(
-      ["ticket", "sync", "TNDM-WTD"], undefined,
+      ["ticket", "sync", "TNDM-ATM"], undefined,
     );
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket", "show", "TNDM-WTD",
+      "ticket", "show", "TNDM-ATM",
     ], undefined);
     expect(result).toEqual(finalTicket);
   });
 
-  it("does NOT call tndmJson for title edit when applyTitleEdit is false", async () => {
+  it("does NOT call task edit when applyTitleEdit is false", async () => {
     vi.mocked(tndmJson)
       .mockResolvedValueOnce({ path: "/tmp/path.md" } as never)
-      .mockResolvedValueOnce({ id: "TNDM-NE" } as never);
+      .mockResolvedValueOnce({ id: "TNDM-NE2" } as never);
 
-    await helpers.writeTaskDetailAndReload(
-      "TNDM-NE", 1, "Title", "Detail", undefined, false,
+    await helpers.applyTaskMutation(
+      "TNDM-NE2", 1, "Title", "Detail", undefined, false,
     );
 
-    // tndmJson should only be called twice: ensure + loadTicket
-    // (no task edit in between)
     expect(vi.mocked(tndmJson)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket", "task", "detail", "ensure", "TNDM-NE", "1",
+      "ticket", "task", "detail", "ensure", "TNDM-NE2", "1",
     ], undefined);
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket", "show", "TNDM-NE",
+      "ticket", "show", "TNDM-NE2",
     ], undefined);
   });
 
-  it("calls tndmJson for title edit when applyTitleEdit is true", async () => {
+  it("calls task edit when applyTitleEdit is true", async () => {
     vi.mocked(tndmJson)
       .mockResolvedValueOnce({ path: "/tmp/path.md" } as never) // ensure
-      .mockResolvedValueOnce({ id: "TNDM-TE" } as never)       // title edit
-      .mockResolvedValueOnce({ id: "TNDM-TE" } as never);      // loadTicket
+      .mockResolvedValueOnce({ id: "TNDM-TE2" } as never)       // title edit
+      .mockResolvedValueOnce({ id: "TNDM-TE2" } as never);      // loadTicket
 
-    await helpers.writeTaskDetailAndReload(
-      "TNDM-TE", 3, "Updated title", "Detail", undefined, true,
+    await helpers.applyTaskMutation(
+      "TNDM-TE2", 3, "Updated title", "Detail", undefined, true,
     );
 
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket", "task", "edit", "TNDM-TE", "3", "--title", "Updated title",
+      "ticket", "task", "edit", "TNDM-TE2", "3", "--title", "Updated title",
     ], undefined);
   });
 
@@ -241,20 +233,20 @@ describe("writeTaskDetailAndReload", () => {
 
     vi.mocked(tndmJson)
       .mockResolvedValueOnce({ path: "/tmp/sig.md" } as never)
-      .mockResolvedValueOnce({ id: "TNDM-SIG" } as never);
+      .mockResolvedValueOnce({ id: "TNDM-SIG2" } as never);
 
-    await helpers.writeTaskDetailAndReload(
-      "TNDM-SIG", 1, "Sig", "Detail", signal,
+    await helpers.applyTaskMutation(
+      "TNDM-SIG2", 1, "Sig", "Detail", signal,
     );
 
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(1, [
-      "ticket", "task", "detail", "ensure", "TNDM-SIG", "1",
+      "ticket", "task", "detail", "ensure", "TNDM-SIG2", "1",
     ], signal);
     expect(vi.mocked(tndm)).toHaveBeenCalledWith(
-      ["ticket", "sync", "TNDM-SIG"], signal,
+      ["ticket", "sync", "TNDM-SIG2"], signal,
     );
     expect(vi.mocked(tndmJson)).toHaveBeenNthCalledWith(2, [
-      "ticket", "show", "TNDM-SIG",
+      "ticket", "show", "TNDM-SIG2",
     ], signal);
   });
 });

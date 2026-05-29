@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import { tndmVersion } from "./cli.js";
-import { toolSpecs } from "./tools/tool-specs.js";
+import { toolSpecs, registerTypedTool } from "./tools/tool-specs.js";
 
 const baseDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(baseDir, "package.json"), "utf-8"));
@@ -37,10 +37,9 @@ export default function (pi: ExtensionAPI) {
   });
 
   // ── Register tools from shared specs ────────────────────────
-  // PI validates schema and execution shape at registration; the generic
-  // inference cannot unify different details return types across tools,
-  // so we bridge with `as never` and trust the runtime contract.
+  // registerTypedTool confines the as-never cast to a single boundary,
+  // so tool-spec execute functions use typed params without as-never everywhere.
   for (const spec of toolSpecs) {
-    pi.registerTool(spec as never);
+    registerTypedTool(pi, spec);
   }
 }

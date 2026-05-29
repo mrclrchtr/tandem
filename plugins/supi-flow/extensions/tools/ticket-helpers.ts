@@ -1,6 +1,12 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import {
+  DEFAULT_MAX_BYTES,
+  DEFAULT_MAX_LINES,
+  formatSize,
+  truncateHead,
+} from "@earendil-works/pi-coding-agent";
 import { tndm, tndmJson } from "../cli.js";
 import { writeTaskDetailDoc } from "./doc-writes.js";
 
@@ -10,6 +16,8 @@ export type FlowTaskListEntry = {
   status?: string;
   detail_path?: string;
 };
+
+export type ToolResult = { content: Array<{ type: "text"; text: string }>; details: Record<string, unknown> };
 
 // ─── Flow tag constants ────────────────────────────────────────
 
@@ -24,6 +32,9 @@ export const FLOW_TAG_DONE = "flow:done";
 
 /**
  * Walk up from startDir looking for `.git` or `.tndm`.
+ *
+ * `.tndm` is the on-disk directory name matching the `tndm` CLI binary,
+ * following the convention of other git-aware tools (e.g., `.github`).
  */
 export function findRepoRoot(startDir = process.cwd()): string {
   let current = resolve(startDir);
@@ -169,18 +180,20 @@ export async function loadTaskList(
   return filterFlowTasks(tasks);
 }
 
-// ─── writeTaskDetailAndReload ──────────────────────────────────
+// ─── applyTaskMutation ────────────────────────────────────────
 
 /**
- * Shared utility: after a task add or edit, handle the full detail-doc lifecycle.
+ * Apply a task detail mutation end-to-end.
  *
- * 1. Ensure the detail doc exists via tndm doc registration.
- * 2. Optionally apply a title edit to the task manifest.
- * 3. Write the markdown body to the canonical path.
- * 4. Sync the ticket so the file is registered.
- * 5. Reload the ticket for the updated snapshot.
+ * 1. Ensure the detail doc via tndm.
+ * 2. Optionally apply a title edit to the manifest.
+ * 3. Write the markdown body.
+ * 4. Sync the ticket.
+ * 5. Reload and return the updated ticket snapshot.
+ *
+ * Replaces writeTaskDetailAndReload — use this instead.
  */
-export async function writeTaskDetailAndReload(
+export async function applyTaskMutation(
   id: string,
   taskNumber: number,
   title: string,
@@ -200,6 +213,28 @@ export async function writeTaskDetailAndReload(
   await writeTaskDetailDoc(detailResult.path, taskNumber, title, detail);
   await tndm(["ticket", "sync", id], signal);
   return loadTicket(id, signal);
+}
+
+// ─── formatContent ────────────────────────────────────────────
+
+/**
+ * Truncate tool output text that exceeds PI's built-in limits
+ * and append a notice so the model knows when output is partial.
+ */
+export function formatContent(raw: string): string {
+  const truncation = truncateHead(raw, {
+    maxLines: DEFAULT_MAX_LINES,
+    maxBytes: DEFAULT_MAX_BYTES,
+  });
+
+  if (!truncation.truncated) return raw;
+
+  return (
+    truncation.content +
+    `\n\n[Output truncated: showing ${truncation.outputLines} of ${truncation.totalLines} lines` +
+    ` (${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)}).` +
+    ` Full output available in details.]`
+  );
 }
 
 // ─── Content reading (async) ──────────────────────────────────

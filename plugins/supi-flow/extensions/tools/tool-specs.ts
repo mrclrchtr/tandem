@@ -1,3 +1,6 @@
+import type { TObject, Static } from "typebox";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { type ToolResult } from "./ticket-helpers.js";
 import { supi_tndm_cli_params, executeTndmCli } from "./tndm-cli.js";
 import {
   supiFlowStartParams,
@@ -15,10 +18,49 @@ import {
 } from "./flow-tools.js";
 
 /**
+ * Typed registration adapter: confines the `as never` cast to a single boundary,
+ * so tool-spec execute functions can use typed params without `as never` everywhere.
+ */
+export function registerTypedTool<T extends TObject>(
+  pi: ExtensionAPI,
+  spec: {
+    name: string;
+    label: string;
+    description: string;
+    promptSnippet: string;
+    promptGuidelines: string[];
+    executionMode: "sequential";
+    parameters: T;
+    execute: (toolCallId: string, params: Static<T>, signal?: AbortSignal) => Promise<ToolResult>;
+  },
+): void {
+  pi.registerTool(spec as never);
+}
+
+export type ToolSpec = {
+  name: string;
+  label: string;
+  description: string;
+  promptSnippet: string;
+  promptGuidelines: string[];
+  executionMode: "sequential";
+  parameters: TObject;
+  execute: (toolCallId: string, params: Record<string, unknown>, signal?: AbortSignal) => Promise<ToolResult>;
+};
+
+// Helper to wrap a typed execute function into the Record<string, unknown> signature.
+// The cast is confined to one place rather than 7 separate execute wrappers.
+function typedExecute<T>(
+  fn: (toolCallId: string, params: T, signal?: AbortSignal) => Promise<ToolResult>,
+): (toolCallId: string, params: Record<string, unknown>, signal?: AbortSignal) => Promise<ToolResult> {
+  return (toolCallId, params, signal) => fn(toolCallId, params as T, signal);
+}
+
+/**
  * Ordered definitions of the seven public supi-flow tools.
  * Each entry is shaped to match pi.registerTool() expectations.
  */
-export const toolSpecs = [
+export const toolSpecs: ToolSpec[] = [
   // ── supi_tndm_cli ──────────────────────────────────────────
   {
     name: "supi_tndm_cli",
@@ -29,13 +71,9 @@ export const toolSpecs = [
     promptGuidelines: ["Use supi_tndm_cli for direct tndm operations instead of bash."],
     executionMode: "sequential" as const,
     parameters: supi_tndm_cli_params,
-    async execute(
-      _toolCallId: string,
-      params: Record<string, unknown>,
-      signal?: AbortSignal,
-    ) {
-      return executeTndmCli(params as never, signal);
-    },
+    execute: typedExecute<Static<typeof supi_tndm_cli_params>>(
+      async (_toolCallId, params, signal) => executeTndmCli(params, signal),
+    ),
   },
 
   // ── supi_flow_start ────────────────────────────────────────
@@ -51,13 +89,9 @@ export const toolSpecs = [
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowStartParams,
-    async execute(
-      _toolCallId: string,
-      params: Record<string, unknown>,
-      signal?: AbortSignal,
-    ) {
-      return executeFlowStart(params as never, signal);
-    },
+    execute: typedExecute<Static<typeof supiFlowStartParams>>(
+      async (_toolCallId, params, signal) => executeFlowStart(params, signal),
+    ),
   },
 
   // ── supi_flow_plan ─────────────────────────────────────────
@@ -72,13 +106,9 @@ export const toolSpecs = [
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowPlanParams,
-    async execute(
-      _toolCallId: string,
-      params: Record<string, unknown>,
-      signal?: AbortSignal,
-    ) {
-      return executeFlowPlan(params as never, signal);
-    },
+    execute: typedExecute<Static<typeof supiFlowPlanParams>>(
+      async (_toolCallId, params, signal) => executeFlowPlan(params, signal),
+    ),
   },
 
   // ── supi_flow_apply ────────────────────────────────────────
@@ -93,13 +123,9 @@ export const toolSpecs = [
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowApplyParams,
-    async execute(
-      _toolCallId: string,
-      params: Record<string, unknown>,
-      signal?: AbortSignal,
-    ) {
-      return executeFlowApply(params as never, signal);
-    },
+    execute: typedExecute<Static<typeof supiFlowApplyParams>>(
+      async (_toolCallId, params, signal) => executeFlowApply(params, signal),
+    ),
   },
 
   // ── supi_flow_task ─────────────────────────────────────────
@@ -111,13 +137,9 @@ export const toolSpecs = [
     promptGuidelines: ["Use supi_flow_task as the normal path to author flow tasks."],
     executionMode: "sequential" as const,
     parameters: supiFlowTaskParams,
-    async execute(
-      _toolCallId: string,
-      params: Record<string, unknown>,
-      signal?: AbortSignal,
-    ) {
-      return executeFlowTask(params as never, signal);
-    },
+    execute: typedExecute<Static<typeof supiFlowTaskParams>>(
+      async (_toolCallId, params, signal) => executeFlowTask(params, signal),
+    ),
   },
 
   // ── supi_flow_complete_task ────────────────────────────────
@@ -131,13 +153,9 @@ export const toolSpecs = [
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowCompleteTaskParams,
-    async execute(
-      _toolCallId: string,
-      params: Record<string, unknown>,
-      signal?: AbortSignal,
-    ) {
-      return executeFlowCompleteTask(params as never, signal);
-    },
+    execute: typedExecute<Static<typeof supiFlowCompleteTaskParams>>(
+      async (_toolCallId, params, signal) => executeFlowCompleteTask(params, signal),
+    ),
   },
 
   // ── supi_flow_close ────────────────────────────────────────
@@ -152,12 +170,8 @@ export const toolSpecs = [
     ],
     executionMode: "sequential" as const,
     parameters: supiFlowCloseParams,
-    async execute(
-      _toolCallId: string,
-      params: Record<string, unknown>,
-      signal?: AbortSignal,
-    ) {
-      return executeFlowClose(params as never, signal);
-    },
+    execute: typedExecute<Static<typeof supiFlowCloseParams>>(
+      async (_toolCallId, params, signal) => executeFlowClose(params, signal),
+    ),
   },
 ];

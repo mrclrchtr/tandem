@@ -29,20 +29,24 @@ plugins/supi-flow/
 │   ├── index.ts          # Extension entry point: registers tools and commands
 │   ├── cli.ts            # Node.js wrappers around tndm / git via child_process.execFile
 │   └── tools/
-│       ├── tool-specs.ts     # Single source of truth for all 7 public tool definitions
-│       ├── tndm-cli.ts       # supi_tndm_cli tool (create, update, show, list, awareness)
-│       ├── flow-tools.ts     # supi_flow_start, supi_flow_plan, supi_flow_apply, supi_flow_task, supi_flow_complete_task, supi_flow_close
-│       ├── ticket-helpers.ts # Shared utility functions (loadTicket, findRepoRoot, task extraction, etc.)
-│       └── doc-writes.ts     # Shared queued markdown write helper for task-detail and archive docs
+│       ├── tool-specs.ts         # Single source of truth for all 7 public tool definitions; exports registerTypedTool<T>() adapter
+│       ├── tndm-cli.ts           # Dispatch table mapping action names to handler functions; exports actionEnum, supi_tndm_cli_params
+│       ├── tndm-ticket-actions.ts # Ticket action handlers: handleCreate, handleUpdate, handleShow, handleList, handleAwareness
+│       ├── tndm-task-actions.ts   # Task action handlers: handleTaskAdd, handleTaskEdit, handleTaskRemove, handleTaskComplete, handleTaskSet, handleTaskList
+│       ├── flow-tools.ts         # supi_flow_start, supi_flow_plan, supi_flow_apply, supi_flow_task, supi_flow_complete_task, supi_flow_close
+│       ├── ticket-helpers.ts     # Shared utilities: applyTaskMutation, formatContent, loadTicket, findRepoRoot, ToolResult type
+│       └── doc-writes.ts         # Shared queued markdown write helper for task-detail and archive docs
 ├── skills/               # 5 flow skills (auto-discovered by pi)
 ├── prompts/              # supi-coding-retro prompt template
 ├── __tests__/
 │   ├── resources.test.ts       # Extension registration tests
 │   ├── index.test.ts           # Session-start/version-check tests for the extension entrypoint
 │   ├── cli.test.ts             # Unit tests for cli.ts (vitest mocks)
-│   ├── tndm-cli-tool.test.ts      # Unit tests for tndm-cli.ts
-│   ├── flow-tools.test.ts         # Unit tests for flow-tools.ts
-│   └── ticket-helpers.test.ts     # Unit tests for ticket-helpers.ts (resolveTicketPath, findRepoRoot)
+│   ├── tndm-cli-tool.test.ts   # Dispatch smoke tests for tndm-cli.ts
+│   ├── tndm-ticket-actions.test.ts # Unit tests for ticket action handlers
+│   ├── tndm-task-actions.test.ts   # Unit tests for task action handlers
+│   ├── flow-tools.test.ts      # Unit tests for flow-tools.ts
+│   └── ticket-helpers.test.ts  # Unit tests for ticket-helpers.ts
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts

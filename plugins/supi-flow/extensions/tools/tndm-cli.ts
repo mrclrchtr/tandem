@@ -1,18 +1,8 @@
 import { type Static, Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
-import {
-  DEFAULT_MAX_BYTES,
-  DEFAULT_MAX_LINES,
-  formatSize,
-  truncateHead,
-} from "@earendil-works/pi-coding-agent";
-import { tndm, tndmJson } from "../cli.js";
-import {
-  extractLatestTaskNumber,
-  extractTaskTitle,
-  loadTicket,
-  writeTaskDetailAndReload,
-} from "./ticket-helpers.js";
+import { type ToolResult } from "./ticket-helpers.js";
+import { handleCreate, handleUpdate, handleShow, handleList, handleAwareness } from "./tndm-ticket-actions.js";
+import { handleTaskAdd, handleTaskEdit, handleTaskRemove, handleTaskComplete, handleTaskSet, handleTaskList } from "./tndm-task-actions.js";
 
 export const actionEnum = StringEnum([
   "create",
@@ -107,26 +97,6 @@ export const supi_tndm_cli_params = Type.Object({
 });
 
 /**
- * Truncate tool output text that exceeds PI's built-in limits
- * and append a notice so the model knows when output is partial.
- */
-function formatContent(raw: string): string {
-  const truncation = truncateHead(raw, {
-    maxLines: DEFAULT_MAX_LINES,
-    maxBytes: DEFAULT_MAX_BYTES,
-  });
-
-  if (!truncation.truncated) return raw;
-
-  return (
-    truncation.content +
-    `\n\n[Output truncated: showing ${truncation.outputLines} of ${truncation.totalLines} lines` +
-    ` (${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)}).` +
-    ` Full output available in details.]`
-  );
-}
-
-/**
  * supi_tndm_cli — thin wrapper around the tndm CLI.
  *
  * Actions map to tndm subcommands:
@@ -145,229 +115,25 @@ function formatContent(raw: string): string {
  */
 export type TndmCliParams = Static<typeof supi_tndm_cli_params>;
 
+const handlers: Record<string, (p: TndmCliParams, s?: AbortSignal) => Promise<ToolResult>> = {
+  create: handleCreate,
+  update: handleUpdate,
+  show: handleShow,
+  list: handleList,
+  awareness: handleAwareness,
+  task_add: handleTaskAdd,
+  task_edit: handleTaskEdit,
+  task_remove: handleTaskRemove,
+  task_complete: handleTaskComplete,
+  task_set: handleTaskSet,
+  task_list: handleTaskList,
+};
+
 export async function executeTndmCli(
   params: TndmCliParams,
   signal?: AbortSignal,
 ) {
-  const { action } = params;
-
-  switch (action) {
-    case "create": {
-      if (!params.title) {
-        throw new Error("supi_tndm_cli: title is required for create");
-      }
-      const args: string[] = ["ticket", "create", params.title];
-      addOptionalFlags(args, params, [
-        "status",
-        "priority",
-        "type",
-        "tags",
-        "depends_on",
-        "effort",
-        "content",
-      ]);
-
-      const result = await tndm(args, signal);
-      return {
-        content: [{ type: "text" as const, text: result.stdout || result.stderr }],
-        details: { action: "create", ticketId: result.stdout.trim() },
-      };
-    }
-
-    case "update": {
-      if (!params.id) {
-        throw new Error("supi_tndm_cli: id is required for update");
-      }
-      const args: string[] = ["ticket", "update", params.id];
-      addOptionalFlags(args, params, [
-        "title",
-        "status",
-        "priority",
-        "type",
-        "tags",
-        "add_tags",
-        "remove_tags",
-        "depends_on",
-        "effort",
-        "content",
-      ]);
-
-      const result = await tndm(args, signal);
-      return {
-        content: [{ type: "text" as const, text: result.stdout || "Ticket updated" }],
-        details: { action: "update", ticketId: params.id },
-      };
-    }
-
-    case "show": {
-      if (!params.id) {
-        throw new Error("supi_tndm_cli: id is required for show");
-      }
-      const result = await tndmJson<Record<string, unknown>>(
-        ["ticket", "show", params.id],
-        signal,
-      );
-      return {
-        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
-        details: { action: "show", ticket: result },
-      };
-    }
-
-    case "list": {
-      const args: string[] = ["ticket", "list"];
-      if (params.all) args.push("--all");
-      if (params.definition) args.push("--definition", params.definition);
-
-      const rawResult = await tndmJson<
-        Record<string, unknown>[] | { schema_version?: number; tickets?: Record<string, unknown>[] }
-      >(args, signal);
-      const envelope = Array.isArray(rawResult)
-        ? { schema_version: 1, tickets: rawResult }
-        : rawResult;
-      const tickets = Array.isArray(envelope.tickets) ? envelope.tickets : [];
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              tickets.length > 0
-                ? formatContent(JSON.stringify(envelope, null, 2))
-                : "No tickets found.",
-          },
-        ],
-        details: { action: "list", tickets, envelope },
-      };
-    }
-
-    case "awareness": {
-      if (!params.against) {
-        throw new Error("supi_tndm_cli: --against is required for awareness");
-      }
-      const result = await tndmJson<Record<string, unknown>>(
-        ["awareness", "--against", params.against],
-        signal,
-      );
-      return {
-        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
-        details: { action: "awareness", awareness: result },
-      };
-    }
-
-    // ── Task actions ────────────────────────────────────────────
-
-    case "task_add": {
-      if (!params.id) throw new Error("supi_tndm_cli: id is required for task_add");
-      if (!params.task_title) throw new Error("supi_tndm_cli: task_title is required for task_add");
-      const args: string[] = ["ticket", "task", "add", params.id, "--title", params.task_title];
-      const result = await tndmJson<Record<string, unknown>>(args, signal);
-      let finalResult = result;
-
-      if (params.task_detail !== undefined) {
-        const taskNumber = extractLatestTaskNumber(result);
-        finalResult = await writeTaskDetailAndReload(
-          params.id, taskNumber, params.task_title, params.task_detail, signal,
-        );
-      }
-
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(finalResult, null, 2) }],
-        details: { action: "task_add", ticketId: params.id, result: finalResult },
-      };
-    }
-
-    case "task_list": {
-      if (!params.id) throw new Error("supi_tndm_cli: id is required for task_list");
-      const result = await tndmJson<Record<string, unknown>[]>(
-        ["ticket", "task", "list", params.id],
-        signal,
-      );
-      return {
-        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
-        details: { action: "task_list", ticketId: params.id, tasks: result },
-      };
-    }
-
-    case "task_complete": {
-      if (!params.id) throw new Error("supi_tndm_cli: id is required for task_complete");
-      if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_complete");
-      const result = await tndmJson<Record<string, unknown>>(
-        ["ticket", "task", "complete", params.id, String(params.task_number)],
-        signal,
-      );
-      return {
-        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
-        details: { action: "task_complete", ticketId: params.id, taskNumber: params.task_number, result },
-      };
-    }
-
-    case "task_remove": {
-      if (!params.id) throw new Error("supi_tndm_cli: id is required for task_remove");
-      if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_remove");
-      const result = await tndmJson<Record<string, unknown>>(
-        ["ticket", "task", "remove", params.id, String(params.task_number)],
-        signal,
-      );
-      return {
-        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
-        details: { action: "task_remove", ticketId: params.id, taskNumber: params.task_number, result },
-      };
-    }
-
-    case "task_edit": {
-      if (!params.id) throw new Error("supi_tndm_cli: id is required for task_edit");
-      if (params.task_number === undefined) throw new Error("supi_tndm_cli: task_number is required for task_edit");
-      const args: string[] = ["ticket", "task", "edit", params.id, String(params.task_number)];
-      if (params.task_title !== undefined) args.push("--title", params.task_title);
-
-      const hasManifestFieldChanges = args.length > 5;
-      let finalResult: Record<string, unknown> | undefined;
-
-      if (params.task_detail !== undefined) {
-        const applyTitleEdit = hasManifestFieldChanges;
-        let taskTitle: string;
-        if (params.task_title !== undefined) {
-          taskTitle = params.task_title;
-        } else {
-          const ticket = await loadTicket(params.id, signal);
-          taskTitle = extractTaskTitle(ticket, params.task_number) ?? `Task ${params.task_number}`;
-        }
-        finalResult = await writeTaskDetailAndReload(
-          params.id, params.task_number, taskTitle, params.task_detail, signal, applyTitleEdit,
-        );
-      } else {
-        finalResult = await tndmJson<Record<string, unknown>>(args, signal);
-      }
-
-      return {
-        content: [{ type: "text" as const, text: formatContent(JSON.stringify(finalResult, null, 2)) }],
-        details: { action: "task_edit", ticketId: params.id, taskNumber: params.task_number, result: finalResult },
-      };
-    }
-
-    case "task_set": {
-      if (!params.id) throw new Error("supi_tndm_cli: id is required for task_set");
-      if (!params.task_json) throw new Error("supi_tndm_cli: task_json is required for task_set");
-      const result = await tndmJson<Record<string, unknown>>(
-        ["ticket", "task", "set", params.id, "--tasks", params.task_json],
-        signal,
-      );
-      return {
-        content: [{ type: "text" as const, text: formatContent(JSON.stringify(result, null, 2)) }],
-        details: { action: "task_set", ticketId: params.id, result },
-      };
-    }
-  }
-}
-
-function addOptionalFlags(
-  args: string[],
-  params: TndmCliParams,
-  flags: Array<keyof TndmCliParams>,
-): void {
-  for (const flag of flags) {
-    const value = params[flag];
-    if (value === undefined || value === null || value === false) continue;
-    const flagName = String(flag).replace(/_/g, "-");
-    args.push(`--${flagName}`, String(value));
-  }
+  const handler = handlers[params.action];
+  if (!handler) throw new Error(`supi_tndm_cli: unknown action "${params.action}"`);
+  return handler(params, signal);
 }

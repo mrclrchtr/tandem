@@ -18,7 +18,7 @@ import {
   loadTaskList,
   loadTicket,
   readRequiredTicketContent,
-  writeTaskDetailAndReload,
+  applyTaskMutation,
 } from "./ticket-helpers.js";
 
 export const supiFlowStartParams = Type.Object({
@@ -270,7 +270,7 @@ export async function executeFlowTask(params: FlowTaskParams, signal?: AbortSign
       let finalResult = result;
 
       if (params.detail !== undefined) {
-        finalResult = await writeTaskDetailAndReload(
+        finalResult = await applyTaskMutation(
           params.ticket_id, taskNumber, params.title, params.detail, signal,
         );
       }
@@ -321,7 +321,7 @@ export async function executeFlowTask(params: FlowTaskParams, signal?: AbortSign
           const ticket = await loadTicket(params.ticket_id, signal);
           taskTitle = extractTaskTitle(ticket, params.task_number) ?? `Task ${params.task_number}`;
         }
-        finalResult = await writeTaskDetailAndReload(
+        finalResult = await applyTaskMutation(
           params.ticket_id, params.task_number, taskTitle, params.detail, signal, applyTitleEdit,
         );
       } else {
