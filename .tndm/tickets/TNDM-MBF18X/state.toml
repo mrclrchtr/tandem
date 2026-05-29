@@ -1,0 +1,26 @@
+schema_version = 1
+status = "done"
+updated_at = "2026-05-29T07:28:16.336827Z"
+revision = 21
+
+[document_fingerprints]
+archive = "sha256:77558430e5cf1ffcc43253133513e501bcafa8706d0b79a4706b4bab04439a8a"
+content = "sha256:d3a8bb05a6d1962511168567f498c26cf3e7e80b823b11efa5673b276c453b32"
+task-01 = "sha256:347e3130b78ed10084e432cbdb254892de0b32896011cb9b8d7de9c6fe96220f"
+task-02 = "sha256:ea0f4341cf42df300f87f01920427ee4033d12f7e46146aa23968cdaf385e4f9"
+task-03 = "sha256:736f91932c00bd875535ed7e35e97a4015a70ec8b7554f2e6f47ff93275b4516"
+
+[[tasks]]
+number = 1
+title = "Define the compact always-on prompt contract in registration tests before changing tool copy"
+status = "done"
+
+[[tasks]]
+number = 2
+title = "Rewrite supi-flow tool metadata and schema descriptions to routing + guardrails only"
+status = "done"
+
+[[tasks]]
+number = 3
+title = "Run final supi-flow verification and review the diff for lost guidance"
+status = "done"

@@ -22,7 +22,7 @@ import {
 } from "./ticket-helpers.js";
 
 export const supiFlowStartParams = Type.Object({
-  title: Type.String({ description: "Ticket title describing the change" }),
+  title: Type.String({ description: "Ticket title" }),
   priority: Type.Optional(
     StringEnum(["p0", "p1", "p2", "p3", "p4"] as const, {
       description: "Priority",
@@ -37,7 +37,7 @@ export const supiFlowStartParams = Type.Object({
   ),
   context: Type.Optional(
     Type.String({
-      description: "Brief design summary to store in ticket content (brainstorm intent)",
+      description: "Initial context for content.md",
     }),
   ),
 });
@@ -89,10 +89,9 @@ export async function executeFlowStart(params: FlowStartParams, signal?: AbortSi
 // ─── supi_flow_plan ────────────────────────────────────────────
 
 export const supiFlowPlanParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
+  ticket_id: Type.String({ description: "Ticket ID" }),
   plan_content: Type.String({
-    description:
-      "Approved overview markdown to store in content.md. Task authoring happens separately via supi_flow_task.",
+    description: "Approved overview markdown for content.md",
   }),
 });
 
@@ -140,7 +139,7 @@ export async function executeFlowPlan(params: FlowPlanParams, signal?: AbortSign
 // ─── supi_flow_apply ───────────────────────────────────────────
 
 export const supiFlowApplyParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
+  ticket_id: Type.String({ description: "Ticket ID" }),
 });
 
 export type FlowApplyParams = Static<typeof supiFlowApplyParams>;
@@ -234,19 +233,19 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
 // ─── supi_flow_task ────────────────────────────────────────────
 
 export const supiFlowTaskParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
+  ticket_id: Type.String({ description: "Ticket ID" }),
   operation: StringEnum(["add", "edit", "remove"] as const, {
-    description: "Single-task mutation to apply",
+    description: "Task operation",
   }),
   task_number: Type.Optional(
-    Type.Number({ description: "Task number for edit/remove operations" }),
+    Type.Number({ description: "1-based task number for edit/remove" }),
   ),
   title: Type.Optional(
-    Type.String({ description: "Task title (required for add)" }),
+    Type.String({ description: "Task title" }),
   ),
 
   detail: Type.Optional(
-    Type.String({ description: "Optional markdown body for the canonical task detail doc" }),
+    Type.String({ description: "Task detail markdown" }),
   ),
 });
 
@@ -379,9 +378,9 @@ export async function executeFlowTask(params: FlowTaskParams, signal?: AbortSign
 // ─── supi_flow_complete_task ───────────────────────────────────
 
 export const supiFlowCompleteTaskParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
+  ticket_id: Type.String({ description: "Ticket ID" }),
   task_number: Type.Number({
-    description: "1-based task number to mark as complete (e.g. 1, 2, 3)",
+    description: "1-based task number",
   }),
 });
 
@@ -425,10 +424,9 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams, si
 // ─── supi_flow_close ───────────────────────────────────────────
 
 export const supiFlowCloseParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID (e.g. TNDM-A1B2C3)" }),
+  ticket_id: Type.String({ description: "Ticket ID" }),
   verification_results: Type.String({
-    description:
-      "Verification evidence to write into archive.md before closing the ticket.",
+    description: "Verification evidence for archive.md",
   }),
 });
 

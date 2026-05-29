@@ -31,10 +31,10 @@ export const actionEnum = StringEnum([
 export const supi_tndm_cli_params = Type.Object({
   action: actionEnum,
   // Common identifiers
-  id: Type.Optional(Type.String({ description: "Ticket ID (required for update/show)" })),
+  id: Type.Optional(Type.String({ description: "Ticket ID" })),
 
   // Create / Update params
-  title: Type.Optional(Type.String({ description: "Ticket title (required for create)" })),
+  title: Type.Optional(Type.String({ description: "Ticket title" })),
   status: Type.Optional(
     StringEnum(["todo", "in_progress", "blocked", "done"] as const, {
       description: "Ticket status",
@@ -42,7 +42,7 @@ export const supi_tndm_cli_params = Type.Object({
   ),
   priority: Type.Optional(
     StringEnum(["p0", "p1", "p2", "p3", "p4"] as const, {
-      description: "Priority (p0=critical)",
+      description: "Priority",
     }),
   ),
   type: Type.Optional(
@@ -52,21 +52,21 @@ export const supi_tndm_cli_params = Type.Object({
   ),
   tags: Type.Optional(
     Type.String({
-      description: "Comma-separated tags (replaces existing list; e.g. 'auth,security,flow:brainstorm')",
+      description: "Comma-separated tags to replace",
     }),
   ),
   add_tags: Type.Optional(
     Type.String({
-      description: "Comma-separated tags to add (preserves existing tags)",
+      description: "Comma-separated tags to add",
     }),
   ),
   remove_tags: Type.Optional(
     Type.String({
-      description: "Comma-separated tags to remove from existing list",
+      description: "Comma-separated tags to remove",
     }),
   ),
   depends_on: Type.Optional(
-    Type.String({ description: "Comma-separated ticket IDs this ticket depends on" }),
+    Type.String({ description: "Comma-separated dependency IDs" }),
   ),
   effort: Type.Optional(
     StringEnum(["xs", "s", "m", "l", "xl"] as const, {
@@ -74,35 +74,35 @@ export const supi_tndm_cli_params = Type.Object({
     }),
   ),
   content: Type.Optional(
-    Type.String({ description: "Markdown content body for the ticket" }),
+    Type.String({ description: "Markdown ticket content" }),
   ),
 
   // List params
-  all: Type.Optional(Type.Boolean({ description: "Include done tickets in list" })),
+  all: Type.Optional(Type.Boolean({ description: "Include done tickets" })),
   definition: Type.Optional(
     StringEnum(["ready", "questions", "unknown"] as const, {
-      description: "Filter by definition state",
+      description: "Definition state filter",
     }),
   ),
 
   // Awareness params
   against: Type.Optional(
-    Type.String({ description: "Git ref for awareness action" }),
+    Type.String({ description: "Git ref for awareness" }),
   ),
 
   // Task params
   task_title: Type.Optional(
-    Type.String({ description: "Task title (required for task_add)" }),
+    Type.String({ description: "Task title" }),
   ),
   task_number: Type.Optional(
-    Type.Number({ description: "1-based task number (required for task_complete, task_remove, task_edit)" }),
+    Type.Number({ description: "1-based task number" }),
   ),
 
   task_detail: Type.Optional(
-    Type.String({ description: "Optional markdown body for a task detail doc" }),
+    Type.String({ description: "Task detail markdown" }),
   ),
   task_json: Type.Optional(
-    Type.String({ description: "JSON array of tasks for task_set" }),
+    Type.String({ description: "JSON task array" }),
   ),
 });
 
