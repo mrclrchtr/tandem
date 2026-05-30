@@ -6,6 +6,13 @@
   ],
   "packageRules": [
     {
+      "matchPackageNames": [
+        "/^@earendil-works\\/pi-/",
+        "/^@mariozechner\\/pi-/"
+      ],
+      "enabled": false
+    },
+    {
       "matchManagers": [
         "mise"
       ],
