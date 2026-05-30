@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0](https://github.com/mrclrchtr/tandem/compare/v0.14.0...v0.15.0) (2026-05-30)
+
+
+### Features
+
+* **supi-flow:** add anti-pattern and strengthen brainstorm question phase ([cd229a6](https://github.com/mrclrchtr/tandem/commit/cd229a6cb3403fc539abb061ed52c5a00fe41610))
+* **supi-flow:** require one crazy brainstorm option ([f3d816f](https://github.com/mrclrchtr/tandem/commit/f3d816ff88197824f1940d0481caf391499774de))
+* **supi-flow:** shrink always-on tool prompt contract ([92c80f3](https://github.com/mrclrchtr/tandem/commit/92c80f3b98e802f9e8760b504b354443c8b58f0b))
+
+
+### Bug Fixes
+
+* **supi-flow:** prevent supi_flow_start when user says 'just implement' ([63b615a](https://github.com/mrclrchtr/tandem/commit/63b615a14c6a0717572d6c319fa1c7f0c220bc89))
+
 ## [0.14.0](https://github.com/mrclrchtr/tandem/compare/v0.13.0...v0.14.0) (2026-05-27)
 
 
