@@ -47,30 +47,12 @@ Product vision lives in `docs/vision.md`; design decisions in `docs/decisions.md
 
 ## Common development commands
 
-Install via Homebrew (production release):
+Tooling is managed via `mise` (except Rust itself — Rust is pinned by `rust-toolchain.toml` and managed via `rustup`, not mise). Install via Homebrew for production: `brew install mrclrchtr/tap/tandem-cli`.
 
 ```sh
-brew install mrclrchtr/tap/tandem-cli
-```
-
-Tooling is managed via `mise` (except Rust itself — Rust is pinned by `rust-toolchain.toml` and managed via `rustup`, not mise).
-
-```sh
-mise install
-mise run hooks-install
-
-cargo build
-./tndm-dev --help
-./tndm-dev ticket list
 ./tndm-dev fmt --check  # verify canonical .tndm formatting after serializer/CLI format changes
 
-mise run fmt       # check formatting
-mise run fmt-fix   # apply formatting (cargo fmt)
-mise run compile   # cargo check
-mise run arch      # validate workspace architecture
-mise run clippy    # lint (warnings as errors)
-mise run test      # cargo test --workspace
-mise run check     # all of the above
+mise run check     # fmt + compile + arch + clippy + test (all-in-one)
 mise run fix       # auto-fix formatting + clippy suggestions
 
 hk run check        # same linters, fix=false

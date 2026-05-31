@@ -46,7 +46,8 @@ plugins/supi-flow/
 │   ├── tndm-ticket-actions.test.ts # Unit tests for ticket action handlers
 │   ├── tndm-task-actions.test.ts   # Unit tests for task action handlers
 │   ├── flow-tools.test.ts      # Unit tests for flow-tools.ts
-│   └── ticket-helpers.test.ts  # Unit tests for ticket-helpers.ts
+│   ├── ticket-helpers.test.ts  # Unit tests for ticket-helpers.ts
+│   └── integration.test.ts     # Integration tests
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -57,16 +58,8 @@ plugins/supi-flow/
 
 ```sh
 cd plugins/supi-flow
-pnpm install
-
-# Type-check
-pnpm exec tsc --noEmit
-
-# Run tests
-pnpm exec vitest run
-
-# Run a single test file
-pnpm exec vitest run __tests__/cli.test.ts
+pnpm exec tsc --noEmit   # type-check
+pnpm exec vitest run     # run tests
 ```
 
 ## Verification shortcuts
