@@ -74,8 +74,8 @@ pub(crate) fn run() -> anyhow::Result<()> {
                     output,
                 } => doc::handle_doc_create(id, name, path, output.json),
             },
-            ticket::TicketCommand::Sync { id, output } => {
-                ticket::sync::handle_ticket_sync(id, output.json)
+            ticket::TicketCommand::Sync { id, all, output } => {
+                ticket::sync::handle_ticket_sync(id, all, output.json)
             }
             ticket::TicketCommand::Task { command } => match command {
                 ticket::TaskCommand::Add { id, title, output } => {

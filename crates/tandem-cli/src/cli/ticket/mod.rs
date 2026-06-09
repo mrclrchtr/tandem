@@ -48,8 +48,12 @@ pub(crate) enum TicketCommand {
     },
     /// Synchronize document fingerprints after file edits.
     Sync {
-        /// Ticket ID to synchronize.
-        id: String,
+        /// Ticket ID to synchronize (omit when using --all).
+        id: Option<String>,
+
+        /// Synchronize all tickets (including done).
+        #[arg(long)]
+        all: bool,
 
         #[command(flatten)]
         output: OutputArgs,
