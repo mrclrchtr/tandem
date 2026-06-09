@@ -27,7 +27,7 @@ termimad = "0.34.1"
 time.workspace = true
 
 [dev-dependencies]
-regex = "=1.12.3"
+regex = "=1.12.4"
 serde_json.workspace = true
 tempfile.workspace = true
 
