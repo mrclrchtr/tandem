@@ -19,7 +19,7 @@ importers:
     dependencies:
       typebox:
         specifier: ^1.1.38
-        version: 1.2.6
+        version: 1.2.7
     devDependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.0
@@ -1184,8 +1184,8 @@ packages:
   typebox@1.1.38:
     resolution: {integrity: sha512-pZ0aQPmMmXoUvSbeuWf/Hzsc+avNw/Zd6VeE8CFgkVGWyuHPJvqeJJDeJqLve+K70LvjYIoleGcoJHPT17cWoA==}
 
-  typebox@1.2.6:
-    resolution: {integrity: sha512-9LXWA7hsfQTDecP1vDjlT9JFVobJ5x9lgaZ5vrcZuhTJ6wNGxJ5FnqYCgV0pdxSTxGSHEQ+DjA+fCOcWP5+b9g==}
+  typebox@1.2.7:
+    resolution: {integrity: sha512-V+5x1sMxqFeAoaRe3HlEQ3ZZoF8PYYVu8EG5HbbbrMjPgfJ53B5zKUa/xAU0qJm4Af+5ruv5deR6HpjR6LbHSw==}
 
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
@@ -2593,7 +2593,7 @@ snapshots:
 
   typebox@1.1.38: {}
 
-  typebox@1.2.6: {}
+  typebox@1.2.7: {}
 
   typescript@6.0.3: {}
 
