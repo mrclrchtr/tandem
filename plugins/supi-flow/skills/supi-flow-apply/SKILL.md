@@ -16,23 +16,21 @@ If you haven't run the verification command for this task, you cannot check it o
 
 ## Step 1: Load the plan
 
-Call `supi_flow_apply { ticket_id: "<ID>" }`. Read the returned overview and full task manifest.
+Call `supi_flow_apply { ticket_id: "<ID>" }`. Read the returned overview.
 If a task has a linked `detail_path`, note it — read that doc only when the task becomes active.
 
 If the tool reports an error (missing overview, empty manifest, invalid lifecycle, blocked),
 stop and resolve it before editing. If no plan is available, ask which change to implement.
 
-## Step 2: Review the plan
-
-Read the whole plan before starting. Raise concerns before editing if anything is unclear,
-incomplete, or outdated. Do not start until those concerns are resolved.
-
-## Step 3: Execute tasks
+## Step 2: Execute tasks
 
 For each unchecked task, in order:
 
 1. Announce which task you are working on.
-2. **Read the task detail doc first.** Every task has a `detail_path` (e.g. `tasks/task-01.md`). Read that file before touching any code. The detail doc is the authoritative task specification — do not rely on memory or the plan overview alone. If the doc is vague or ambiguous, pause and get clarification before editing code.
+2. **Read the task detail doc first.** Every task has a `detail_path` (e.g. `tasks/task-01.md`).
+   Read that file before touching any code.
+   The detail doc is the authoritative task specification — do not rely on memory or the plan overview alone.
+   If the doc is vague or ambiguous or if anything is unclear, pause and get clarification before editing code.
 3. Follow the task as written. Treat the detail doc as part of the task definition.
 4. Run the verification for that task and read the result carefully.
 5. If verification passes: call `supi_flow_complete_task { ticket_id: "<ID>", task_number: <N> }` to check the task off in the ticket.
@@ -58,20 +56,20 @@ For docs-only, config-only, trivial changes, or integration work with no reasona
 
 1. Run the manual verification from the plan. If the plan omitted one, add the smallest
    concrete verification you can justify.
-2. Confirm actual output matches the claim and note the exemption when reporting completion.
+2. Confirm the actual output matches the claim and note the exemption when reporting completion.
 
 If uncertain whether TDD is practical, ask instead of guessing.
 
 The hard rule is not "TDD in every case." The hard rule is: **no unverified changes**.
 
-## Step 4: When blocked or stuck
+## Step 3: When blocked or stuck
 
-If verification fails and you don't understand why, load `/skill:supi-flow-debug`
+If verification fails, and you don't understand why, load `/skill:supi-flow-debug`
 before attempting random fixes.
 
 Stop and ask the user when:
 
-- A verification fails repeatedly and you still don't understand the cause
+- A verification fails repeatedly, and you still don't understand the cause
 - You've tried 3 fixes and none worked
 - A dependency is missing
 - The plan has a gap, is unclear, or scope changed
