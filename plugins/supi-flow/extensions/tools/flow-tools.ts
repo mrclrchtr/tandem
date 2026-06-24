@@ -15,6 +15,7 @@ import {
   FLOW_TAG_DONE,
   FLOW_TAG_PLANNED,
   type FlowTaskListEntry,
+  formatContent,
   loadTaskList,
   loadTicket,
   readRequiredTicketContent,
@@ -22,16 +23,14 @@ import {
 } from "./ticket-helpers.js";
 
 export const supiFlowStartParams = Type.Object({
-  title: Type.String({ description: "Ticket title" }),
+  title: Type.String(),
   priority: Type.Optional(
     StringEnum(["p0", "p1", "p2", "p3", "p4"] as const, {
-      description: "Priority",
       default: "p2",
     }),
   ),
   type: Type.Optional(
     StringEnum(["task", "bug", "feature", "chore", "epic"] as const, {
-      description: "Ticket type",
       default: "task",
     }),
   ),
@@ -89,7 +88,7 @@ export async function executeFlowStart(params: FlowStartParams, signal?: AbortSi
 // ─── supi_flow_plan ────────────────────────────────────────────
 
 export const supiFlowPlanParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID" }),
+  ticket_id: Type.String(),
   plan_content: Type.String({
     description: "Approved overview markdown for content.md",
   }),
@@ -139,7 +138,7 @@ export async function executeFlowPlan(params: FlowPlanParams, signal?: AbortSign
 // ─── supi_flow_apply ───────────────────────────────────────────
 
 export const supiFlowApplyParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID" }),
+  ticket_id: Type.String(),
 });
 
 export type FlowApplyParams = Static<typeof supiFlowApplyParams>;
@@ -211,12 +210,7 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
     .join("\n");
 
   return {
-    content: [
-      {
-        type: "text" as const,
-        text: `${transitionText} Loaded approved overview and ${taskCount} task${taskCount === 1 ? "" : "s"}.\n\nTask detail docs (read each before its task):\n${taskSummary}`,
-      },
-    ],
+    content: [{ type: "text" as const, text: formatContent(`${transitionText} Loaded approved overview and ${taskCount} task${taskCount === 1 ? "" : "s"}.\n\nTask detail docs (read each before its task):\n${taskSummary}`) }],
     details: {
       action: "flow_apply",
       ticketId: params.ticket_id,
@@ -233,16 +227,12 @@ export async function executeFlowApply(params: FlowApplyParams, signal?: AbortSi
 // ─── supi_flow_task ────────────────────────────────────────────
 
 export const supiFlowTaskParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID" }),
-  operation: StringEnum(["add", "edit", "remove"] as const, {
-    description: "Task operation",
-  }),
+  ticket_id: Type.String(),
+  operation: StringEnum(["add", "edit", "remove"] as const),
   task_number: Type.Optional(
     Type.Number({ description: "1-based task number for edit/remove" }),
   ),
-  title: Type.Optional(
-    Type.String({ description: "Task title" }),
-  ),
+  title: Type.Optional(Type.String()),
 
   detail: Type.Optional(
     Type.String({ description: "Task detail markdown" }),
@@ -378,10 +368,8 @@ export async function executeFlowTask(params: FlowTaskParams, signal?: AbortSign
 // ─── supi_flow_complete_task ───────────────────────────────────
 
 export const supiFlowCompleteTaskParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID" }),
-  task_number: Type.Number({
-    description: "1-based task number",
-  }),
+  ticket_id: Type.String(),
+  task_number: Type.Number(),
 });
 
 export type FlowCompleteTaskParams = Static<typeof supiFlowCompleteTaskParams>;
@@ -424,7 +412,7 @@ export async function executeFlowCompleteTask(params: FlowCompleteTaskParams, si
 // ─── supi_flow_close ───────────────────────────────────────────
 
 export const supiFlowCloseParams = Type.Object({
-  ticket_id: Type.String({ description: "Ticket ID" }),
+  ticket_id: Type.String(),
   verification_results: Type.String({
     description: "Verification evidence for archive.md",
   }),

@@ -96,64 +96,46 @@ describe("supi-flow extension", () => {
 
     expect(getRegisteredTool(handlers, "supi_tndm_cli")).toMatchObject({
       description:
-        "Direct wrapper for tndm ticket and task operations. Use instead of running tndm via bash.",
+        "Direct wrapper for tndm ticket/task operations; use instead of bash. " +
+        "Prefer supi_flow_task for normal task authoring; use task_* only for repair. " +
+        "show/list/awareness/task output truncates at 2000 lines/50KB; full payload in details.",
       promptSnippet: "Run direct tndm ticket/task operations",
-      promptGuidelines: [
-        "Use supi_tndm_cli for direct tndm operations instead of bash.",
-      ],
     });
 
     expect(getRegisteredTool(handlers, "supi_flow_start")).toMatchObject({
       description:
-        "Create a flow:brainstorm ticket for non-trivial work and store known context.",
+        "Create a ticket for non-trivial work (status=todo, tag flow:brainstorm). Writes context to content.md when given. Returns ticket id.",
       promptSnippet: "Create a brainstorm ticket for non-trivial work",
-      promptGuidelines: [
-        "Use supi_flow_start for non-trivial work that needs a durable ticket.",
-        "Do not use supi_flow_start when the user explicitly wants direct implementation.",
-      ],
     });
 
     expect(getRegisteredTool(handlers, "supi_flow_plan")).toMatchObject({
       description:
-        "Store the approved overview in content.md and move the ticket to flow:planned.",
+        "Store the approved overview in content.md and set tag flow:planned. plan_content must be non-blank. Author tasks afterwards with supi_flow_task.",
       promptSnippet: "Store the approved overview for a flow ticket",
-      promptGuidelines: [
-        "Use supi_flow_plan to persist the approved overview; use supi_flow_task to author tasks separately.",
-      ],
     });
 
     expect(getRegisteredTool(handlers, "supi_flow_apply")).toMatchObject({
       description:
-        "Enter or resume apply for a planned ticket, loading its overview and task manifest.",
+        "Use when entering the apply phase. Load the approved overview and structured task manifest for a planned ticket. Moves planned tickets into applying. Returns overview text and task list.",
       promptSnippet: "Enter apply for an approved flow ticket",
-      promptGuidelines: [
-        "Use supi_flow_apply before implementation on a planned flow ticket.",
-      ],
     });
 
     expect(getRegisteredTool(handlers, "supi_flow_task")).toMatchObject({
-      description: "Add, edit, or remove one structured task in a flow ticket.",
+      description:
+        "Use when authoring or reconciling tasks in a plan. Add, edit, or remove one structured task in a flow ticket. Writes tasks/task-XX.md detail doc when detail is given. Use edit/remove/add to reconcile existing manifests.",
       promptSnippet: "Manage one structured task in a flow ticket",
-      promptGuidelines: [
-        "Use supi_flow_task as the normal path to author flow tasks.",
-      ],
     });
 
     expect(getRegisteredTool(handlers, "supi_flow_complete_task")).toMatchObject({
-      description: "Mark a verified task done by its 1-based task number.",
+      description:
+        "Mark a verified task done by its 1-based task number. Throws if the task does not exist in the ticket.",
       promptSnippet: "Mark one verified task done in a flow ticket",
-      promptGuidelines: [
-        "Use supi_flow_complete_task after verification passes and pass the task number.",
-      ],
     });
 
     expect(getRegisteredTool(handlers, "supi_flow_close")).toMatchObject({
       description:
-        "Close a completed flow ticket and write verification evidence to archive.md.",
+        "Use at archive closeout. Close a completed flow ticket, write verification evidence to archive.md, and set status=done + flow:done. Requires all tasks complete.",
       promptSnippet: "Close a completed flow ticket with evidence",
-      promptGuidelines: [
-        "Use supi_flow_close for final closeout and pass full verification evidence.",
-      ],
     });
   });
 
@@ -168,13 +150,25 @@ describe("supi-flow extension", () => {
     expect(getParameterDescription(tndmTool, "remove_tags")).toBe(
       "Comma-separated tags to remove",
     );
-    expect(getParameterDescription(tndmTool, "task_number")).toBe("1-based task number");
     expect(getParameterDescription(planTool, "plan_content")).toBe(
       "Approved overview markdown for content.md",
     );
     expect(getParameterDescription(closeTool, "verification_results")).toBe(
       "Verification evidence for archive.md",
     );
+  });
+
+  it("keeps promptGuidelines minimal and tool-named (only additive routing)", () => {
+    const handlers = setup();
+    expect(getRegisteredTool(handlers, "supi_tndm_cli")?.promptGuidelines).toEqual([]);
+    expect(getRegisteredTool(handlers, "supi_flow_start")?.promptGuidelines).toEqual([
+      "Do not use supi_flow_start when the user explicitly wants direct implementation.",
+    ]);
+    expect(getRegisteredTool(handlers, "supi_flow_plan")?.promptGuidelines).toEqual([]);
+    expect(getRegisteredTool(handlers, "supi_flow_apply")?.promptGuidelines).toEqual([]);
+    expect(getRegisteredTool(handlers, "supi_flow_task")?.promptGuidelines).toEqual([]);
+    expect(getRegisteredTool(handlers, "supi_flow_complete_task")?.promptGuidelines).toEqual([]);
+    expect(getRegisteredTool(handlers, "supi_flow_close")?.promptGuidelines).toEqual([]);
   });
 
   it("registers session_start handler for version check", () => {

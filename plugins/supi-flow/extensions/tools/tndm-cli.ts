@@ -21,24 +21,18 @@ export const actionEnum = StringEnum([
 export const supi_tndm_cli_params = Type.Object({
   action: actionEnum,
   // Common identifiers
-  id: Type.Optional(Type.String({ description: "Ticket ID" })),
+  id: Type.Optional(Type.String()),
 
   // Create / Update params
-  title: Type.Optional(Type.String({ description: "Ticket title" })),
+  title: Type.Optional(Type.String()),
   status: Type.Optional(
-    StringEnum(["todo", "in_progress", "blocked", "done"] as const, {
-      description: "Ticket status",
-    }),
+    StringEnum(["todo", "in_progress", "blocked", "done"] as const),
   ),
   priority: Type.Optional(
-    StringEnum(["p0", "p1", "p2", "p3", "p4"] as const, {
-      description: "Priority",
-    }),
+    StringEnum(["p0", "p1", "p2", "p3", "p4"] as const),
   ),
   type: Type.Optional(
-    StringEnum(["task", "bug", "feature", "chore", "epic"] as const, {
-      description: "Ticket type",
-    }),
+    StringEnum(["task", "bug", "feature", "chore", "epic"] as const),
   ),
   tags: Type.Optional(
     Type.String({
@@ -81,12 +75,8 @@ export const supi_tndm_cli_params = Type.Object({
   ),
 
   // Task params
-  task_title: Type.Optional(
-    Type.String({ description: "Task title" }),
-  ),
-  task_number: Type.Optional(
-    Type.Number({ description: "1-based task number" }),
-  ),
+  task_title: Type.Optional(Type.String()),
+  task_number: Type.Optional(Type.Number()),
 
   task_detail: Type.Optional(
     Type.String({ description: "Task detail markdown" }),
