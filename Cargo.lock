@@ -998,7 +998,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-cli"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1018,7 +1018,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-core"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-repo"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "tandem-core",
  "tandem-storage",
@@ -1037,7 +1037,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-storage"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "serde",
  "sha2",
@@ -1280,7 +1280,7 @@ checksum = "0592e1c9d151f854e6fd382574c3a0855250e1d9b2f99d9281c6e6391af352f1"
 
 [[package]]
 name = "xtask"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "cargo_metadata",
  "serde_json",
