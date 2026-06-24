@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/mrclrchtr/tandem/compare/v0.15.0...v0.16.0) (2026-06-24)
+
+
+### Features
+
+* **tndm:** add --all flag to ticket sync for batch sync ([57fb80f](https://github.com/mrclrchtr/tandem/commit/57fb80f4f8183ebfa01a4d299d4d5d141c9cbfeb))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate tabled to 0.21.0 ([21b9dd6](https://github.com/mrclrchtr/tandem/commit/21b9dd6987479905cad606063b56238d0565606d))
+
 ## [0.15.0](https://github.com/mrclrchtr/tandem/compare/v0.14.0...v0.15.0) (2026-05-30)
 
 
