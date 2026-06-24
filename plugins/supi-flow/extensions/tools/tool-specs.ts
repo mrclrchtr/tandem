@@ -66,9 +66,8 @@ export const toolSpecs: ToolSpec[] = [
     name: "supi_tndm_cli",
     label: "TNDM CLI",
     description:
-      "Direct wrapper for tndm ticket/task operations; use instead of bash. " +
-      "Prefer supi_flow_task for normal task authoring; use task_* only for repair. " +
-      "show/list/awareness/task output truncates at 2000 lines/50KB; full payload in details.",
+      "Run tndm ticket/task operations instead of shelling out. " +
+      "Prefer supi_flow_task for task authoring; use task_* only for repair.",
     promptSnippet: "Run direct tndm ticket/task operations",
     promptGuidelines: [],
     executionMode: "sequential" as const,
@@ -100,7 +99,7 @@ export const toolSpecs: ToolSpec[] = [
     name: "supi_flow_plan",
     label: "Flow Plan",
     description:
-      "Store the approved overview in content.md and set tag flow:planned. plan_content must be non-blank. Author tasks afterwards with supi_flow_task.",
+      "Store the approved overview in content.md and set flow:planned. plan_content must be non-blank. Author tasks then with supi_flow_task.",
     promptSnippet: "Store the approved overview for a flow ticket",
     promptGuidelines: [],
     executionMode: "sequential" as const,
@@ -115,7 +114,7 @@ export const toolSpecs: ToolSpec[] = [
     name: "supi_flow_apply",
     label: "Flow Apply",
     description:
-      "Use when entering the apply phase. Load the approved overview and structured task manifest for a planned ticket. Moves planned tickets into applying. Returns overview text and task list.",
+      "Use when entering the apply phase. Load the approved overview and task manifest. Moves planned tickets into applying.",
     promptSnippet: "Enter apply for an approved flow ticket",
     promptGuidelines: [],
     executionMode: "sequential" as const,
@@ -130,7 +129,7 @@ export const toolSpecs: ToolSpec[] = [
     name: "supi_flow_task",
     label: "Flow Task",
     description:
-      "Use when authoring or reconciling tasks in a plan. Add, edit, or remove one structured task in a flow ticket. Writes tasks/task-XX.md detail doc when detail is given. Use edit/remove/add to reconcile existing manifests.",
+      "Use when authoring or reconciling tasks in a plan. Add, edit, or remove one structured task in a flow ticket. Writes task detail doc when detail is given.",
     promptSnippet: "Manage one structured task in a flow ticket",
     promptGuidelines: [],
     executionMode: "sequential" as const,
@@ -160,7 +159,7 @@ export const toolSpecs: ToolSpec[] = [
     name: "supi_flow_close",
     label: "Flow Close",
     description:
-      "Use at archive closeout. Close a completed flow ticket, write verification evidence to archive.md, and set status=done + flow:done. Requires all tasks complete.",
+      "Use at archive closeout. Close a completed flow ticket with verification evidence, set status=done + flow:done.",
     promptSnippet: "Close a completed flow ticket with evidence",
     promptGuidelines: [],
     executionMode: "sequential" as const,
