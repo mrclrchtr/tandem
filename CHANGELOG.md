@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/mrclrchtr/tandem/compare/v0.16.0...v0.16.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate termimad to 0.35.0 ([2b31317](https://github.com/mrclrchtr/tandem/commit/2b31317e241b66aea22ae22cc5bbd14108b45a8d))
+
 ## [0.16.0](https://github.com/mrclrchtr/tandem/compare/v0.15.0...v0.16.0) (2026-06-24)
 
 
