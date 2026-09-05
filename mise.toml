@@ -11,7 +11,7 @@ _.path = [
 
 [tools]
 actionlint = "1.7.12"
-hk = "1.57.0"
+hk = "1.58.1"
 node = "lts"
 pkl = "latest"
 pnpm = "latest"
