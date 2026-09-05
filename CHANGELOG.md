@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.1](https://github.com/mrclrchtr/tandem/compare/v0.16.0...v0.16.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate tabled to 0.22.0 ([2fcec49](https://github.com/mrclrchtr/tandem/commit/2fcec4937823fe75d97d8742fad96c5557cf3054))
+* **deps:** update rust crate termimad to 0.35.0 ([2b31317](https://github.com/mrclrchtr/tandem/commit/2b31317e241b66aea22ae22cc5bbd14108b45a8d))
+
 ## [0.16.0](https://github.com/mrclrchtr/tandem/compare/v0.15.0...v0.16.0) (2026-06-24)
 
 
